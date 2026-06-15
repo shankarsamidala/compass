@@ -1,0 +1,50 @@
+import { contextBridge, ipcRenderer } from "electron";
+import type { CompassApi } from "@compass/ipc-contract";
+
+// The typed bridge. Renderer reaches main ONLY through window.compass (via lib/ipc).
+const api: CompassApi = {
+  version: "0.1.0",
+  auth: {
+    signup: (email, password) => ipcRenderer.invoke("auth:signup", email, password),
+    verifyEmail: (email, otp) => ipcRenderer.invoke("auth:verify-email", email, otp),
+    resendOtp: (email) => ipcRenderer.invoke("auth:resend-otp", email),
+    login: (email, password) => ipcRenderer.invoke("auth:login", email, password),
+    forgotPassword: (email) => ipcRenderer.invoke("auth:forgot-password", email),
+    resetPassword: (email, otp, password) =>
+      ipcRenderer.invoke("auth:reset-password", email, otp, password),
+    logout: () => ipcRenderer.invoke("auth:logout"),
+    getSession: () => ipcRenderer.invoke("auth:session"),
+  },
+  onboarding: {
+    status: () => ipcRenderer.invoke("onboarding:status"),
+    complete: () => ipcRenderer.invoke("onboarding:complete"),
+    submit: (data) => ipcRenderer.invoke("onboarding:submit", data),
+  },
+  suggest: {
+    query: (kind, q) => ipcRenderer.invoke("suggest:query", kind, q),
+  },
+  llm: {
+    optimizeProofPoint: (draft, metric) => ipcRenderer.invoke("llm:optimize-proof-point", draft, metric),
+    extractProofPoints: (resumeText) => ipcRenderer.invoke("llm:extract-proof-points", resumeText),
+  },
+  document: {
+    extractText: (fileName, bytes) => ipcRenderer.invoke("document:extract", fileName, bytes),
+  },
+  jobs: {
+    list: () => ipcRenderer.invoke("jobs:list"),
+    get: (id) => ipcRenderer.invoke("jobs:get", id),
+    scan: (opts) => ipcRenderer.invoke("jobs:scan", opts),
+  },
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    update: (patch) => ipcRenderer.invoke("settings:update", patch),
+    listModels: (provider, baseUrl) => ipcRenderer.invoke("settings:list-models", provider, baseUrl),
+  },
+  profile: {
+    getPrefs: () => ipcRenderer.invoke("profile:prefs"),
+    setTargetRoles: (roles) => ipcRenderer.invoke("profile:set-target-roles", roles),
+    update: (patch) => ipcRenderer.invoke("profile:update", patch),
+  },
+};
+
+contextBridge.exposeInMainWorld("compass", api);

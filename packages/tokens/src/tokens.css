@@ -1,0 +1,46 @@
+/* @compass/tokens — DARK / BLACK ONLY (ADR-0003).
+   Tier 1 = primitive palette · Tier 2 = semantic. Components only ever use the
+   semantic tokens (via Tailwind utilities). Re-skin = change values here. */
+:root {
+  /* ── Tier 1: primitives (raw palette, cool near-black + blue) ── */
+  --c-black-900: #080a0e;
+  --c-black-800: #0b0d12;
+  --c-black-700: #0d0f14;
+  --c-black-600: #12151b;
+  --c-black-500: #15171c;
+  --c-blue-400: #9ab6ff;
+  --c-blue-500: #83a6ff;
+  --c-ink-100: #e2e5ed;
+  --c-green-500: #39e58c;
+  --c-amber-500: #fbb838;
+  --c-red-500: #f1685e;
+  --c-sky-500: #6ea8fe;
+
+  /* ── Tier 2: semantic ── */
+  --bg: var(--c-black-800);
+  --sidebar: var(--c-black-700);
+  --surface: var(--c-black-600);
+  --surface-raised: var(--c-black-500);
+  --surface-hover: rgba(255, 255, 255, 0.04);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  --fg: var(--c-ink-100);
+  --fg-muted: rgba(226, 229, 237, 0.62);
+  --fg-subtle: rgba(226, 229, 237, 0.38);
+  --fg-faint: rgba(226, 229, 237, 0.24);
+
+  --accent: var(--c-blue-500);
+  --accent-hover: var(--c-blue-400);
+  --accent-fg: var(--c-black-800);
+  --accent-soft: rgba(131, 166, 255, 0.14);
+
+  --success: var(--c-green-500);
+  --warning: var(--c-amber-500);
+  --danger: var(--c-red-500);
+  --info: var(--c-sky-500);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --ring: var(--c-blue-500);
+}

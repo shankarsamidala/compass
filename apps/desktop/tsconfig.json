@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src", "electron", "vite.config.ts"]
+}
