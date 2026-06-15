@@ -4,5 +4,5 @@ packages:
 # Allow these deps to run install scripts (electron downloads its binary; esbuild its native build).
 allowBuilds:
   electron: true
-  electron-winstaller: set this to true or false
+  electron-winstaller: false
   esbuild: true

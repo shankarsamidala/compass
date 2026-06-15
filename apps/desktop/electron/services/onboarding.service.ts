@@ -66,14 +66,19 @@ export const onboardingService = {
       ...delIds(full.education, "/education"),
       ...delIds(full.projects, "/projects"),
       ...delIds(full.proofPoints, "/proof-points"),
+      ...delIds(full.skills, "/skills"),
     ]);
 
     // 2. Re-create records.
+    const uniqueSkills = [
+      ...new Set(data.experiences.flatMap((e) => e.skills ?? []).map((s) => s.trim()).filter(Boolean)),
+    ];
     await Promise.all([
       ...data.experiences.map((e) => postJson("/experiences", e)),
       ...data.education.map((e) => postJson("/education", e)),
       ...data.projects.map((e) => postJson("/projects", e)),
       ...data.proofPoints.map((e) => postJson("/proof-points", e)),
+      ...uniqueSkills.map((skill, i) => postJson("/skills", { skill, section: "Primary", sortOrder: i })),
     ]);
 
     // 3. Flip the gate (single source of truth).

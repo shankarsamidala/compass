@@ -126,6 +126,8 @@ export interface LlmApi {
   optimizeProofPoint(draft: string, metric?: string): Promise<Result<{ text: string; metric: string }>>;
   /** Extract candidate proof points from resume text, via local Ollama. */
   extractProofPoints(resumeText: string): Promise<Result<{ points: { title: string; metric: string }[] }>>;
+  /** Generate or refine a profile headline + bio, via local Ollama. */
+  generateAbout(headline?: string, bio?: string): Promise<Result<{ headline: string; bio: string }>>;
 }
 
 // ── Document domain (local file → text) ──────────────────────────────────────
@@ -216,6 +218,8 @@ export interface ProfilePrefs {
   openToRelocate: boolean;
   employmentType: string | null;
   expectedCtc: number | null;
+  headline: string | null;
+  bio: string | null;
 }
 
 /** Profile fields the Job-preferences UI may write (subset of PUT /profile). */
@@ -226,6 +230,8 @@ export interface ProfilePatch {
   preferredLocations?: string[];
   openToRemote?: boolean;
   openToRelocate?: boolean;
+  headline?: string;
+  bio?: string;
 }
 
 export interface ProfileApi {
@@ -235,6 +241,69 @@ export interface ProfileApi {
   setTargetRoles(roles: string[]): Promise<Result<ProfilePrefs>>;
   /** Patch any of the feed-shaping profile fields (PUT /profile). */
   update(patch: ProfilePatch): Promise<Result<ProfilePrefs>>;
+}
+
+// ── Proof points domain ───────────────────────────────────────────────────────
+
+export interface ProofPointItem {
+  id: string;
+  profileId: string;
+  title: string;
+  description: string | null;
+  metrics: string | null;
+  url: string | null;
+  tags: string[] | null;
+  createdAt: string;
+}
+
+export interface ProofPointInput {
+  title: string;
+  description?: string;
+  metrics?: string;
+  url?: string;
+  tags?: string[];
+}
+
+export interface ProofPointsApi {
+  list(): Promise<Result<ProofPointItem[]>>;
+  add(input: ProofPointInput): Promise<Result<ProofPointItem>>;
+  update(id: string, patch: Partial<ProofPointInput>): Promise<Result<ProofPointItem>>;
+  remove(id: string): Promise<Result<void>>;
+}
+
+// ── Skills domain (stack & tools) ────────────────────────────────────────────
+
+export type SkillSection = "Primary" | "Hobby" | "Learning" | "Past";
+
+export interface SkillItem {
+  id: string;
+  profileId: string;
+  skill: string;
+  section: SkillSection;
+  faviconUrl: string | null;
+  sinceYear: number | null;
+  sinceMonth: number | null;
+  proficiency: string | null;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface SkillInput {
+  skill: string;
+  section: SkillSection;
+  faviconUrl?: string | null;
+  sinceYear?: number | null;
+  sinceMonth?: number | null;
+  proficiency?: string;
+  sortOrder?: number;
+}
+
+export interface SkillsApi {
+  list(): Promise<Result<{ data: SkillItem[] }>>;
+  add(input: SkillInput): Promise<Result<SkillItem>>;
+  update(id: string, patch: Partial<SkillInput>): Promise<Result<SkillItem>>;
+  remove(id: string): Promise<Result<void>>;
+  importFromExperiences(): Promise<Result<{ imported: number }>>;
 }
 
 /** The full bridge exposed on `window.compass`. Grows as features land. */
@@ -248,4 +317,6 @@ export interface CompassApi {
   jobs: JobsApi;
   settings: SettingsApi;
   profile: ProfileApi;
+  skills: SkillsApi;
+  proofPoints: ProofPointsApi;
 }

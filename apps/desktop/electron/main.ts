@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeImage } from "electron";
+import { app, BrowserWindow, nativeImage, session } from "electron";
 import path from "node:path";
 import { registerIpcHandlers } from "./ipc/handlers";
 
@@ -33,6 +33,19 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: ["https://api.daily.dev/*"] },
+    (details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          "Access-Control-Allow-Origin": ["*"],
+          "Access-Control-Allow-Headers": ["*"],
+        },
+      });
+    }
+  );
+
   registerIpcHandlers();
   createWindow();
 });

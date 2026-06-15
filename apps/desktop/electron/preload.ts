@@ -26,6 +26,7 @@ const api: CompassApi = {
   llm: {
     optimizeProofPoint: (draft, metric) => ipcRenderer.invoke("llm:optimize-proof-point", draft, metric),
     extractProofPoints: (resumeText) => ipcRenderer.invoke("llm:extract-proof-points", resumeText),
+    generateAbout: (headline, bio) => ipcRenderer.invoke("llm:generate-about", headline, bio),
   },
   document: {
     extractText: (fileName, bytes) => ipcRenderer.invoke("document:extract", fileName, bytes),
@@ -44,6 +45,19 @@ const api: CompassApi = {
     getPrefs: () => ipcRenderer.invoke("profile:prefs"),
     setTargetRoles: (roles) => ipcRenderer.invoke("profile:set-target-roles", roles),
     update: (patch) => ipcRenderer.invoke("profile:update", patch),
+  },
+  skills: {
+    list: () => ipcRenderer.invoke("skills:list"),
+    add: (input) => ipcRenderer.invoke("skills:add", input),
+    update: (id, patch) => ipcRenderer.invoke("skills:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("skills:remove", id),
+    importFromExperiences: () => ipcRenderer.invoke("skills:import-from-experiences"),
+  },
+  proofPoints: {
+    list: () => ipcRenderer.invoke("proofPoints:list"),
+    add: (input) => ipcRenderer.invoke("proofPoints:add", input),
+    update: (id, patch) => ipcRenderer.invoke("proofPoints:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("proofPoints:remove", id),
   },
 };
 

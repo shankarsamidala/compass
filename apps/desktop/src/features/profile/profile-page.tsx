@@ -1,0 +1,1227 @@
+import { useState, useEffect, useRef } from "react";
+import { useSkills, useAddSkill, useRemoveSkill, useImportSkillsFromExperiences } from "./skills-api";
+import { useHotTakes, useAddProofPoint, useRemoveProofPoint } from "./proof-points-api";
+import { useProfilePrefs, useUpdateProfile } from "@/features/settings/profile-api";
+import { AnimatePresence, motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Facebook02Icon, NewTwitterIcon, WhatsappIcon, RedditIcon, Linkedin02Icon,
+  MapsGlobal02Icon, PhoneArrowDownIcon, Mail01Icon, GithubIcon,
+  Edit03Icon, MailOpenIcon,
+} from "@hugeicons/core-free-icons";
+
+type StackTool = { id: string; title: string; faviconUrl: string };
+
+const STACK_SECTIONS = ["Primary", "Hobby", "Learning", "Past"] as const;
+type StackSection = typeof STACK_SECTIONS[number];
+
+const STACK_YEARS = Array.from({ length: 37 }, (_, i) => String(2026 - i));
+const STACK_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+const CopyIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6.091 8.625a.844.844 0 01.115 1.68l-.115.008c-.727 0-1.324.552-1.396 1.26l-.008.143v6.19c0 .728.554 1.327 1.263 1.4l.144.006h6.185c.728 0 1.327-.553 1.399-1.262l.007-.144a.844.844 0 111.687 0 3.094 3.094 0 01-2.905 3.088L12.28 21H6.094a3.094 3.094 0 01-3.088-2.905L3 17.906v-6.19a3.091 3.091 0 013.091-3.091zM17.906 3a3.094 3.094 0 013.088 2.905l.005.189v6.187a3.094 3.094 0 01-2.905 3.088l-.188.006h-6.189A3.094 3.094 0 018.63 12.47l-.005-.189V6.094a3.094 3.094 0 012.905-3.088L11.717 3h6.189zm0 1.688h-6.189c-.728 0-1.327.553-1.399 1.262l-.007.144v6.187c0 .728.554 1.327 1.263 1.4l.143.007h6.189c.728 0 1.327-.554 1.399-1.263l.007-.144V6.094c0-.728-.554-1.327-1.263-1.4l-.143-.006z" fill="currentColor" fillRule="evenodd" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg width="1em" height="1em" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
+    <path d="M18.361 11.259a.75.75 0 01-.009 1.484l-.102.007h-5.5v5.5a.75.75 0 01-1.491.111l-.009-.11V12.75h-5.5l-.111-.009a.75.75 0 01.009-1.484l.102-.007h5.5v-5.5a.75.75 0 011.491-.111l.009.11v5.501h5.5l.111.009z" fill="currentColor" fillRule="evenodd" />
+  </svg>
+);
+
+const ArrowRightIcon = () => (
+  <svg width="1em" height="1em" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
+    <path d="M14.182 4.269a1 1 0 10-1.364 1.462L18.463 11H3a1 1 0 100 2h15.463l-5.645 5.269a1 1 0 001.364 1.462l7.5-7a1 1 0 000-1.462l-7.5-7z" />
+  </svg>
+);
+
+type Tab = "posts" | "replies" | "upvoted";
+
+export function ProfilePage() {
+  const [activeTab, setActiveTab] = useState<Tab>("posts");
+  const { data: profile } = useProfilePrefs();
+  const updateProfile = useUpdateProfile();
+
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [editHeadline, setEditHeadline] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [aiAboutLoading, setAiAboutLoading] = useState(false);
+  const [aiAboutError, setAiAboutError] = useState<string | null>(null);
+
+  function openAbout() {
+    setEditHeadline(profile?.headline ?? "");
+    setEditBio(profile?.bio ?? "");
+    setAiAboutError(null);
+    setAboutOpen(true);
+  }
+
+  async function saveAbout() {
+    await updateProfile.mutateAsync({ headline: editHeadline, bio: editBio });
+    setAboutOpen(false);
+  }
+
+  async function writeAboutWithAI() {
+    setAiAboutError(null);
+    setAiAboutLoading(true);
+    try {
+      const res = await window.compass.llm.generateAbout(editHeadline || undefined, editBio || undefined);
+      if (res.ok) {
+        setEditHeadline(res.data.headline);
+        setEditBio(res.data.bio);
+      } else {
+        setAiAboutError(res.error);
+      }
+    } catch (e) {
+      setAiAboutError(e instanceof Error ? e.message : "AI failed");
+    } finally {
+      setAiAboutLoading(false);
+    }
+  }
+
+  const { data: skills = [] } = useSkills();
+  const addSkill = useAddSkill();
+  const removeSkill = useRemoveSkill();
+  const importSkills = useImportSkillsFromExperiences();
+
+  const { data: hotTakesRaw } = useHotTakes();
+  const hotTakes = hotTakesRaw ?? [];
+  const addProofPoint = useAddProofPoint();
+  const removeProofPoint = useRemoveProofPoint();
+
+  const [hotTakeOpen, setHotTakeOpen] = useState(false);
+  const [showAllProofPoints, setShowAllProofPoints] = useState(false);
+  const [hotTakeText, setHotTakeText] = useState("");
+  const [hotTakeUrl, setHotTakeUrl] = useState("");
+
+  const [stackOpen, setStackOpen] = useState(false);
+  const [stackQuery, setStackQuery] = useState("");
+  const [stackSection, setStackSection] = useState<StackSection>("Primary");
+  const [stackYear, setStackYear] = useState("");
+  const [stackMonth, setStackMonth] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<StackTool[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!stackQuery.trim()) { setSuggestions([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch("https://api.daily.dev/graphql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: `query AutocompleteTools($query: String!) {
+              autocompleteTools(query: $query) { id title faviconUrl }
+            }`,
+            variables: { query: stackQuery },
+          }),
+        });
+        const json = await res.json();
+        setSuggestions(json?.data?.autocompleteTools ?? []);
+      } catch (err) {
+        console.error("[autocompleteTools]", err);
+        setSuggestions([]);
+      }
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [stackQuery]);
+
+  function closeStack() {
+    setStackOpen(false);
+    setStackQuery("");
+    setStackSection("Primary");
+    setStackYear("");
+    setStackMonth("");
+    setSuggestions([]);
+  }
+
+  return (
+    <div className="flex h-full overflow-y-auto py-6 px-6 gap-6 items-start justify-center">
+      {/* Left column: main profile card */}
+      <div className="w-full max-w-3xl">
+        <div className="rounded-2xl border border-border overflow-hidden bg-transparent">
+
+          {/* Cover — with avatar overlapping bottom edge */}
+          <div className="relative h-44 w-full overflow-visible rounded-t-2xl">
+            <img
+              className="h-full w-full object-cover rounded-t-2xl"
+              alt="Cover"
+              src="https://media.daily.dev/image/upload/s--P4t4XyoV--/f_auto/v1722860399/public/Placeholder%2001"
+            />
+            {/* Avatar — overlaps cover bottom */}
+            <img
+              className="absolute -bottom-10 left-6 h-[5.5rem] w-[5.5rem] rounded-2xl object-cover ring-2 ring-border"
+              alt="Avatar"
+              src="https://media.daily.dev/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile"
+            />
+            {/* Edit — top-right of cover */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Edit profile"
+              className="absolute right-4 top-4 border border-white/20 bg-black/30 text-white backdrop-blur-sm hover:bg-black/50"
+            >
+              <HugeiconsIcon icon={Edit03Icon} size={18} />
+            </Button>
+          </div>
+
+          {/* Info row */}
+          <div className="flex items-start gap-4 px-6 pt-12 pb-5">
+            {/* Left: name + contact info */}
+            <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+              <div className="flex items-center gap-2">
+                <p className="text-xl font-bold text-foreground">ShankR</p>
+                <span className="text-[13px] text-foreground/50">@sami2911</span>
+              </div>
+              <div className="flex items-center gap-1 pt-1">
+                <Button variant="ghost" size="icon-sm" title="Location" className="text-muted-foreground">
+                  <HugeiconsIcon icon={MapsGlobal02Icon} size={20} />
+                </Button>
+                <Button variant="ghost" size="icon-sm" title="Phone" className="text-muted-foreground">
+                  <HugeiconsIcon icon={PhoneArrowDownIcon} size={20} />
+                </Button>
+                <Button variant="ghost" size="icon-sm" title="LinkedIn" className="text-muted-foreground">
+                  <HugeiconsIcon icon={Linkedin02Icon} size={20} />
+                </Button>
+                <Button variant="ghost" size="icon-sm" title="GitHub" className="text-muted-foreground">
+                  <HugeiconsIcon icon={GithubIcon} size={20} />
+                </Button>
+                <Button variant="ghost" size="icon-sm" title="Email" className="text-muted-foreground">
+                  <HugeiconsIcon icon={MailOpenIcon} size={20} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Right: stats on top, buttons below */}
+            <div className="flex shrink-0 flex-col items-end gap-3 pt-1">
+              <div className="flex items-center gap-5">
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="flex items-center gap-1">
+                    <svg width="14" height="14" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-purple-500">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M8 13.605A5.333 5.333 0 108 2.938a5.333 5.333 0 000 10.667zm1.213-8.672a.494.494 0 00-.812-.517L4.944 7.922a.494.494 0 00.35.843H7.82l-1.034 2.844a.494.494 0 00.812.518l3.456-3.507a.494.494 0 00-.348-.842H8.179l1.034-2.845z" fill="currentColor" />
+                    </svg>
+                    <b className="text-lg font-bold text-foreground">10</b>
+                  </span>
+                  <span className="text-xs text-muted-foreground">Reputation</span>
+                </div>
+                <div className="flex flex-col items-center gap-0.5">
+                  <b className="text-lg font-bold text-foreground">0</b>
+                  <span className="text-xs text-muted-foreground">Upvotes</span>
+                </div>
+                <div className="flex flex-col items-center gap-0.5">
+                  <b className="text-lg font-bold text-foreground">0</b>
+                  <span className="text-xs text-muted-foreground">Followers</span>
+                </div>
+                <div className="flex flex-col items-center gap-0.5">
+                  <b className="text-lg font-bold text-foreground">0</b>
+                  <span className="text-xs text-muted-foreground">Following</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm">Follow me</Button>
+                <Button variant="outline" size="sm">Get in touch</Button>
+              </div>
+            </div>
+          </div>
+
+          {/* All sections */}
+          <div className="flex flex-col divide-y divide-border p-6">
+            {/* Spacer for first divider */}
+            <div />
+
+            {/* About — headline + bio */}
+            <div className="flex flex-col gap-2 py-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[15px] font-bold text-foreground">About</p>
+                <Button variant="outline" size="sm" onClick={openAbout}>
+                  <HugeiconsIcon icon={Edit03Icon} size={16} />
+                  <span>Edit</span>
+                </Button>
+              </div>
+              {profile?.headline && (
+                <p className="text-sm font-medium text-foreground">{profile.headline}</p>
+              )}
+              {profile?.bio && (
+                <p className="text-sm text-muted-foreground leading-relaxed">{profile.bio}</p>
+              )}
+              {!profile?.headline && !profile?.bio && (
+                <p className="text-sm text-muted-foreground/60 italic">No headline or bio yet — click the pencil to add one.</p>
+              )}
+            </div>
+
+            {/* Stack & Tools */}
+            <div className="flex flex-col gap-4 py-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[15px] font-bold text-foreground">Stack &amp; Tools</p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={importSkills.isPending}
+                    onClick={() => importSkills.mutate()}
+                  >
+                    {importSkills.isPending ? "Importing…" : "Import"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setStackOpen(true)}>
+                    <PlusIcon />
+                    <span>Add</span>
+                  </Button>
+                </div>
+              </div>
+              {skills.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 p-6">
+                  <p className="text-xs text-muted-foreground">Share your stack &amp; tools with the community</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {STACK_SECTIONS.filter((sec) => skills.some((s) => s.section === sec)).map((sec) => {
+                    const sectionSkills = skills.filter((s) => s.section === sec);
+                    return (
+                      <div key={sec} className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">{sec}</span>
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                            {sectionSkills.length}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {sectionSkills.map((s) => (
+                            <div
+                              key={s.id}
+                              className="group flex items-center justify-between gap-1.5 rounded-lg border border-border px-2 py-1.5 hover:border-border/80"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-4 w-4 shrink-0 cursor-grab flex items-center justify-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M9 4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm6 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM9 10.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm6 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM9 17a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm6 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" fillRule="evenodd" />
+                                  </svg>
+                                </div>
+                                {s.faviconUrl && (
+                                  <img src={s.faviconUrl} alt="" className="h-4 w-4 shrink-0 rounded object-contain" />
+                                )}
+                                <p className="text-xs font-medium text-foreground">{s.skill}</p>
+                              </div>
+                              <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  aria-label={`Delete ${s.skill}`}
+                                  onClick={() => removeSkill.mutate(s.id)}
+                                  className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Proof Points */}
+            <div className="flex flex-col gap-4 py-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[15px] font-bold text-foreground">Proof Points</p>
+                <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)}>
+                  <PlusIcon />
+                  <span>Add</span>
+                </Button>
+              </div>
+              {hotTakes.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
+                  <p className="text-xs text-muted-foreground">Add achievements that back up your profile</p>
+                  <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)}>
+                    <PlusIcon />
+                    <span>Add your first proof point</span>
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <ul className="flex flex-col">
+                    {(showAllProofPoints ? hotTakes : hotTakes.slice(0, 3)).map((pp, i) => (
+                      <li
+                        key={pp.id}
+                        className={`group relative flex items-start gap-3 py-3 ${i !== 0 ? "border-t border-border" : ""}`}
+                      >
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <p className="text-[13px] font-medium text-foreground leading-snug">{pp.title}</p>
+                          {pp.metrics && (
+                            <span className="inline-flex w-fit items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                              {pp.metrics}
+                            </span>
+                          )}
+                          {pp.url && (
+                            <a
+                              href={pp.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-muted-foreground hover:text-foreground truncate"
+                            >
+                              {pp.url}
+                            </a>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeProofPoint.mutate(pp.id)}
+                          className="mt-1 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100 transition-opacity"
+                          aria-label="Remove"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {hotTakes.length > 3 && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-center text-muted-foreground gap-2"
+                      onClick={() => setShowAllProofPoints(v => !v)}
+                    >
+                      <span>{showAllProofPoints ? "Show Less" : "Show More"}</span>
+                      <ArrowRightIcon />
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Work Experiences */}
+            <div className="flex flex-col gap-3 py-4">
+              <div className="flex flex-row items-center justify-between">
+                <h2 className="text-[15px] font-bold">Work Experiences</h2>
+                <Button variant="outline" size="sm">
+                  <HugeiconsIcon icon={Edit03Icon} size={16} />
+                  <span>Edit</span>
+                </Button>
+              </div>
+              <ul className="flex flex-col gap-4">
+                {/* Bazaarvoice */}
+                <li className="relative flex flex-row gap-2">
+                  <img
+                    className="h-8 w-8 rounded-full object-cover"
+                    alt="Bazaarvoice Inc logo"
+                    src="https://www.google.com/s2/favicons?domain=bazaarvoice.com&sz=128"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <p className="max-w-full text-[13px] font-bold">Platform Engineer</p>
+                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground/70">Current</div>
+                      </div>
+                      <p className="text-xs text-foreground/70">Bazaarvoice Inc</p>
+                      <div className="flex items-center">
+                        <p className="text-xs text-muted-foreground">Apr 2025</p>
+                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
+                        <p className="text-xs text-muted-foreground">Bengaluru, Karnataka, India</p>
+                      </div>
+                    </div>
+                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground/70">
+                      {"Automate deployment workflows by writing GitLab CI/CD pipelines to increase software delivery frequency and reduce manual interventions.\nManage containerized... "}
+                      <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
+                    </p>
+                    <div className="flex flex-row flex-wrap gap-2">
+                      {["GitLab CI/CD", "Azure Kubernetes Services", "AKS"].map((s) => (
+                        <div key={s} className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">{s}</div>
+                      ))}
+                      <div className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">+5</div>
+                    </div>
+                  </div>
+                </li>
+                {/* Kalpas */}
+                <li className="relative flex flex-row gap-2">
+                  <img
+                    className="h-8 w-8 rounded-full object-cover"
+                    alt="Kalpas Innovations logo"
+                    src="https://res.cloudinary.com/daily-now/image/upload/s--Sz7CgVBR--/f_auto/v1730476497/companies/kalpas"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <p className="max-w-full text-[13px] font-bold">Devops Engineer</p>
+                      <p className="text-xs text-foreground/70">Kalpas Innovations</p>
+                      <div className="flex items-center">
+                        <p className="text-xs text-muted-foreground">Dec 2021 - Apr 2025</p>
+                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
+                        <p className="text-xs text-muted-foreground">Bengaluru, Karnataka, India</p>
+                      </div>
+                    </div>
+                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground/70">
+                      {"Led a team of 4 to implement automated testing and monitoring using Jenkins and Prometheus, resulting in a 70% decrease in deployment times.\nRefactored the... "}
+                      <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
+                    </p>
+                    <div className="flex flex-row flex-wrap gap-2">
+                      {["Jenkins", "Prometheus", "Docker"].map((s) => (
+                        <div key={s} className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">{s}</div>
+                      ))}
+                      <div className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">+3</div>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* Education */}
+            <div className="flex flex-col gap-3 py-4">
+              <div className="flex flex-row items-center justify-between">
+                <h2 className="text-[15px] font-bold">Education</h2>
+                <Button variant="outline" size="sm">
+                  <HugeiconsIcon icon={Edit03Icon} size={16} />
+                  <span>Edit</span>
+                </Button>
+              </div>
+              <ul className="flex flex-col gap-4">
+                <li className="relative flex flex-row gap-2">
+                  <img className="h-8 w-8 rounded-full object-cover" alt="Afeka College of Engineering logo" src="https://www.google.com/s2/favicons?domain=afeka.ac.il&sz=128" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="text-[13px] font-bold">Afeka College of Engineering</p>
+                    <p className="text-xs text-foreground/70">Computer Applications</p>
+                    <p className="text-xs text-foreground/70">MCA</p>
+                    <div className="flex items-center">
+                      <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2022</p>
+                      <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
+                      <p className="text-xs text-muted-foreground">Surat, Gujarat, India</p>
+                    </div>
+                  </div>
+                </li>
+                <li className="relative flex flex-row gap-2">
+                  <img className="h-8 w-8 rounded-full object-cover" alt="Government Titumir College logo" src="https://www.google.com/s2/favicons?domain=titumircollege.gov.bd&sz=128" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="text-[13px] font-bold">Government Titumir College</p>
+                    <p className="text-xs text-foreground/70">Chemistry</p>
+                    <p className="text-xs text-foreground/70">B.Sc - Bachelor of Science</p>
+                    <div className="flex items-center">
+                      <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2017</p>
+                      <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
+                      <p className="text-xs text-muted-foreground">Kakinada, India</p>
+                    </div>
+                  </div>
+                </li>
+                <li className="relative flex flex-row gap-2">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground font-bold">P</div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="text-[13px] font-bold">Pragathi College</p>
+                    <p className="text-xs text-foreground/70">Intermediate 12th</p>
+                    <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2014</p>
+                  </div>
+                </li>
+              </ul>
+              <Button variant="outline" className="w-full justify-center text-muted-foreground gap-2">
+                <span>Show More</span>
+                <ArrowRightIcon />
+              </Button>
+            </div>
+
+            {/* Certifications */}
+            <div className="flex flex-col gap-3 py-4">
+              <div className="flex flex-row items-center justify-between">
+                <h2 className="text-[15px] font-bold">Certifications</h2>
+                <Button variant="outline" size="sm">
+                  <HugeiconsIcon icon={Edit03Icon} size={16} />
+                  <span>Edit</span>
+                </Button>
+              </div>
+              <ul className="flex flex-col gap-4">
+                <li className="relative flex flex-row gap-2">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground font-bold">
+                    A
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <p className="text-[13px] font-bold">AWS Cloud Practitionior</p>
+                    <p className="text-xs text-foreground/70">AWS</p>
+                    <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2023</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* Projects */}
+            <div className="flex flex-col gap-3 py-4">
+              <div className="flex flex-row items-center justify-between">
+                <h2 className="text-[15px] font-bold">Projects</h2>
+                <Button variant="outline" size="sm">
+                  <HugeiconsIcon icon={Edit03Icon} size={16} />
+                  <span>Edit</span>
+                </Button>
+              </div>
+              <ul className="flex flex-col gap-4">
+                <li className="relative flex flex-row gap-2">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground font-bold">
+                    J
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <p className="max-w-full text-[13px] font-bold">Jenkins Cicd</p>
+                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground/70">
+                          Current
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Jun 2026</p>
+                    </div>
+                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground/70">
+                      {"Automated code deployment pipelines using Jenkins and Github to ensure consistent build artifacts across environments.\nContainerized application services with... "}
+                      <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
+                    </p>
+                    <div className="flex flex-row flex-wrap gap-2">
+                      {["AWS", "Jenkins", "Ci/Cd"].map((s) => (
+                        <div key={s} className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">
+                          {s}
+                        </div>
+                      ))}
+                      <div className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">+3</div>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* Achievement Showcase */}
+            <div className="flex flex-col gap-4 py-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[15px] font-bold text-foreground">Achievement Showcase</p>
+                <Button variant="outline" size="sm">
+                  <HugeiconsIcon icon={Edit03Icon} size={16} />
+                  <span>Edit</span>
+                </Button>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className="relative flex size-16 shrink-0 items-center justify-center rounded-[14px] overflow-hidden border border-border p-0"
+                >
+                  <img
+                    alt="Curriculum Vitae"
+                    className="absolute inset-0 h-full w-full object-cover"
+                    src="https://media.daily.dev/image/upload/v1770222886/achievements/Curriculum_Vitae.png"
+                  />
+                </Button>
+              </div>
+            </div>
+
+            {/* Activity */}
+            <div className="flex flex-col gap-3 overflow-hidden py-4">
+              <div className="flex items-end justify-between">
+                <div className="flex flex-col gap-3">
+                  <p className="text-[15px] font-bold">Activity</p>
+                  <ul className="relative flex flex-row">
+                    {(["Posts", "Replies", "Upvoted"] as const).map((tab) => {
+                      const key = tab.toLowerCase() as Tab;
+                      return (
+                        <Button
+                          key={tab}
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => setActiveTab(key)}
+                          className={activeTab === key ? "bg-muted text-foreground" : "text-muted-foreground"}
+                        >
+                          {tab}
+                        </Button>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+              <div className="flex min-h-[27.125rem] flex-col items-center justify-center gap-6 px-4 py-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Hardest part of being a developer? Where do we start – it's everything. Go on, share with us your best rant.
+                </p>
+                <Button size="lg">
+                  New post
+                </Button>
+              </div>
+            </div>
+
+
+          </div>
+        </div>
+      </div>
+      {/* Right sidebar */}
+      <aside className="flex w-80 shrink-0 flex-col gap-3">
+
+        {/* Preview mode */}
+        <div className="flex items-center gap-3 rounded-2xl border border-border p-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-muted-foreground">
+              <path d="M12 4.5c3.828 0 6.74 2.287 8.62 6.592l.139.326L21 12l-.241.582C18.885 17.097 15.924 19.5 12 19.5c-3.828 0-6.74-2.287-8.62-6.592l-.139-.326L3 12l.241-.582C5.115 6.903 8.076 4.5 12 4.5zm0 3.25a4.25 4.25 0 110 8.5 4.25 4.25 0 010-8.5z" fill="currentColor" fillRule="evenodd" />
+            </svg>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <p className="text-[15px] font-bold">Preview mode</p>
+              <p className="text-xs text-muted-foreground">See how your profile looks to others</p>
+            </div>
+          </div>
+          <Switch className="shrink-0 self-center" />
+        </div>
+
+        {/* Profile completion */}
+        <div className="flex cursor-pointer flex-col rounded-2xl border border-blue-500/60 bg-blue-500/10 hover:bg-blue-500/15">
+          <div className="flex w-full items-center gap-6 p-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-foreground/70">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M14 8A6 6 0 102 8a6 6 0 0012 0zm-1 0A5 5 0 103 8a5 5 0 0010 0zm-5.667-.667a.667.667 0 011.334 0v3.334a.667.667 0 01-1.334 0V7.333zM8 4.667A.667.667 0 108 6a.667.667 0 000-1.333z" fill="currentColor" />
+                </svg>
+                <p className="text-sm font-bold text-foreground">Profile Completion</p>
+              </div>
+              <div className="flex min-w-0 items-center gap-1">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-foreground/70">
+                  <path d="M14.182 4.269a1 1 0 10-1.364 1.462L18.463 11H3a1 1 0 100 2h15.463l-5.645 5.269a1 1 0 001.364 1.462l7.5-7a1 1 0 000-1.462l-7.5-7z" />
+                </svg>
+                <p className="text-xs text-foreground/70">Add Headline.</p>
+              </div>
+            </div>
+            <div className="relative flex shrink-0 items-center justify-center" style={{ width: 50, height: 50 }}>
+              <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="25" cy="25" r="22" className="stroke-border" strokeWidth="5" fill="transparent" />
+                <circle cx="25" cy="25" r="22" strokeWidth="5" strokeLinecap="round"
+                  strokeDasharray="138.23007675795088" strokeDashoffset="27.64601535159017"
+                  transform="rotate(-90 25 25)" fill="transparent" className="stroke-blue-500" />
+              </svg>
+              <p className="absolute leading-none text-sm font-bold text-blue-500">80%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Public profile & URL */}
+        <section className="flex flex-col rounded-2xl border border-border p-4">
+          <div className="flex w-full items-center gap-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <p className="text-sm font-bold text-foreground">Public profile &amp; URL</p>
+              <p className="text-[13px] text-foreground/70 max-w-full truncate">https://app.daily.dev/sami2911</p>
+            </div>
+            <Button variant="ghost" size="icon-xs" aria-label="Copy link">
+              <CopyIcon />
+            </Button>
+          </div>
+          <Separator className="my-2" />
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] text-muted-foreground">Share</p>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon-sm" aria-label="Share on X">
+                <HugeiconsIcon icon={NewTwitterIcon} size={20} />
+              </Button>
+              <Button variant="ghost" size="icon-sm" aria-label="Share on WhatsApp">
+                <HugeiconsIcon icon={WhatsappIcon} size={20} />
+              </Button>
+              <Button variant="ghost" size="icon-sm" aria-label="Share on Facebook">
+                <HugeiconsIcon icon={Facebook02Icon} size={20} />
+              </Button>
+              <Button variant="ghost" size="icon-sm" aria-label="Share on Reddit">
+                <HugeiconsIcon icon={RedditIcon} size={20} />
+              </Button>
+              <Button variant="ghost" size="icon-sm" aria-label="Share on LinkedIn">
+                <HugeiconsIcon icon={Linkedin02Icon} size={20} />
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Profile Activity */}
+        <section className="flex flex-col rounded-2xl border border-border p-4">
+          <h2 className="flex items-center gap-1 text-sm font-bold text-foreground">
+            Profile Activity
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-muted-foreground">
+              <path fillRule="evenodd" clipRule="evenodd" d="M14 8A6 6 0 102 8a6 6 0 0012 0zm-1 0A5 5 0 103 8a5 5 0 0010 0zm-5.667-.667a.667.667 0 011.334 0v3.334a.667.667 0 01-1.334 0V7.333zM8 4.667A.667.667 0 108 6a.667.667 0 000-1.333z" fill="currentColor" />
+            </svg>
+          </h2>
+          <div className="my-3 flex flex-col gap-2">
+            <div className="flex gap-2">
+              <div className="flex-1 rounded-xl border border-border p-2 text-center">
+                <p className="text-[15px] font-bold text-foreground">1</p>
+                <p className="text-xs text-muted-foreground">Views this week</p>
+              </div>
+              <div className="flex-1 rounded-xl border border-border p-2 text-center">
+                <p className="text-[15px] font-bold text-foreground">2</p>
+                <p className="text-xs text-muted-foreground">Views this month</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border p-2 text-center">
+              <p className="text-[15px] font-bold text-foreground">1</p>
+              <p className="text-xs text-muted-foreground">Total profile views</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Reading Overview */}
+        <section className="flex flex-col rounded-2xl border border-border p-4">
+          <h2 className="text-sm font-bold text-foreground">Reading Overview</h2>
+          <a className="text-xs text-blue-500 hover:underline mt-0.5">Learn more</a>
+          <div className="my-3 flex gap-2">
+            <div className="flex-1 rounded-xl border border-border p-2 text-center">
+              <p className="text-[15px] font-bold text-foreground">2</p>
+              <p className="text-xs text-muted-foreground">Longest streak 🏆</p>
+            </div>
+            <div className="flex-1 rounded-xl border border-border p-2 text-center">
+              <p className="text-[15px] font-bold text-foreground">7</p>
+              <p className="text-xs text-muted-foreground">Total reading days</p>
+            </div>
+          </div>
+          <h3 className="my-1 text-[13px] text-muted-foreground">Top tags by reading days</h3>
+          <div className="my-3 grid max-w-full grid-cols-2 gap-2">
+            {[
+              "Database", "Devtools", "Github", "Laravel", "Microsoft-sql-server", "Performance",
+            ].map((tag) => (
+              <div key={tag} className="relative flex flex-row justify-between overflow-hidden rounded border border-border px-2 py-0.5">
+                <span className="z-10 my-auto text-xs text-foreground max-w-full truncate">{tag}</span>
+                <span className="z-10 my-auto text-xs text-foreground">+100%</span>
+                <div className="absolute inset-y-0 left-0 w-full bg-blue-500/15" />
+              </div>
+            ))}
+          </div>
+          <h3 className="mb-3 text-[13px] text-muted-foreground">Posts read in the last months (6)</h3>
+          {/* Heatmap */}
+          <svg width="100%" viewBox="0 0 278 92">
+            <g transform="translate(50, 0)">
+              <text x="30" y="10" style={{ fill: "var(--foreground)", fontSize: 13 }}>Feb</text>
+              <text x="70" y="10" style={{ fill: "var(--foreground)", fontSize: 13 }}>Mar</text>
+              <text x="120" y="10" style={{ fill: "var(--foreground)", fontSize: 13 }}>Apr</text>
+              <text x="160" y="10" style={{ fill: "var(--foreground)", fontSize: 13 }}>May</text>
+            </g>
+            <g transform="translate(0, 24)">
+              <text x="0" y="18" style={{ fill: "var(--foreground)", fontSize: 11 }}>Mon</text>
+              <text x="0" y="38" style={{ fill: "var(--foreground)", fontSize: 11 }}>Wed</text>
+              <text x="0" y="58" style={{ fill: "var(--foreground)", fontSize: 11 }}>Fri</text>
+            </g>
+            <g transform="translate(50, 24)">
+              {Array.from({ length: 22 }, (_, wi) =>
+                Array.from({ length: 7 }, (_, di) => {
+                  const isActive = wi === 21 && di === 0;
+                  return (
+                    <g key={`${wi}-${di}`} transform={`translate(${wi * 10}, ${di * 10})`}>
+                      <rect width="8" height="8" rx="3"
+                        fill={isActive ? "var(--foreground)" : "color-mix(in srgb, var(--border) 80%, transparent)"} />
+                      {!isActive && <rect width="6" height="6" x="1" y="1" rx="2" fill="var(--background)" />}
+                    </g>
+                  );
+                })
+              )}
+            </g>
+          </svg>
+          <div className="mt-4 flex items-center justify-end text-xs">
+            <div className="flex items-center gap-1">
+              <span className="mr-1">Less</span>
+              <span className="h-2 w-2 rounded border border-border" />
+              <span className="h-2 w-2 rounded bg-muted-foreground/30" />
+              <span className="h-2 w-2 rounded bg-muted-foreground/60" />
+              <span className="h-2 w-2 rounded bg-foreground" />
+              <span className="ml-1">More</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Recommended Squads */}
+        <section className="flex flex-col rounded-2xl border border-border p-4">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <h4 className="text-sm font-bold text-foreground">Recommended Squads</h4>
+            <ul className="mt-4 flex flex-col gap-2">
+              {[
+                { name: "Node.js developers", handle: "@nodejsdevelopers", members: "40.9K members", img: "https://media.daily.dev/image/upload/s--TZIXRVEW--/f_auto/v1707292248/squads/8ccb5b29-1050-49ed-9fd4-d553890497b5" },
+                { name: "NextJS", handle: "@nextjs", members: "33.6K members", img: "https://media.daily.dev/image/upload/s--ai0kromH--/f_auto,q_auto/v1698518496/squads/69088f45-3a20-4730-81c2-32d0d75fb8c6" },
+                { name: "AI", handle: "@ai", members: "27.7K members", img: "https://media.daily.dev/image/upload/s--0Nnn3lEU--/f_auto,q_auto/v1/squads/a6581605-a03b-4877-84f2-7d362a8ada28" },
+                { name: "WebDev", handle: "@webdev", members: "26.5K members", img: "https://media.daily.dev/image/upload/s--3B1fh4kU--/f_auto,q_auto/v1/squads/94fc7a56-e6d2-403f-acd6-b988b426574f" },
+                { name: "Learn Python", handle: "@lpython", members: "26.1K members", img: "https://media.daily.dev/image/upload/s--CBrg8cfW--/f_auto/v1724849342/squads/974527e9-1cc8-470b-a572-91ce0ebc643f" },
+              ].map((sq) => (
+                <li key={sq.handle} className="flex flex-row items-center gap-2">
+                  <figure className="size-8 shrink-0 overflow-hidden rounded-full relative">
+                    <img alt={sq.name} className="absolute inset-0 h-full w-full object-cover" src={sq.img} />
+                  </figure>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="text-sm font-bold max-w-full truncate">{sq.name}</h5>
+                    <p className="text-xs text-muted-foreground truncate">{sq.handle}</p>
+                    <p className="text-xs text-muted-foreground">{sq.members}</p>
+                  </div>
+                  <Button size="sm">
+                    Join
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 pt-0">
+              <Button variant="outline" size="sm" className="w-full">
+                <span>Explore all Squads</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 22" fill="none" className="-rotate-90">
+                  <path d="M1.5 14.5L8 21m0 0l6.5-6.5M8 21V1.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Badges & Awards */}
+        <section className="flex flex-col rounded-2xl border border-border p-4">
+          <h2 className="text-sm font-bold text-foreground">Badges &amp; Awards</h2>
+          <a className="text-xs text-blue-500 hover:underline mt-0.5">Learn more</a>
+          <div className="my-3 flex gap-3">
+            <div className="flex-1 rounded-xl border border-border p-2 text-center">
+              <p className="text-[15px] font-bold text-foreground">x0</p>
+              <p className="text-xs text-muted-foreground">Top reader badge</p>
+            </div>
+            <div className="flex-1 rounded-xl border border-border p-2 text-center">
+              <p className="text-[15px] font-bold text-foreground">x0</p>
+              <p className="text-xs text-muted-foreground">Total Awards</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Achievements */}
+        <section className="flex flex-col rounded-2xl border border-border p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-1 text-sm font-bold text-foreground">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path fillRule="evenodd" clipRule="evenodd" d="M5.5 9.5a6.5 6.5 0 1112.147 3.221l2.082 3.607c.831 1.44-.371 3.2-2.014 2.95l-.36-.054a.283.283 0 00-.306.177l-.132.338c-.605 1.548-2.732 1.709-3.563.27L12 17.662l-1.355 2.347c-.83 1.439-2.958 1.278-3.562-.27l-.133-.338a.283.283 0 00-.306-.177l-.36.055c-1.642.25-2.845-1.512-2.014-2.95l2.083-3.608A6.47 6.47 0 015.5 9.5zm7.46 6.43l1.866 3.23a.283.283 0 00.508-.039l.133-.338a1.982 1.982 0 012.144-1.239l.36.055a.283.283 0 00.287-.421l-1.736-3.008a6.481 6.481 0 01-3.561 1.76zm-5.482-1.76a6.48 6.48 0 003.56 1.76l-1.864 3.23a.283.283 0 01-.509-.039l-.132-.338a1.982 1.982 0 00-2.145-1.239l-.359.055a.283.283 0 01-.288-.421l1.737-3.009z" />
+              </svg>
+              Achievements
+            </h2>
+            <span className="text-xs text-blue-500 hover:underline cursor-pointer">7/71</span>
+          </div>
+          <div className="mt-3 flex gap-2">
+            {[
+              { alt: "Power user", src: "https://media.daily.dev/image/upload/v1770222920/achievements/Power_user.png", glow: "rgba(255,215,0,0.55)", border: "rgba(255,215,0,0.75)" },
+              { alt: "Certifiably certified", src: "https://media.daily.dev/image/upload/v1770222884/achievements/Certifiably_Certified.png", glow: "rgba(190,210,255,0.5)", border: "rgba(190,210,255,0.7)" },
+              { alt: "Under new management", src: "https://media.daily.dev/image/upload/v1770222936/achievements/Under_new_management.png", glow: "rgba(235,140,60,0.5)", border: "rgba(235,140,60,0.7)" },
+              { alt: "Workaholic", src: "https://media.daily.dev/image/upload/s--EsP6t5nK--/q_auto/v1770765986/achievements/Workaholic.png", glow: null, border: null },
+              { alt: "Scholar", src: "https://media.daily.dev/image/upload/s--0O2eh2u4--/q_auto/v1770799625/achievements/Scholar.png", glow: null, border: null },
+            ].map((badge) => (
+              <div
+                key={badge.alt}
+                className="relative size-10 rounded-xl overflow-hidden"
+                style={badge.border ? {
+                  border: `1px solid ${badge.border}`,
+                  boxShadow: `0 0 8px 1px ${badge.glow}`,
+                } : { border: "1px solid transparent" }}
+              >
+                <img alt={badge.alt} className="absolute inset-0 h-full w-full object-cover" src={badge.src} loading="lazy" />
+              </div>
+            ))}
+          </div>
+        </section>
+
+      </aside>
+
+      {/* Hot Take Sheet */}
+      <AnimatePresence>
+        {hotTakeOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-x-0 bottom-0 top-11 xl:top-14 z-40 bg-black/50 backdrop-blur-sm"
+              onClick={() => setHotTakeOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-96 flex-col bg-background border-l border-border"
+            >
+              <div className="flex shrink-0 items-start justify-between border-b border-border px-4 py-4">
+                <div className="flex flex-col gap-0.5">
+                  <h3 className="text-base font-bold text-foreground">Add proof point</h3>
+                  <p className="text-sm text-muted-foreground">An achievement that backs up your profile</p>
+                </div>
+                <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setHotTakeOpen(false)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </Button>
+              </div>
+              <div className="flex flex-col gap-5 overflow-y-auto p-4">
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-bold text-foreground">Achievement</p>
+                  <textarea
+                    placeholder="e.g. Reduced deployment time by 70% using GitLab CI/CD"
+                    value={hotTakeText}
+                    onChange={e => setHotTakeText(e.target.value)}
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-input bg-input/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-bold text-foreground">
+                    Reference link <span className="font-normal text-muted-foreground">(optional)</span>
+                  </p>
+                  <Input
+                    placeholder="https://github.com/you/project"
+                    value={hotTakeUrl}
+                    onChange={e => setHotTakeUrl(e.target.value)}
+                    className="h-11"
+                  />
+                </div>
+                <Button
+                  disabled={!hotTakeText.trim() || addProofPoint.isPending}
+                  className="w-full"
+                  onClick={async () => {
+                    await addProofPoint.mutateAsync({
+                      title: hotTakeText.trim(),
+                      url: hotTakeUrl.trim() || undefined,
+                    });
+                    setHotTakeOpen(false);
+                    setHotTakeText("");
+                    setHotTakeUrl("");
+                  }}
+                >
+                  {addProofPoint.isPending ? "Adding…" : "Add proof point"}
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Stack & Tool Sheet */}
+      <AnimatePresence>
+        {stackOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-x-0 bottom-0 top-11 xl:top-14 z-40 bg-black/50 backdrop-blur-sm"
+              onClick={closeStack}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-96 flex-col bg-background border-l border-border"
+            >
+              {/* Header */}
+              <div className="flex shrink-0 items-start justify-between border-b border-border px-4 py-4">
+                <div className="flex flex-col gap-0.5">
+                  <h3 className="text-base font-bold text-foreground">Add stack/tool</h3>
+                  <p className="text-sm text-muted-foreground">Share the technologies you work with</p>
+                </div>
+                <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={closeStack}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </Button>
+              </div>
+
+              {/* Content */}
+              <div className="flex flex-col gap-5 overflow-y-auto p-4">
+                {/* Search with autocomplete */}
+                <div className="relative flex flex-col gap-1.5">
+                  <Input
+                    placeholder="Technology, tool, or skill"
+                    value={stackQuery}
+                    onChange={e => setStackQuery(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    className="h-11"
+                    autoComplete="off"
+                  />
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-10 mt-1 overflow-hidden rounded-2xl border border-border bg-popover shadow-lg">
+                      {suggestions.map(tool => (
+                        <button
+                          key={tool.id}
+                          type="button"
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted text-left"
+                          onMouseDown={() => {
+                            setStackQuery(tool.title);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          {tool.faviconUrl ? (
+                            <img src={tool.faviconUrl} alt="" className="h-5 w-5 rounded object-contain" />
+                          ) : (
+                            <div className="h-5 w-5 rounded bg-muted" />
+                          )}
+                          <span className="text-foreground">{tool.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-foreground">Section</p>
+                  <div className="flex flex-wrap gap-2">
+                    {STACK_SECTIONS.map(s => (
+                      <Button
+                        key={s}
+                        type="button"
+                        size="sm"
+                        variant={stackSection === s ? "default" : "outline"}
+                        onClick={() => setStackSection(s)}
+                      >
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Using since */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-foreground">
+                    Using since{" "}
+                    <span className="font-normal text-muted-foreground">(optional)</span>
+                  </p>
+                  <div className="flex gap-3">
+                    <Select
+                      value={stackYear}
+                      onValueChange={v => { setStackYear(v); setStackMonth(""); }}
+                    >
+                      <SelectTrigger className="h-10 flex-1">
+                        <SelectValue placeholder="Year" />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        {STACK_YEARS.map(y => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={stackMonth}
+                      onValueChange={setStackMonth}
+                      disabled={!stackYear}
+                    >
+                      <SelectTrigger className="h-10 flex-1">
+                        <SelectValue placeholder="Month" />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        {STACK_MONTHS.map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button
+                  disabled={!stackQuery.trim() || addSkill.isPending}
+                  className="w-full"
+                  size="default"
+                  onClick={async () => {
+                    await addSkill.mutateAsync({
+                      skill: stackQuery.trim(),
+                      section: stackSection,
+                      faviconUrl: suggestions.find(s => s.title === stackQuery.trim())?.faviconUrl ?? null,
+                      sinceYear: stackYear ? Number(stackYear) : null,
+                      sinceMonth: stackMonth ? STACK_MONTHS.indexOf(stackMonth) + 1 : null,
+                    });
+                    closeStack();
+                  }}
+                >
+                  {addSkill.isPending ? "Adding…" : "Add to stack"}
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* About (headline + bio) edit sheet */}
+      <AnimatePresence>
+        {aboutOpen && (
+          <>
+            <motion.div
+              key="about-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/40"
+              onClick={() => setAboutOpen(false)}
+            />
+            <motion.div
+              key="about-sheet"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-[28rem] flex-col bg-background border-l border-border"
+            >
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div>
+                  <p className="text-sm font-bold text-foreground">About</p>
+                  <p className="text-xs text-muted-foreground">Your headline and bio</p>
+                </div>
+                <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setAboutOpen(false)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </Button>
+              </div>
+              <div className="flex flex-col gap-5 overflow-y-auto p-4">
+                {/* Write with AI banner */}
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand/5 px-4 py-3">
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-sm font-medium">Write with AI</span>
+                    <span className="text-xs text-muted-foreground">Draft or refine your headline and bio using your local model.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={writeAboutWithAI}
+                    disabled={aiAboutLoading}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-colors hover:bg-brand-hover disabled:opacity-50"
+                  >
+                    {aiAboutLoading ? (
+                      <svg className="size-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                      </svg>
+                    ) : (
+                      <svg className="size-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+                      </svg>
+                    )}
+                    {aiAboutLoading ? "Writing…" : "Write"}
+                  </button>
+                </div>
+                {aiAboutError && <p className="text-xs text-destructive">{aiAboutError}</p>}
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-bold text-foreground">Headline</p>
+                  <Input
+                    placeholder="e.g. Platform Engineer · Scaling distributed systems at startup speed"
+                    value={editHeadline}
+                    onChange={e => setEditHeadline(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-bold text-foreground">Bio</p>
+                  <textarea
+                    placeholder="e.g. Sami is a platform engineer who builds resilient infra for product teams. He's obsessed with developer experience and has a habit of automating anything tedious."
+                    value={editBio}
+                    onChange={e => setEditBio(e.target.value)}
+                    rows={5}
+                    className="w-full resize-none rounded-xl border border-input bg-input/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+                  />
+                </div>
+              </div>
+              <div className="border-t border-border p-4">
+                <Button
+                  className="w-full"
+                  disabled={updateProfile.isPending}
+                  onClick={saveAbout}
+                >
+                  {updateProfile.isPending ? "Saving…" : "Save"}
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

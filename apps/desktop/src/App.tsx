@@ -6,6 +6,7 @@ import { PagePlaceholder } from "@/components/shell/page-placeholder";
 import { NAV_BY_ID, type ViewId } from "@/components/shell/nav";
 import { JobsPage } from "@/features/jobs/jobs-page";
 import { SettingsPage } from "@/features/settings/settings-page";
+import { ProfilePage } from "@/features/profile/profile-page";
 
 export default function App() {
   const [view, setView] = useState<ViewId>("home");
@@ -31,6 +32,8 @@ export default function App() {
             <JobsPage />
           ) : view === "settings" ? (
             <SettingsPage />
+          ) : view === "profile" ? (
+            <ProfilePage />
           ) : (
             <PagePlaceholder entry={NAV_BY_ID[view]} />
           )}

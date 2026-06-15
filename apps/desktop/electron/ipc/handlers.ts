@@ -7,6 +7,8 @@ import { documentService } from "../services/document.service";
 import { jobsService } from "../services/jobs.service";
 import { settingsService } from "../services/settings.service";
 import { profileService } from "../services/profile.service";
+import { skillsService } from "../services/skills.service";
+import { proofPointsService } from "../services/proof-points.service";
 
 /** Registers all IPC channels. Called once from main on app ready. */
 export function registerIpcHandlers(): void {
@@ -37,6 +39,9 @@ export function registerIpcHandlers(): void {
   safeHandle("llm:extract-proof-points", (resumeText: string) =>
     llmService.extractProofPoints(resumeText),
   );
+  safeHandle("llm:generate-about", (headline?: string, bio?: string) =>
+    llmService.generateAbout(headline, bio),
+  );
 
   // ── Document (local file → text) ──
   safeHandle("document:extract", (fileName: string, bytes: Uint8Array) =>
@@ -59,4 +64,17 @@ export function registerIpcHandlers(): void {
   safeHandle("profile:prefs", () => profileService.getPrefs());
   safeHandle("profile:set-target-roles", (roles: string[]) => profileService.setTargetRoles(roles));
   safeHandle("profile:update", (patch) => profileService.update(patch));
+
+  // ── Skills (stack & tools) ──
+  safeHandle("skills:list", () => skillsService.list());
+  safeHandle("skills:add", (input) => skillsService.add(input));
+  safeHandle("skills:update", (id: string, patch) => skillsService.update(id, patch));
+  safeHandle("skills:remove", (id: string) => skillsService.remove(id));
+  safeHandle("skills:import-from-experiences", () => skillsService.importFromExperiences());
+
+  // ── Proof points (hot takes + achievements) ──
+  safeHandle("proofPoints:list", () => proofPointsService.list());
+  safeHandle("proofPoints:add", (input) => proofPointsService.add(input));
+  safeHandle("proofPoints:update", (id: string, patch) => proofPointsService.update(id, patch));
+  safeHandle("proofPoints:remove", (id: string) => proofPointsService.remove(id));
 }

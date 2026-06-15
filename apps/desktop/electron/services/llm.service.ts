@@ -45,6 +45,39 @@ export const llmService = {
     }
   },
 
+  /** Generate or refine a profile headline + bio via local Ollama. */
+  async generateAbout(headline?: string, bio?: string): Promise<Result<{ headline: string; bio: string }>> {
+    const res = await authedFetch("/profile/generate-about", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ headline, bio, promptOnly: true }),
+    });
+    if (!res) return err("Could not reach the server", "NETWORK");
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
+    if (!res.ok || !json?.systemPrompt || !json?.userPrompt) {
+      return err(json?.error || "Could not prepare the rewrite", json?.code);
+    }
+
+    try {
+      const out = await ollamaChat(json.systemPrompt, json.userPrompt, { format: json.schema });
+      let outHeadline = "";
+      let outBio = "";
+      try {
+        const parsed = JSON.parse(out.text) as { headline?: string; bio?: string };
+        outHeadline = (parsed.headline ?? "").trim();
+        outBio = (parsed.bio ?? "").trim();
+      } catch {
+        outHeadline = out.text.trim();
+      }
+      if (!outHeadline) return err("The model returned nothing — try again.", "EMPTY_RESULT");
+      return ok({ headline: outHeadline, bio: outBio });
+    } catch (e) {
+      if (e instanceof OllamaError) return err(e.message, e.code);
+      return err(e instanceof Error ? e.message : "Local model failed", "OLLAMA_ERROR");
+    }
+  },
+
   /** Extract candidate proof points from resume text via local Ollama. */
   async extractProofPoints(resumeText: string): Promise<Result<{ points: { title: string; metric: string }[] }>> {
     if (!resumeText?.trim()) return err("No resume text to read", "EMPTY");

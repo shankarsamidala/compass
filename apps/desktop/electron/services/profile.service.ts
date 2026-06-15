@@ -15,7 +15,16 @@ function toPrefs(p: any): ProfilePrefs {
     openToRelocate: !!p?.openToRelocate,
     employmentType: p?.employmentType ?? null,
     expectedCtc: num(p?.expectedCtc),
+    headline: p?.headline ?? null,
+    bio: p?.narrative ?? null,
   };
+}
+
+function toPatch(patch: ProfilePatch): Record<string, unknown> {
+  const { bio, ...rest } = patch as any;
+  const result: Record<string, unknown> = { ...rest };
+  if (bio !== undefined) result.narrative = bio;
+  return result;
 }
 
 async function putProfile(body: Record<string, unknown>): Promise<Result<ProfilePrefs>> {
@@ -47,6 +56,6 @@ export const profileService = {
   },
 
   update(patch: ProfilePatch): Promise<Result<ProfilePrefs>> {
-    return putProfile(patch as Record<string, unknown>);
+    return putProfile(toPatch(patch));
   },
 };
