@@ -7,10 +7,22 @@ import { NAV_BY_ID, type ViewId } from "@/components/shell/nav";
 import { JobsPage } from "@/features/jobs/jobs-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { ProfilePage } from "@/features/profile/profile-page";
+import type { SettingsTabId } from "@/features/settings/tabs";
 
 export default function App() {
   const [view, setView] = useState<ViewId>("home");
+  const [settingsTab, setSettingsTab] = useState<SettingsTabId | undefined>(undefined);
   const logout = useLogout();
+
+  const navigateToSettings = (tab: SettingsTabId) => {
+    setSettingsTab(tab);
+    setView("settings");
+  };
+
+  const handleNavigate = (id: ViewId) => {
+    if (id !== "settings") setSettingsTab(undefined);
+    setView(id);
+  };
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
@@ -21,7 +33,7 @@ export default function App() {
         {/* Sidebar — registry-driven, fixed left */}
         <Sidebar
           activeView={view}
-          onNavigate={setView}
+          onNavigate={handleNavigate}
           onLogout={() => logout.mutate()}
           loggingOut={logout.isPending}
         />
@@ -31,9 +43,9 @@ export default function App() {
           {view === "jobs" ? (
             <JobsPage />
           ) : view === "settings" ? (
-            <SettingsPage />
+            <SettingsPage defaultTab={settingsTab} />
           ) : view === "profile" ? (
-            <ProfilePage />
+            <ProfilePage onNavigateToSettings={navigateToSettings} />
           ) : (
             <PagePlaceholder entry={NAV_BY_ID[view]} />
           )}

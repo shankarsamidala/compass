@@ -21,12 +21,12 @@ export function SidebarSection({ title, defaultOpen = true, onAdd, children }: S
           aria-expanded={open}
           className="flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-accent hover:text-foreground"
         >
-          <span className="text-sm font-normal text-[color-mix(in_srgb,#a8b3cf,transparent_36%)]">{title}</span>
+          <span className="text-sm font-normal text-muted-foreground">{title}</span>
           <Icon
             icon={ArrowDown01Icon}
             size={14}
             className={cn(
-              "size-3 text-[color-mix(in_srgb,#a8b3cf,transparent_36%)] transition-transform duration-200",
+              "size-3 text-muted-foreground transition-transform duration-200",
               open ? "" : "-rotate-90",
             )}
           />

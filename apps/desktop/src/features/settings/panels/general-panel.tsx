@@ -34,7 +34,7 @@ export function GeneralPanel() {
             icon={Moon02Icon}
             title="Theme"
             description="Compass currently uses a dark theme."
-            action={<span className="text-sm text-muted-foreground">Dark</span>}
+            action={<span className="text-sm text-foreground">Dark</span>}
           />
         </SettingList>
       </div>

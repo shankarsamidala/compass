@@ -306,6 +306,173 @@ export interface SkillsApi {
   importFromExperiences(): Promise<Result<{ imported: number }>>;
 }
 
+// ── Education domain ─────────────────────────────────────────────────────────
+
+export interface EducationItem {
+  id: string;
+  profileId: string;
+  institution: string;
+  degree: string | null;
+  field: string | null;
+  startYear: number | null;
+  startMonth: number | null;
+  endYear: number | null;
+  endMonth: number | null;
+  isCurrent: boolean;
+  grade: string | null;
+  percentage: string | null;  // pg numeric → string
+  cgpa: string | null;        // pg numeric → string
+  createdAt: string;
+}
+
+export interface EducationInput {
+  institution: string;
+  degree?: string;
+  field?: string;
+  startYear?: number;
+  startMonth?: number;
+  endYear?: number;
+  endMonth?: number;
+  isCurrent?: boolean;
+  grade?: string | null;
+  percentage?: number | null;
+  cgpa?: number | null;
+}
+
+export interface EducationApi {
+  list(): Promise<Result<{ data: EducationItem[] }>>;
+  add(input: EducationInput): Promise<Result<EducationItem>>;
+  update(id: string, patch: Partial<EducationInput>): Promise<Result<EducationItem>>;
+  remove(id: string): Promise<Result<void>>;
+}
+
+// ── Certification domain ──────────────────────────────────────────────────────
+
+export interface CertificationItem {
+  id: string;
+  profileId: string;
+  name: string;
+  issuer: string | null;
+  issuerImage: string | null;
+  issueDate: string | null;
+  expiryDate: string | null;
+  credentialId: string | null;
+  url: string | null;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface CertificationInput {
+  name: string;
+  issuer?: string;
+  issuerImage?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  credentialId?: string;
+  url?: string;
+  description?: string;
+}
+
+export interface CertificationApi {
+  list(): Promise<Result<{ data: CertificationItem[] }>>;
+  add(input: CertificationInput): Promise<Result<CertificationItem>>;
+  update(id: string, patch: Partial<CertificationInput>): Promise<Result<CertificationItem>>;
+  remove(id: string): Promise<Result<void>>;
+}
+
+// ── Project domain ────────────────────────────────────────────────────────────
+
+export interface ProjectItem {
+  id: string;
+  profileId: string;
+  title: string;
+  publisher: string | null;
+  publisherImage: string | null;
+  description: string | null;
+  techStack: string[] | null;
+  role: string | null;
+  url: string | null;
+  repoUrl: string | null;
+  metrics: string | null;
+  featured: boolean;
+  isCurrent: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+}
+
+export interface ProjectInput {
+  title: string;
+  publisher?: string;
+  publisherImage?: string;
+  description?: string;
+  techStack?: string[];
+  role?: string;
+  url?: string;
+  repoUrl?: string;
+  metrics?: string;
+  featured?: boolean;
+  isCurrent?: boolean;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ProjectApi {
+  list(): Promise<Result<{ data: ProjectItem[] }>>;
+  add(input: ProjectInput): Promise<Result<ProjectItem>>;
+  update(id: string, patch: Partial<ProjectInput>): Promise<Result<ProjectItem>>;
+  remove(id: string): Promise<Result<void>>;
+}
+
+// ── Experience domain ─────────────────────────────────────────────────────────
+
+export type ExperienceEmploymentType = "permanent" | "contract" | "c2h" | "internship" | "freelance";
+
+export type ExperienceLocationType = "remote" | "hybrid" | "onsite";
+
+export interface ExperienceItem {
+  id: string;
+  profileId: string;
+  company: string;
+  domain: string | null;
+  companyImage: string | null;
+  title: string;
+  location: string | null;
+  locationType: ExperienceLocationType | null;
+  employmentType: ExperienceEmploymentType | null;
+  startDate: string | null;
+  endDate: string | null;
+  isCurrent: boolean;
+  description: string | null;
+  skills: string[] | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExperienceInput {
+  company: string;
+  domain?: string;
+  companyImage?: string;
+  title: string;
+  location?: string;
+  locationType?: ExperienceLocationType;
+  employmentType?: ExperienceEmploymentType;
+  startDate?: string;
+  endDate?: string;
+  isCurrent?: boolean;
+  description?: string;
+  skills?: string[];
+  sortOrder?: number;
+}
+
+export interface ExperienceApi {
+  list(): Promise<Result<{ data: ExperienceItem[] }>>;
+  add(input: ExperienceInput): Promise<Result<ExperienceItem>>;
+  update(id: string, patch: Partial<ExperienceInput>): Promise<Result<ExperienceItem>>;
+  remove(id: string): Promise<Result<void>>;
+}
+
 /** The full bridge exposed on `window.compass`. Grows as features land. */
 export interface CompassApi {
   version: string;
@@ -319,4 +486,8 @@ export interface CompassApi {
   profile: ProfileApi;
   skills: SkillsApi;
   proofPoints: ProofPointsApi;
+  education: EducationApi;
+  certifications: CertificationApi;
+  projects: ProjectApi;
+  experience: ExperienceApi;
 }

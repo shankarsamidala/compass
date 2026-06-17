@@ -47,43 +47,67 @@
 /* Dark theme — natively's near-black, cool-tinted palette (not neutral grey).
    Hierarchy: chrome (sidebar/header) darkest → content → raised cards. */
 .dark {
-  --background: #141820;
-  --foreground: #e2e5ed;
+  /* ── Backgrounds ──────────────────────────────────────────────────── */
+  --background: #0e1217;
   --card: #1c1f26;
-  --card-foreground: #e2e5ed;
   --popover: #1c1f26;
-  --popover-foreground: #e2e5ed;
-  --primary: #e2e5ed;
-  --primary-foreground: #0e1217;
   --secondary: #1c1f26;
-  --secondary-foreground: #e2e5ed;
   --muted: #1c1f26;
-  --muted-foreground: #a8b3cf;
+
+  /* ── Text hierarchy ───────────────────────────────────────────────── */
+  --foreground: #a8b3cf;
+  --card-foreground: #a8b3cf;
+  --popover-foreground: #a8b3cf;
+  --secondary-foreground: #a8b3cf;
+  --sidebar-foreground: #a8b3cf;
+  --primary: #cfd6e6;
+  --primary-foreground: #0e1217;
+  --muted-foreground: rgba(168, 179, 207, 0.45);
+
+  /* ── Interactive surfaces ─────────────────────────────────────────── */
   --accent: rgba(255, 255, 255, 0.06);
-  --accent-foreground: #ffffff;
-  --destructive: #f1685e;
+  --accent-foreground: #cfd6e6;
   --border: rgba(168, 179, 207, 0.2);
   --input: rgba(168, 179, 207, 0.2);
-  --ring: rgba(168, 179, 207, 0.5);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --ring: #a8b3cf;
+
+  /* ── Semantic / status ────────────────────────────────────────────── */
+  --destructive: #f1685e;
+
+  /* ── Sidebar ──────────────────────────────────────────────────────── */
   --sidebar: #0e1217;
-  --sidebar-foreground: #e2e5ed;
   --sidebar-primary: #3da5e4;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgba(255, 255, 255, 0.055);
-  --sidebar-accent-foreground: #ffffff;
+  --sidebar-accent-foreground: #cfd6e6;
   --sidebar-border: rgba(168, 179, 207, 0.2);
-  --sidebar-ring: rgba(168, 179, 207, 0.5);
+  --sidebar-ring: #a8b3cf;
+
+  /* ── Accent palette (from daily.dev visible CSS) ──────────────────── */
+  --pink: #fc538d;
+  --pink-foreground: #ffffff;
+  --purple: #ce3df3;
+  --purple-foreground: #ffffff;
+  --blue: #5c9bfa;
+  --blue-foreground: #ffffff;
+  --yellow: #ffe923;
+  --yellow-foreground: #0e1217;
+
+  /* ── Brand (Reinit coral — product identity, not daily.dev) ───────── */
   --brand: #d97757;
   --brand-hover: #c4603e;
   --brand-foreground: #ffffff;
+
+  /* ── Charts ───────────────────────────────────────────────────────── */
+  --chart-1: #5c9bfa;
+  --chart-2: #fc538d;
+  --chart-3: #ce3df3;
+  --chart-4: #ffe923;
+  --chart-5: #d97757;
 }
 
 @theme inline {
+  /* ── Core semantic ────────────────────────────────────────────────── */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -102,14 +126,30 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* ── Brand ────────────────────────────────────────────────────────── */
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-brand-foreground: var(--brand-foreground);
+
+  /* ── Accent palette ───────────────────────────────────────────────── */
+  --color-pink: var(--pink);
+  --color-pink-foreground: var(--pink-foreground);
+  --color-purple: var(--purple);
+  --color-purple-foreground: var(--purple-foreground);
+  --color-blue: var(--blue);
+  --color-blue-foreground: var(--blue-foreground);
+  --color-yellow: var(--yellow);
+  --color-yellow-foreground: var(--yellow-foreground);
+
+  /* ── Charts ───────────────────────────────────────────────────────── */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  /* ── Sidebar ──────────────────────────────────────────────────────── */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -118,6 +158,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── Radius & typography ──────────────────────────────────────────── */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -150,6 +192,16 @@
   button:disabled,
   [aria-disabled="true"] {
     cursor: not-allowed;
+  }
+  /* Hide scrollbars app-wide while keeping scroll behavior. */
+  * {
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* legacy Edge/IE */
+  }
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;                  /* Chromium/WebKit (Electron) */
   }
 }
 

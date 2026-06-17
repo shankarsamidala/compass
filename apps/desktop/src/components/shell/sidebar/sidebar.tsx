@@ -72,7 +72,7 @@ export function Sidebar({ activeView, onNavigate, onLogout, loggingOut }: Sideba
             disabled={loggingOut}
             title={collapsed ? "Log out" : undefined}
             className={cn(
-              "ml-2 mr-1 flex h-8 items-center rounded-lg text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50",
+              "ml-2 mr-1 flex h-8 items-center rounded-lg text-sm text-foreground transition-colors hover:bg-sidebar-accent hover:text-primary disabled:opacity-50",
               collapsed ? "w-auto justify-center" : "w-[calc(100%-0.75rem)] px-2",
             )}
           >
@@ -102,7 +102,7 @@ function SidebarHeader({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
           className="flex size-10 items-center justify-center rounded-lg hover:bg-accent"
           aria-label="Expand sidebar"
         >
-          <Icon icon={SidebarLeft01Icon} size={18} className="text-muted-foreground" />
+          <Icon icon={SidebarLeft01Icon} size={18} className="text-foreground" />
         </button>
       ) : (
         <>
@@ -112,7 +112,7 @@ function SidebarHeader({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
             className="flex size-7 items-center justify-center rounded-lg hover:bg-accent"
             aria-label="Collapse sidebar"
           >
-            <Icon icon={SidebarLeft01Icon} size={18} className="text-muted-foreground" />
+            <Icon icon={SidebarLeft01Icon} size={18} className="text-foreground" />
           </button>
         </>
       )}

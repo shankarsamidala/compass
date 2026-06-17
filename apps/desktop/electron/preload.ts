@@ -53,6 +53,30 @@ const api: CompassApi = {
     remove: (id) => ipcRenderer.invoke("skills:remove", id),
     importFromExperiences: () => ipcRenderer.invoke("skills:import-from-experiences"),
   },
+  education: {
+    list: () => ipcRenderer.invoke("education:list"),
+    add: (input) => ipcRenderer.invoke("education:add", input),
+    update: (id, patch) => ipcRenderer.invoke("education:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("education:remove", id),
+  },
+  certifications: {
+    list: () => ipcRenderer.invoke("certifications:list"),
+    add: (input) => ipcRenderer.invoke("certifications:add", input),
+    update: (id, patch) => ipcRenderer.invoke("certifications:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("certifications:remove", id),
+  },
+  projects: {
+    list: () => ipcRenderer.invoke("projects:list"),
+    add: (input) => ipcRenderer.invoke("projects:add", input),
+    update: (id, patch) => ipcRenderer.invoke("projects:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("projects:remove", id),
+  },
+  experience: {
+    list: () => ipcRenderer.invoke("experience:list"),
+    add: (input) => ipcRenderer.invoke("experience:add", input),
+    update: (id, patch) => ipcRenderer.invoke("experience:update", id, patch),
+    remove: (id) => ipcRenderer.invoke("experience:remove", id),
+  },
   proofPoints: {
     list: () => ipcRenderer.invoke("proofPoints:list"),
     add: (input) => ipcRenderer.invoke("proofPoints:add", input),

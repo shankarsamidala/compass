@@ -9,6 +9,10 @@ import { settingsService } from "../services/settings.service";
 import { profileService } from "../services/profile.service";
 import { skillsService } from "../services/skills.service";
 import { proofPointsService } from "../services/proof-points.service";
+import { educationService } from "../services/education.service";
+import { certificationsService } from "../services/certifications.service";
+import { projectsService } from "../services/projects.service";
+import { experienceService } from "../services/experience.service";
 
 /** Registers all IPC channels. Called once from main on app ready. */
 export function registerIpcHandlers(): void {
@@ -71,6 +75,28 @@ export function registerIpcHandlers(): void {
   safeHandle("skills:update", (id: string, patch) => skillsService.update(id, patch));
   safeHandle("skills:remove", (id: string) => skillsService.remove(id));
   safeHandle("skills:import-from-experiences", () => skillsService.importFromExperiences());
+
+  // ── Education ──
+  safeHandle("education:list", () => educationService.list());
+  safeHandle("education:add", (input) => educationService.add(input));
+  safeHandle("education:update", (id: string, patch) => educationService.update(id, patch));
+  safeHandle("education:remove", (id: string) => educationService.remove(id));
+
+  safeHandle("certifications:list", () => certificationsService.list());
+  safeHandle("certifications:add", (input) => certificationsService.add(input));
+  safeHandle("certifications:update", (id: string, patch) => certificationsService.update(id, patch));
+  safeHandle("certifications:remove", (id: string) => certificationsService.remove(id));
+
+  safeHandle("projects:list", () => projectsService.list());
+  safeHandle("projects:add", (input) => projectsService.add(input));
+  safeHandle("projects:update", (id: string, patch) => projectsService.update(id, patch));
+  safeHandle("projects:remove", (id: string) => projectsService.remove(id));
+
+  // ── Experiences ──
+  safeHandle("experience:list", () => experienceService.list());
+  safeHandle("experience:add", (input) => experienceService.add(input));
+  safeHandle("experience:update", (id: string, patch) => experienceService.update(id, patch));
+  safeHandle("experience:remove", (id: string) => experienceService.remove(id));
 
   // ── Proof points (hot takes + achievements) ──
   safeHandle("proofPoints:list", () => proofPointsService.list());

@@ -21,8 +21,8 @@ export function RailItem({ collapsed, icon, label, right, active, onClick }: Rai
         "ml-2 mr-1 flex h-8 items-center overflow-hidden rounded-lg text-sm transition-colors",
         collapsed ? "w-auto justify-center" : "w-[calc(100%-0.75rem)]",
         active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          ? "bg-sidebar-accent text-primary"
+          : "text-foreground hover:bg-sidebar-accent hover:text-primary",
       )}
     >
       <span className="flex size-7 shrink-0 items-center justify-center">

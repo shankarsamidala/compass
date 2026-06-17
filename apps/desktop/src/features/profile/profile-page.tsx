@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useSkills, useAddSkill, useRemoveSkill, useImportSkillsFromExperiences } from "./skills-api";
 import { useHotTakes, useAddProofPoint, useRemoveProofPoint } from "./proof-points-api";
+import { useEducation, useAddEducation } from "./education-api";
+import { useCertifications } from "./certifications-api";
+import type { EducationItem, CertificationItem } from "@compass/ipc-contract";
 import { useProfilePrefs, useUpdateProfile } from "@/features/settings/profile-api";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -11,8 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Facebook02Icon, NewTwitterIcon, WhatsappIcon, RedditIcon, Linkedin02Icon,
-  MapsGlobal02Icon, PhoneArrowDownIcon, Mail01Icon, GithubIcon,
-  Edit03Icon, MailOpenIcon,
+  MapsGlobal02Icon, PhoneArrowDownIcon, GithubIcon,
+  Edit03Icon, MailOpenIcon, SourceCodeIcon,
 } from "@hugeicons/core-free-icons";
 
 type StackTool = { id: string; title: string; faviconUrl: string };
@@ -22,6 +25,42 @@ type StackSection = typeof STACK_SECTIONS[number];
 
 const STACK_YEARS = Array.from({ length: 37 }, (_, i) => String(2026 - i));
 const STACK_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const ORG_FALLBACK = "https://media.daily.dev/image/upload/s--yc7EcfBs--/f_auto,q_auto/v1/public/organization_fallback";
+
+// ── Education / Certification display helpers (mirror the settings panels) ──────
+function fmtYM(year: number | null, month: number | null): string {
+  if (!year) return "";
+  const mon = month ? MONTHS_SHORT[month - 1] : null;
+  return mon ? `${mon} ${year}` : String(year);
+}
+function eduDateRange(e: EducationItem): string {
+  const start = fmtYM(e.startYear, e.startMonth);
+  const end = e.isCurrent ? "Present" : fmtYM(e.endYear, e.endMonth);
+  if (start && end) return `${start} – ${end}`;
+  return start || end;
+}
+function eduGradeLabel(e: EducationItem): string {
+  if (e.cgpa != null) return `CGPA: ${e.cgpa}`;
+  if (e.percentage != null) return `${e.percentage}%`;
+  if (e.grade) return `Grade: ${e.grade}`;
+  return "";
+}
+function fmtIsoMonth(iso: string | null): string {
+  if (!iso) return "";
+  const [y, m] = iso.split("-");
+  const mon = m ? MONTHS_SHORT[parseInt(m, 10) - 1] : null;
+  return mon ? `${mon} ${y}` : y;
+}
+function certCredentialLine(c: CertificationItem): string {
+  const issued = fmtIsoMonth(c.issueDate);
+  const expiry = fmtIsoMonth(c.expiryDate);
+  const parts: string[] = [];
+  if (issued) parts.push(`Issued ${issued}`);
+  if (expiry) parts.push(`Expires ${expiry}`);
+  else if (issued) parts.push("No expiry");
+  return parts.join(" · ");
+}
 
 const CopyIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -43,7 +82,7 @@ const ArrowRightIcon = () => (
 
 type Tab = "posts" | "replies" | "upvoted";
 
-export function ProfilePage() {
+export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (tab: import("@/features/settings/tabs").SettingsTabId) => void }) {
   const [activeTab, setActiveTab] = useState<Tab>("posts");
   const { data: profile } = useProfilePrefs();
   const updateProfile = useUpdateProfile();
@@ -84,6 +123,10 @@ export function ProfilePage() {
     }
   }
 
+  const { data: educationList = [] } = useEducation();
+  const addEducation = useAddEducation();
+  const { data: certList = [] } = useCertifications();
+
   const { data: skills = [] } = useSkills();
   const addSkill = useAddSkill();
   const removeSkill = useRemoveSkill();
@@ -99,8 +142,46 @@ export function ProfilePage() {
   const [hotTakeText, setHotTakeText] = useState("");
   const [hotTakeUrl, setHotTakeUrl] = useState("");
 
+  const [expOpen, setExpOpen] = useState(false);
+  const [expTitle, setExpTitle] = useState("");
+  const [expEmploymentType, setExpEmploymentType] = useState("");
+  const [expCompany, setExpCompany] = useState("");
+  const [expDomain, setExpDomain] = useState("");
+  const [expCurrent, setExpCurrent] = useState(false);
+  const [expStartMonth, setExpStartMonth] = useState("");
+  const [expStartYear, setExpStartYear] = useState("");
+  const [expEndMonth, setExpEndMonth] = useState("");
+  const [expEndYear, setExpEndYear] = useState("");
+  const [expLocation, setExpLocation] = useState("");
+  const [expLocationType, setExpLocationType] = useState<"remote" | "hybrid" | "onsite" | "">("");
+  const [expDescription, setExpDescription] = useState("");
+  const [expSkillInput, setExpSkillInput] = useState("");
+  const [expSkills, setExpSkills] = useState<string[]>([]);
+
+  function handleExpSkillKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const raw = expSkillInput.split(",").map(s => s.trim()).filter(Boolean);
+      setExpSkills(prev => [...new Set([...prev, ...raw])]);
+      setExpSkillInput("");
+    }
+  }
+
+  const [eduOpen, setEduOpen] = useState(false);
+  const [eduSchool, setEduSchool] = useState("");
+  const [eduDegree, setEduDegree] = useState("");
+  const [eduField, setEduField] = useState("");
+  const [eduCurrent, setEduCurrent] = useState(false);
+  const [eduStartMonth, setEduStartMonth] = useState("");
+  const [eduStartYear, setEduStartYear] = useState("");
+  const [eduEndMonth, setEduEndMonth] = useState("");
+  const [eduEndYear, setEduEndYear] = useState("");
+  const [eduGrade, setEduGrade] = useState("");
+  const [eduDescription, setEduDescription] = useState("");
+
   const [stackOpen, setStackOpen] = useState(false);
   const [stackQuery, setStackQuery] = useState("");
+  const [stackFavicon, setStackFavicon] = useState<string | null>(null);
   const [stackSection, setStackSection] = useState<StackSection>("Primary");
   const [stackYear, setStackYear] = useState("");
   const [stackMonth, setStackMonth] = useState("");
@@ -136,6 +217,7 @@ export function ProfilePage() {
   function closeStack() {
     setStackOpen(false);
     setStackQuery("");
+    setStackFavicon(null);
     setStackSection("Primary");
     setStackYear("");
     setStackMonth("");
@@ -176,24 +258,24 @@ export function ProfilePage() {
           <div className="flex items-start gap-4 px-6 pt-12 pb-5">
             {/* Left: name + contact info */}
             <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
-              <div className="flex items-center gap-2">
-                <p className="text-xl font-bold text-foreground">ShankR</p>
-                <span className="text-[13px] text-foreground/50">@sami2911</span>
+              <div className="flex flex-col gap-0.5">
+                <p className="text-xl font-bold text-white">ShankR</p>
+                <span className="text-[13px] text-foreground">@sami2911</span>
               </div>
               <div className="flex items-center gap-1 pt-1">
-                <Button variant="ghost" size="icon-sm" title="Location" className="text-muted-foreground">
+                <Button variant="ghost" size="icon-sm" title="Location" className="text-foreground">
                   <HugeiconsIcon icon={MapsGlobal02Icon} size={20} />
                 </Button>
-                <Button variant="ghost" size="icon-sm" title="Phone" className="text-muted-foreground">
+                <Button variant="ghost" size="icon-sm" title="Phone" className="text-foreground">
                   <HugeiconsIcon icon={PhoneArrowDownIcon} size={20} />
                 </Button>
-                <Button variant="ghost" size="icon-sm" title="LinkedIn" className="text-muted-foreground">
+                <Button variant="ghost" size="icon-sm" title="LinkedIn" className="text-foreground">
                   <HugeiconsIcon icon={Linkedin02Icon} size={20} />
                 </Button>
-                <Button variant="ghost" size="icon-sm" title="GitHub" className="text-muted-foreground">
+                <Button variant="ghost" size="icon-sm" title="GitHub" className="text-foreground">
                   <HugeiconsIcon icon={GithubIcon} size={20} />
                 </Button>
-                <Button variant="ghost" size="icon-sm" title="Email" className="text-muted-foreground">
+                <Button variant="ghost" size="icon-sm" title="Email" className="text-foreground">
                   <HugeiconsIcon icon={MailOpenIcon} size={20} />
                 </Button>
               </div>
@@ -207,26 +289,26 @@ export function ProfilePage() {
                     <svg width="14" height="14" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-purple-500">
                       <path fillRule="evenodd" clipRule="evenodd" d="M8 13.605A5.333 5.333 0 108 2.938a5.333 5.333 0 000 10.667zm1.213-8.672a.494.494 0 00-.812-.517L4.944 7.922a.494.494 0 00.35.843H7.82l-1.034 2.844a.494.494 0 00.812.518l3.456-3.507a.494.494 0 00-.348-.842H8.179l1.034-2.845z" fill="currentColor" />
                     </svg>
-                    <b className="text-lg font-bold text-foreground">10</b>
+                    <b className="text-lg font-bold text-white">10</b>
                   </span>
-                  <span className="text-xs text-muted-foreground">Reputation</span>
+                  <span className="text-xs text-foreground">Reputation</span>
                 </div>
                 <div className="flex flex-col items-center gap-0.5">
-                  <b className="text-lg font-bold text-foreground">0</b>
-                  <span className="text-xs text-muted-foreground">Upvotes</span>
+                  <b className="text-lg font-bold text-white">0</b>
+                  <span className="text-xs text-foreground">Upvotes</span>
                 </div>
                 <div className="flex flex-col items-center gap-0.5">
-                  <b className="text-lg font-bold text-foreground">0</b>
-                  <span className="text-xs text-muted-foreground">Followers</span>
+                  <b className="text-lg font-bold text-white">0</b>
+                  <span className="text-xs text-foreground">Followers</span>
                 </div>
                 <div className="flex flex-col items-center gap-0.5">
-                  <b className="text-lg font-bold text-foreground">0</b>
-                  <span className="text-xs text-muted-foreground">Following</span>
+                  <b className="text-lg font-bold text-white">0</b>
+                  <span className="text-xs text-foreground">Following</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm">Follow me</Button>
-                <Button variant="outline" size="sm">Get in touch</Button>
+                <Button size="sm" className="bg-white text-black hover:bg-white/90">Follow me</Button>
+                <Button variant="outline" size="sm" className="text-white">Get in touch</Button>
               </div>
             </div>
           </div>
@@ -239,7 +321,7 @@ export function ProfilePage() {
             {/* About — headline + bio */}
             <div className="flex flex-col gap-2 py-4">
               <div className="flex items-center justify-between">
-                <p className="text-[15px] font-bold text-foreground">About</p>
+                <p className="text-[15px] font-bold text-white">About</p>
                 <Button variant="outline" size="sm" onClick={openAbout}>
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
@@ -249,17 +331,17 @@ export function ProfilePage() {
                 <p className="text-sm font-medium text-foreground">{profile.headline}</p>
               )}
               {profile?.bio && (
-                <p className="text-sm text-muted-foreground leading-relaxed">{profile.bio}</p>
+                <p className="text-sm text-foreground leading-relaxed">{profile.bio}</p>
               )}
               {!profile?.headline && !profile?.bio && (
-                <p className="text-sm text-muted-foreground/60 italic">No headline or bio yet — click the pencil to add one.</p>
+                <p className="text-sm text-foreground/60 italic">No headline or bio yet — click the pencil to add one.</p>
               )}
             </div>
 
             {/* Stack & Tools */}
             <div className="flex flex-col gap-4 py-4">
               <div className="flex items-center justify-between">
-                <p className="text-[15px] font-bold text-foreground">Stack &amp; Tools</p>
+                <p className="text-[15px] font-bold text-white">Stack &amp; Tools</p>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -277,7 +359,7 @@ export function ProfilePage() {
               </div>
               {skills.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 p-6">
-                  <p className="text-xs text-muted-foreground">Share your stack &amp; tools with the community</p>
+                  <p className="text-xs text-foreground">Share your stack &amp; tools with the community</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
@@ -286,8 +368,8 @@ export function ProfilePage() {
                     return (
                       <div key={sec} className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">{sec}</span>
-                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                          <span className="text-sm font-semibold text-white">{sec}</span>
+                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-foreground">
                             {sectionSkills.length}
                           </span>
                         </div>
@@ -295,31 +377,24 @@ export function ProfilePage() {
                           {sectionSkills.map((s) => (
                             <div
                               key={s.id}
-                              className="group flex items-center justify-between gap-1.5 rounded-lg border border-border px-2 py-1.5 hover:border-border/80"
+                              className="group flex items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 hover:border-border/80"
                             >
-                              <div className="flex items-center gap-1.5">
-                                <div className="h-4 w-4 shrink-0 cursor-grab flex items-center justify-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M9 4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm6 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM9 10.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm6 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM9 17a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm6 0a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" fillRule="evenodd" />
-                                  </svg>
-                                </div>
-                                {s.faviconUrl && (
-                                  <img src={s.faviconUrl} alt="" className="h-4 w-4 shrink-0 rounded object-contain" />
-                                )}
-                                <p className="text-xs font-medium text-foreground">{s.skill}</p>
-                              </div>
-                              <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                                <button
-                                  type="button"
-                                  aria-label={`Delete ${s.skill}`}
-                                  onClick={() => removeSkill.mutate(s.id)}
-                                  className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-destructive"
-                                >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                                  </svg>
-                                </button>
-                              </div>
+                              {s.faviconUrl ? (
+                                <img src={s.faviconUrl} alt="" className="h-4 w-4 shrink-0 rounded object-contain" />
+                              ) : (
+                                <HugeiconsIcon icon={SourceCodeIcon} size={14} className="shrink-0 text-muted-foreground" />
+                              )}
+                              <p className="text-xs font-medium text-white">{s.skill}</p>
+                              <button
+                                type="button"
+                                aria-label={`Delete ${s.skill}`}
+                                onClick={() => removeSkill.mutate(s.id)}
+                                className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                                </svg>
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -333,7 +408,7 @@ export function ProfilePage() {
             {/* Proof Points */}
             <div className="flex flex-col gap-4 py-4">
               <div className="flex items-center justify-between">
-                <p className="text-[15px] font-bold text-foreground">Proof Points</p>
+                <p className="text-[15px] font-bold text-white">Proof Points</p>
                 <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)}>
                   <PlusIcon />
                   <span>Add</span>
@@ -341,7 +416,7 @@ export function ProfilePage() {
               </div>
               {hotTakes.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
-                  <p className="text-xs text-muted-foreground">Add achievements that back up your profile</p>
+                  <p className="text-xs text-foreground">Add achievements that back up your profile</p>
                   <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)}>
                     <PlusIcon />
                     <span>Add your first proof point</span>
@@ -357,9 +432,9 @@ export function ProfilePage() {
                       >
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <p className="text-[13px] font-medium text-foreground leading-snug">{pp.title}</p>
+                          <p className="text-[13px] font-medium text-white leading-snug">{pp.title}</p>
                           {pp.metrics && (
-                            <span className="inline-flex w-fit items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            <span className="inline-flex w-fit items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground">
                               {pp.metrics}
                             </span>
                           )}
@@ -368,7 +443,7 @@ export function ProfilePage() {
                               href={pp.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-xs text-muted-foreground hover:text-foreground truncate"
+                              className="text-xs text-foreground hover:text-foreground truncate"
                             >
                               {pp.url}
                             </a>
@@ -390,7 +465,7 @@ export function ProfilePage() {
                   {hotTakes.length > 3 && (
                     <Button
                       variant="outline"
-                      className="w-full justify-center text-muted-foreground gap-2"
+                      className="w-full justify-center text-foreground gap-2"
                       onClick={() => setShowAllProofPoints(v => !v)}
                     >
                       <span>{showAllProofPoints ? "Show Less" : "Show More"}</span>
@@ -404,8 +479,8 @@ export function ProfilePage() {
             {/* Work Experiences */}
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
-                <h2 className="text-[15px] font-bold">Work Experiences</h2>
-                <Button variant="outline" size="sm">
+                <h2 className="text-[15px] font-bold text-white">Work Experiences</h2>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("work-experience")}>
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
@@ -421,25 +496,25 @@ export function ProfilePage() {
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-1">
-                        <p className="max-w-full text-[13px] font-bold">Platform Engineer</p>
-                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground/70">Current</div>
+                        <p className="max-w-full text-[13px] font-bold text-white">Platform Engineer</p>
+                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground">Current</div>
                       </div>
-                      <p className="text-xs text-foreground/70">Bazaarvoice Inc</p>
+                      <p className="text-xs text-foreground">Bazaarvoice Inc</p>
                       <div className="flex items-center">
-                        <p className="text-xs text-muted-foreground">Apr 2025</p>
-                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
-                        <p className="text-xs text-muted-foreground">Bengaluru, Karnataka, India</p>
+                        <p className="text-xs text-foreground">Apr 2025</p>
+                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-foreground">•</span>
+                        <p className="text-xs text-foreground">Bengaluru, Karnataka, India</p>
                       </div>
                     </div>
-                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground/70">
+                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground">
                       {"Automate deployment workflows by writing GitLab CI/CD pipelines to increase software delivery frequency and reduce manual interventions.\nManage containerized... "}
                       <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
                     </p>
-                    <div className="flex flex-row flex-wrap gap-2">
+                    <div className="flex flex-row flex-nowrap gap-2 overflow-hidden">
                       {["GitLab CI/CD", "Azure Kubernetes Services", "AKS"].map((s) => (
-                        <div key={s} className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">{s}</div>
+                        <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">{s}</div>
                       ))}
-                      <div className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">+5</div>
+                      <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+5</div>
                     </div>
                   </div>
                 </li>
@@ -452,23 +527,23 @@ export function ProfilePage() {
                   />
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-1">
-                      <p className="max-w-full text-[13px] font-bold">Devops Engineer</p>
-                      <p className="text-xs text-foreground/70">Kalpas Innovations</p>
+                      <p className="max-w-full text-[13px] font-bold text-white">Devops Engineer</p>
+                      <p className="text-xs text-foreground">Kalpas Innovations</p>
                       <div className="flex items-center">
-                        <p className="text-xs text-muted-foreground">Dec 2021 - Apr 2025</p>
-                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
-                        <p className="text-xs text-muted-foreground">Bengaluru, Karnataka, India</p>
+                        <p className="text-xs text-foreground">Dec 2021 - Apr 2025</p>
+                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-foreground">•</span>
+                        <p className="text-xs text-foreground">Bengaluru, Karnataka, India</p>
                       </div>
                     </div>
-                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground/70">
+                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground">
                       {"Led a team of 4 to implement automated testing and monitoring using Jenkins and Prometheus, resulting in a 70% decrease in deployment times.\nRefactored the... "}
                       <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
                     </p>
-                    <div className="flex flex-row flex-wrap gap-2">
+                    <div className="flex flex-row flex-nowrap gap-2 overflow-hidden">
                       {["Jenkins", "Prometheus", "Docker"].map((s) => (
-                        <div key={s} className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">{s}</div>
+                        <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">{s}</div>
                       ))}
-                      <div className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">+3</div>
+                      <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+3</div>
                     </div>
                   </div>
                 </li>
@@ -478,112 +553,124 @@ export function ProfilePage() {
             {/* Education */}
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
-                <h2 className="text-[15px] font-bold">Education</h2>
-                <Button variant="outline" size="sm">
+                <h2 className="text-[15px] font-bold text-white">Education</h2>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("education")}>
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
               </div>
-              <ul className="flex flex-col gap-4">
-                <li className="relative flex flex-row gap-2">
-                  <img className="h-8 w-8 rounded-full object-cover" alt="Afeka College of Engineering logo" src="https://www.google.com/s2/favicons?domain=afeka.ac.il&sz=128" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p className="text-[13px] font-bold">Afeka College of Engineering</p>
-                    <p className="text-xs text-foreground/70">Computer Applications</p>
-                    <p className="text-xs text-foreground/70">MCA</p>
-                    <div className="flex items-center">
-                      <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2022</p>
-                      <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
-                      <p className="text-xs text-muted-foreground">Surat, Gujarat, India</p>
-                    </div>
-                  </div>
-                </li>
-                <li className="relative flex flex-row gap-2">
-                  <img className="h-8 w-8 rounded-full object-cover" alt="Government Titumir College logo" src="https://www.google.com/s2/favicons?domain=titumircollege.gov.bd&sz=128" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p className="text-[13px] font-bold">Government Titumir College</p>
-                    <p className="text-xs text-foreground/70">Chemistry</p>
-                    <p className="text-xs text-foreground/70">B.Sc - Bachelor of Science</p>
-                    <div className="flex items-center">
-                      <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2017</p>
-                      <span className="mx-1 inline-block h-4 align-middle leading-4 text-muted-foreground">•</span>
-                      <p className="text-xs text-muted-foreground">Kakinada, India</p>
-                    </div>
-                  </div>
-                </li>
-                <li className="relative flex flex-row gap-2">
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground font-bold">P</div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p className="text-[13px] font-bold">Pragathi College</p>
-                    <p className="text-xs text-foreground/70">Intermediate 12th</p>
-                    <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2014</p>
-                  </div>
-                </li>
-              </ul>
-              <Button variant="outline" className="w-full justify-center text-muted-foreground gap-2">
-                <span>Show More</span>
-                <ArrowRightIcon />
-              </Button>
+              {educationList.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
+                  <p className="text-xs text-foreground">Add your educational background</p>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("education")}>
+                    <PlusIcon /><span>Add Education</span>
+                  </Button>
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-4">
+                  {educationList.map(edu => (
+                    <li key={edu.id} className="group relative flex gap-3">
+                      <div className="mt-0.5 h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-card">
+                        <img src={ORG_FALLBACK} alt={edu.institution} className="h-full w-full object-cover" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[13px] font-bold text-white capitalize">{edu.institution}</span>
+                          {edu.isCurrent && (
+                            <span className="inline-flex items-center rounded border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Current</span>
+                          )}
+                        </div>
+                        {edu.field && <p className="text-xs text-white capitalize">{edu.field}</p>}
+                        {(edu.degree || eduGradeLabel(edu)) && (
+                          <p className="mt-1 text-xs text-foreground">
+                            <span className="capitalize">{edu.degree}</span>
+                            {edu.degree && eduGradeLabel(edu) && " · "}
+                            {eduGradeLabel(edu)}
+                          </p>
+                        )}
+                        {eduDateRange(edu) && <p className="mt-1 text-xs text-foreground">{eduDateRange(edu)}</p>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Certifications */}
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
-                <h2 className="text-[15px] font-bold">Certifications</h2>
-                <Button variant="outline" size="sm">
+                <h2 className="text-[15px] font-bold text-white">Certifications</h2>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("certifications")}>
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
               </div>
-              <ul className="flex flex-col gap-4">
-                <li className="relative flex flex-row gap-2">
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground font-bold">
-                    A
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p className="text-[13px] font-bold">AWS Cloud Practitionior</p>
-                    <p className="text-xs text-foreground/70">AWS</p>
-                    <p className="text-xs text-muted-foreground">Jun 2026 - Jan 2023</p>
-                  </div>
-                </li>
-              </ul>
+              {certList.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
+                  <p className="text-xs text-foreground">Add your licenses and certifications</p>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("certifications")}>
+                    <PlusIcon /><span>Add Certification</span>
+                  </Button>
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-4">
+                  {certList.map(cert => (
+                    <li key={cert.id} className="group relative flex gap-3">
+                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-card">
+                        {cert.issuerImage ? (
+                          <img src={cert.issuerImage} alt={cert.issuer ?? cert.name} className="h-full w-full object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                        ) : (
+                          <span className="text-xs font-bold text-foreground">{cert.name.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[13px] font-bold text-white capitalize">{cert.name}</span>
+                        {cert.issuer && <p className="text-xs text-white capitalize">{cert.issuer}</p>}
+                        {certCredentialLine(cert) && <p className="mt-1 text-xs text-foreground">{certCredentialLine(cert)}</p>}
+                        {cert.credentialId && <p className="mt-0.5 text-xs text-foreground">Credential ID: {cert.credentialId}</p>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Projects */}
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
-                <h2 className="text-[15px] font-bold">Projects</h2>
-                <Button variant="outline" size="sm">
+                <h2 className="text-[15px] font-bold text-white">Projects</h2>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("projects")}>
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
               </div>
               <ul className="flex flex-col gap-4">
                 <li className="relative flex flex-row gap-2">
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground font-bold">
+                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-foreground font-bold">
                     J
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="flex flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-1">
-                        <p className="max-w-full text-[13px] font-bold">Jenkins Cicd</p>
-                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground/70">
+                        <p className="max-w-full text-[13px] font-bold text-white">Jenkins Cicd</p>
+                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground">
                           Current
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">Jun 2026</p>
+                      <p className="text-xs text-foreground">Jun 2026</p>
                     </div>
-                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground/70">
+                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground">
                       {"Automated code deployment pipelines using Jenkins and Github to ensure consistent build artifacts across environments.\nContainerized application services with... "}
                       <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
                     </p>
-                    <div className="flex flex-row flex-wrap gap-2">
+                    <div className="flex flex-row flex-nowrap gap-2 overflow-hidden">
                       {["AWS", "Jenkins", "Ci/Cd"].map((s) => (
-                        <div key={s} className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">
+                        <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">
                           {s}
                         </div>
                       ))}
-                      <div className="self-start font-bold text-xs rounded-lg px-2 py-1 border border-border text-muted-foreground">+3</div>
+                      <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+3</div>
                     </div>
                   </div>
                 </li>
@@ -593,7 +680,7 @@ export function ProfilePage() {
             {/* Achievement Showcase */}
             <div className="flex flex-col gap-4 py-4">
               <div className="flex items-center justify-between">
-                <p className="text-[15px] font-bold text-foreground">Achievement Showcase</p>
+                <p className="text-[15px] font-bold text-white">Achievement Showcase</p>
                 <Button variant="outline" size="sm">
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
@@ -618,7 +705,7 @@ export function ProfilePage() {
             <div className="flex flex-col gap-3 overflow-hidden py-4">
               <div className="flex items-end justify-between">
                 <div className="flex flex-col gap-3">
-                  <p className="text-[15px] font-bold">Activity</p>
+                  <p className="text-[15px] font-bold text-white">Activity</p>
                   <ul className="relative flex flex-row">
                     {(["Posts", "Replies", "Upvoted"] as const).map((tab) => {
                       const key = tab.toLowerCase() as Tab;
@@ -629,7 +716,7 @@ export function ProfilePage() {
                           size="sm"
                           type="button"
                           onClick={() => setActiveTab(key)}
-                          className={activeTab === key ? "bg-muted text-foreground" : "text-muted-foreground"}
+                          className={activeTab === key ? "bg-muted text-white" : "text-foreground"}
                         >
                           {tab}
                         </Button>
@@ -639,7 +726,7 @@ export function ProfilePage() {
                 </div>
               </div>
               <div className="flex min-h-[27.125rem] flex-col items-center justify-center gap-6 px-4 py-6 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-foreground">
                   Hardest part of being a developer? Where do we start – it's everything. Go on, share with us your best rant.
                 </p>
                 <Button size="lg">
@@ -658,32 +745,32 @@ export function ProfilePage() {
         {/* Preview mode */}
         <div className="flex items-center gap-3 rounded-2xl border border-border p-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-muted-foreground">
+            <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-foreground">
               <path d="M12 4.5c3.828 0 6.74 2.287 8.62 6.592l.139.326L21 12l-.241.582C18.885 17.097 15.924 19.5 12 19.5c-3.828 0-6.74-2.287-8.62-6.592l-.139-.326L3 12l.241-.582C5.115 6.903 8.076 4.5 12 4.5zm0 3.25a4.25 4.25 0 110 8.5 4.25 4.25 0 010-8.5z" fill="currentColor" fillRule="evenodd" />
             </svg>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <p className="text-[15px] font-bold">Preview mode</p>
-              <p className="text-xs text-muted-foreground">See how your profile looks to others</p>
+              <p className="text-[15px] font-bold text-white">Preview mode</p>
+              <p className="text-xs text-foreground">See how your profile looks to others</p>
             </div>
           </div>
           <Switch className="shrink-0 self-center" />
         </div>
 
         {/* Profile completion */}
-        <div className="flex cursor-pointer flex-col rounded-2xl border border-blue-500/60 bg-blue-500/10 hover:bg-blue-500/15">
+        <div className="flex cursor-pointer flex-col rounded-2xl border border-yellow/60 bg-yellow/10 hover:bg-yellow/15">
           <div className="flex w-full items-center gap-6 p-4">
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center gap-1">
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-foreground/70">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-yellow">
                   <path fillRule="evenodd" clipRule="evenodd" d="M14 8A6 6 0 102 8a6 6 0 0012 0zm-1 0A5 5 0 103 8a5 5 0 0010 0zm-5.667-.667a.667.667 0 011.334 0v3.334a.667.667 0 01-1.334 0V7.333zM8 4.667A.667.667 0 108 6a.667.667 0 000-1.333z" fill="currentColor" />
                 </svg>
-                <p className="text-sm font-bold text-foreground">Profile Completion</p>
+                <p className="text-sm font-bold text-white">Profile Completion</p>
               </div>
               <div className="flex min-w-0 items-center gap-1">
-                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-foreground/70">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-yellow">
                   <path d="M14.182 4.269a1 1 0 10-1.364 1.462L18.463 11H3a1 1 0 100 2h15.463l-5.645 5.269a1 1 0 001.364 1.462l7.5-7a1 1 0 000-1.462l-7.5-7z" />
                 </svg>
-                <p className="text-xs text-foreground/70">Add Headline.</p>
+                <p className="text-xs text-foreground">Add Headline.</p>
               </div>
             </div>
             <div className="relative flex shrink-0 items-center justify-center" style={{ width: 50, height: 50 }}>
@@ -691,9 +778,9 @@ export function ProfilePage() {
                 <circle cx="25" cy="25" r="22" className="stroke-border" strokeWidth="5" fill="transparent" />
                 <circle cx="25" cy="25" r="22" strokeWidth="5" strokeLinecap="round"
                   strokeDasharray="138.23007675795088" strokeDashoffset="27.64601535159017"
-                  transform="rotate(-90 25 25)" fill="transparent" className="stroke-blue-500" />
+                  transform="rotate(-90 25 25)" fill="transparent" className="stroke-yellow" />
               </svg>
-              <p className="absolute leading-none text-sm font-bold text-blue-500">80%</p>
+              <p className="absolute leading-none text-sm font-bold text-yellow">80%</p>
             </div>
           </div>
         </div>
@@ -702,8 +789,8 @@ export function ProfilePage() {
         <section className="flex flex-col rounded-2xl border border-border p-4">
           <div className="flex w-full items-center gap-1">
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <p className="text-sm font-bold text-foreground">Public profile &amp; URL</p>
-              <p className="text-[13px] text-foreground/70 max-w-full truncate">https://app.daily.dev/sami2911</p>
+              <p className="text-sm font-bold text-white">Public profile &amp; URL</p>
+              <p className="text-[13px] text-foreground max-w-full truncate">https://app.daily.dev/sami2911</p>
             </div>
             <Button variant="ghost" size="icon-xs" aria-label="Copy link">
               <CopyIcon />
@@ -711,7 +798,7 @@ export function ProfilePage() {
           </div>
           <Separator className="my-2" />
           <div className="flex items-center justify-between">
-            <p className="text-[13px] text-muted-foreground">Share</p>
+            <p className="text-[13px] text-foreground">Share</p>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon-sm" aria-label="Share on X">
                 <HugeiconsIcon icon={NewTwitterIcon} size={20} />
@@ -734,45 +821,45 @@ export function ProfilePage() {
 
         {/* Profile Activity */}
         <section className="flex flex-col rounded-2xl border border-border p-4">
-          <h2 className="flex items-center gap-1 text-sm font-bold text-foreground">
+          <h2 className="flex items-center gap-1 text-sm font-bold text-white">
             Profile Activity
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-muted-foreground">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-foreground">
               <path fillRule="evenodd" clipRule="evenodd" d="M14 8A6 6 0 102 8a6 6 0 0012 0zm-1 0A5 5 0 103 8a5 5 0 0010 0zm-5.667-.667a.667.667 0 011.334 0v3.334a.667.667 0 01-1.334 0V7.333zM8 4.667A.667.667 0 108 6a.667.667 0 000-1.333z" fill="currentColor" />
             </svg>
           </h2>
           <div className="my-3 flex flex-col gap-2">
             <div className="flex gap-2">
               <div className="flex-1 rounded-xl border border-border p-2 text-center">
-                <p className="text-[15px] font-bold text-foreground">1</p>
-                <p className="text-xs text-muted-foreground">Views this week</p>
+                <p className="text-[15px] font-bold text-white">1</p>
+                <p className="text-xs text-foreground">Views this week</p>
               </div>
               <div className="flex-1 rounded-xl border border-border p-2 text-center">
-                <p className="text-[15px] font-bold text-foreground">2</p>
-                <p className="text-xs text-muted-foreground">Views this month</p>
+                <p className="text-[15px] font-bold text-white">2</p>
+                <p className="text-xs text-foreground">Views this month</p>
               </div>
             </div>
             <div className="rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-foreground">1</p>
-              <p className="text-xs text-muted-foreground">Total profile views</p>
+              <p className="text-[15px] font-bold text-white">1</p>
+              <p className="text-xs text-foreground">Total profile views</p>
             </div>
           </div>
         </section>
 
         {/* Reading Overview */}
         <section className="flex flex-col rounded-2xl border border-border p-4">
-          <h2 className="text-sm font-bold text-foreground">Reading Overview</h2>
+          <h2 className="text-sm font-bold text-white">Reading Overview</h2>
           <a className="text-xs text-blue-500 hover:underline mt-0.5">Learn more</a>
           <div className="my-3 flex gap-2">
             <div className="flex-1 rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-foreground">2</p>
-              <p className="text-xs text-muted-foreground">Longest streak 🏆</p>
+              <p className="text-[15px] font-bold text-white">2</p>
+              <p className="text-xs text-foreground">Longest streak 🏆</p>
             </div>
             <div className="flex-1 rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-foreground">7</p>
-              <p className="text-xs text-muted-foreground">Total reading days</p>
+              <p className="text-[15px] font-bold text-white">7</p>
+              <p className="text-xs text-foreground">Total reading days</p>
             </div>
           </div>
-          <h3 className="my-1 text-[13px] text-muted-foreground">Top tags by reading days</h3>
+          <h3 className="my-1 text-[13px] text-foreground">Top tags by reading days</h3>
           <div className="my-3 grid max-w-full grid-cols-2 gap-2">
             {[
               "Database", "Devtools", "Github", "Laravel", "Microsoft-sql-server", "Performance",
@@ -784,7 +871,7 @@ export function ProfilePage() {
               </div>
             ))}
           </div>
-          <h3 className="mb-3 text-[13px] text-muted-foreground">Posts read in the last months (6)</h3>
+          <h3 className="mb-3 text-[13px] text-foreground">Posts read in the last months (6)</h3>
           {/* Heatmap */}
           <svg width="100%" viewBox="0 0 278 92">
             <g transform="translate(50, 0)">
@@ -828,7 +915,7 @@ export function ProfilePage() {
         {/* Recommended Squads */}
         <section className="flex flex-col rounded-2xl border border-border p-4">
           <div className="flex min-h-0 flex-1 flex-col">
-            <h4 className="text-sm font-bold text-foreground">Recommended Squads</h4>
+            <h4 className="text-sm font-bold text-white">Recommended Squads</h4>
             <ul className="mt-4 flex flex-col gap-2">
               {[
                 { name: "Node.js developers", handle: "@nodejsdevelopers", members: "40.9K members", img: "https://media.daily.dev/image/upload/s--TZIXRVEW--/f_auto/v1707292248/squads/8ccb5b29-1050-49ed-9fd4-d553890497b5" },
@@ -842,9 +929,9 @@ export function ProfilePage() {
                     <img alt={sq.name} className="absolute inset-0 h-full w-full object-cover" src={sq.img} />
                   </figure>
                   <div className="min-w-0 flex-1">
-                    <h5 className="text-sm font-bold max-w-full truncate">{sq.name}</h5>
-                    <p className="text-xs text-muted-foreground truncate">{sq.handle}</p>
-                    <p className="text-xs text-muted-foreground">{sq.members}</p>
+                    <h5 className="text-sm font-bold text-white max-w-full truncate">{sq.name}</h5>
+                    <p className="text-xs text-foreground truncate">{sq.handle}</p>
+                    <p className="text-xs text-foreground">{sq.members}</p>
                   </div>
                   <Button size="sm">
                     Join
@@ -865,16 +952,16 @@ export function ProfilePage() {
 
         {/* Badges & Awards */}
         <section className="flex flex-col rounded-2xl border border-border p-4">
-          <h2 className="text-sm font-bold text-foreground">Badges &amp; Awards</h2>
+          <h2 className="text-sm font-bold text-white">Badges &amp; Awards</h2>
           <a className="text-xs text-blue-500 hover:underline mt-0.5">Learn more</a>
           <div className="my-3 flex gap-3">
             <div className="flex-1 rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-foreground">x0</p>
-              <p className="text-xs text-muted-foreground">Top reader badge</p>
+              <p className="text-[15px] font-bold text-white">x0</p>
+              <p className="text-xs text-foreground">Top reader badge</p>
             </div>
             <div className="flex-1 rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-foreground">x0</p>
-              <p className="text-xs text-muted-foreground">Total Awards</p>
+              <p className="text-[15px] font-bold text-white">x0</p>
+              <p className="text-xs text-foreground">Total Awards</p>
             </div>
           </div>
         </section>
@@ -882,7 +969,7 @@ export function ProfilePage() {
         {/* Achievements */}
         <section className="flex flex-col rounded-2xl border border-border p-4">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-1 text-sm font-bold text-foreground">
+            <h2 className="flex items-center gap-1 text-sm font-bold text-white">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path fillRule="evenodd" clipRule="evenodd" d="M5.5 9.5a6.5 6.5 0 1112.147 3.221l2.082 3.607c.831 1.44-.371 3.2-2.014 2.95l-.36-.054a.283.283 0 00-.306.177l-.132.338c-.605 1.548-2.732 1.709-3.563.27L12 17.662l-1.355 2.347c-.83 1.439-2.958 1.278-3.562-.27l-.133-.338a.283.283 0 00-.306-.177l-.36.055c-1.642.25-2.845-1.512-2.014-2.95l2.083-3.608A6.47 6.47 0 015.5 9.5zm7.46 6.43l1.866 3.23a.283.283 0 00.508-.039l.133-.338a1.982 1.982 0 012.144-1.239l.36.055a.283.283 0 00.287-.421l-1.736-3.008a6.481 6.481 0 01-3.561 1.76zm-5.482-1.76a6.48 6.48 0 003.56 1.76l-1.864 3.23a.283.283 0 01-.509-.039l-.132-.338a1.982 1.982 0 00-2.145-1.239l-.359.055a.283.283 0 01-.288-.421l1.737-3.009z" />
               </svg>
@@ -935,7 +1022,7 @@ export function ProfilePage() {
               <div className="flex shrink-0 items-start justify-between border-b border-border px-4 py-4">
                 <div className="flex flex-col gap-0.5">
                   <h3 className="text-base font-bold text-foreground">Add proof point</h3>
-                  <p className="text-sm text-muted-foreground">An achievement that backs up your profile</p>
+                  <p className="text-sm text-foreground">An achievement that backs up your profile</p>
                 </div>
                 <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setHotTakeOpen(false)}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -945,7 +1032,7 @@ export function ProfilePage() {
               </div>
               <div className="flex flex-col gap-5 overflow-y-auto p-4">
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-bold text-foreground">Achievement</p>
+                  <p className="text-sm font-bold text-white">Achievement</p>
                   <textarea
                     placeholder="e.g. Reduced deployment time by 70% using GitLab CI/CD"
                     value={hotTakeText}
@@ -955,7 +1042,7 @@ export function ProfilePage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-bold text-foreground">
+                  <p className="text-sm font-bold text-white">
                     Reference link <span className="font-normal text-muted-foreground">(optional)</span>
                   </p>
                   <Input
@@ -1008,7 +1095,7 @@ export function ProfilePage() {
               <div className="flex shrink-0 items-start justify-between border-b border-border px-4 py-4">
                 <div className="flex flex-col gap-0.5">
                   <h3 className="text-base font-bold text-foreground">Add stack/tool</h3>
-                  <p className="text-sm text-muted-foreground">Share the technologies you work with</p>
+                  <p className="text-sm text-foreground">Share the technologies you work with</p>
                 </div>
                 <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={closeStack}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -1024,7 +1111,7 @@ export function ProfilePage() {
                   <Input
                     placeholder="Technology, tool, or skill"
                     value={stackQuery}
-                    onChange={e => setStackQuery(e.target.value)}
+                    onChange={e => { setStackQuery(e.target.value); setStackFavicon(null); }}
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                     className="h-11"
@@ -1039,6 +1126,7 @@ export function ProfilePage() {
                           className="flex w-full items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted text-left"
                           onMouseDown={() => {
                             setStackQuery(tool.title);
+                            setStackFavicon(tool.faviconUrl ?? null);
                             setShowSuggestions(false);
                           }}
                         >
@@ -1056,7 +1144,7 @@ export function ProfilePage() {
 
                 {/* Section */}
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-foreground">Section</p>
+                  <p className="text-sm font-bold text-white">Section</p>
                   <div className="flex flex-wrap gap-2">
                     {STACK_SECTIONS.map(s => (
                       <Button
@@ -1074,7 +1162,7 @@ export function ProfilePage() {
 
                 {/* Using since */}
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-foreground">
+                  <p className="text-sm font-bold text-white">
                     Using since{" "}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </p>
@@ -1117,7 +1205,7 @@ export function ProfilePage() {
                     await addSkill.mutateAsync({
                       skill: stackQuery.trim(),
                       section: stackSection,
-                      faviconUrl: suggestions.find(s => s.title === stackQuery.trim())?.faviconUrl ?? null,
+                      faviconUrl: stackFavicon ?? suggestions.find(s => s.title === stackQuery.trim())?.faviconUrl ?? null,
                       sinceYear: stackYear ? Number(stackYear) : null,
                       sinceMonth: stackMonth ? STACK_MONTHS.indexOf(stackMonth) + 1 : null,
                     });
@@ -1154,8 +1242,8 @@ export function ProfilePage() {
             >
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div>
-                  <p className="text-sm font-bold text-foreground">About</p>
-                  <p className="text-xs text-muted-foreground">Your headline and bio</p>
+                  <p className="text-sm font-bold text-white">About</p>
+                  <p className="text-xs text-foreground">Your headline and bio</p>
                 </div>
                 <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setAboutOpen(false)}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -1168,7 +1256,7 @@ export function ProfilePage() {
                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand/5 px-4 py-3">
                   <div className="flex flex-col leading-tight">
                     <span className="text-sm font-medium">Write with AI</span>
-                    <span className="text-xs text-muted-foreground">Draft or refine your headline and bio using your local model.</span>
+                    <span className="text-xs text-foreground">Draft or refine your headline and bio using your local model.</span>
                   </div>
                   <button
                     type="button"
@@ -1191,7 +1279,7 @@ export function ProfilePage() {
                 </div>
                 {aiAboutError && <p className="text-xs text-destructive">{aiAboutError}</p>}
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-bold text-foreground">Headline</p>
+                  <p className="text-sm font-bold text-white">Headline</p>
                   <Input
                     placeholder="e.g. Platform Engineer · Scaling distributed systems at startup speed"
                     value={editHeadline}
@@ -1199,7 +1287,7 @@ export function ProfilePage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-bold text-foreground">Bio</p>
+                  <p className="text-sm font-bold text-white">Bio</p>
                   <textarea
                     placeholder="e.g. Sami is a platform engineer who builds resilient infra for product teams. He's obsessed with developer experience and has a habit of automating anything tedious."
                     value={editBio}
@@ -1217,6 +1305,423 @@ export function ProfilePage() {
                 >
                   {updateProfile.isPending ? "Saving…" : "Save"}
                 </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Work Experience Sheet */}
+      <AnimatePresence>
+        {expOpen && (
+          <>
+            <motion.div
+              key="exp-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/40"
+              onClick={() => setExpOpen(false)}
+            />
+            <motion.div
+              key="exp-sheet"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-[28rem] flex-col bg-background border-l border-border"
+            >
+              {/* Header */}
+              <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
+                <Button variant="ghost" size="icon-sm" className="mr-2 shrink-0" onClick={() => setExpOpen(false)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </Button>
+                <p className="flex-1 text-sm font-bold text-white">Add Work Experience</p>
+                <Button size="sm" onClick={() => setExpOpen(false)}>Save</Button>
+              </div>
+
+              {/* Body */}
+              <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+
+                {/* Job Title */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Job Title*</p>
+                  <Input
+                    placeholder="Ex: Senior Frontend Engineer"
+                    value={expTitle}
+                    onChange={e => setExpTitle(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+
+                {/* Employment Type */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Employment Type</p>
+                  <Select value={expEmploymentType} onValueChange={setExpEmploymentType}>
+                    <SelectTrigger className="h-9 w-full rounded-xl">
+                      <SelectValue placeholder="Please select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["Full-time", "Part-time", "Contract", "Freelance", "Internship", "Apprenticeship", "Other"].map(t => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Company */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Company or organization*</p>
+                  <Input
+                    placeholder="Company or organization"
+                    value={expCompany}
+                    onChange={e => setExpCompany(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+
+                {/* Company domain */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Company domain</p>
+                  <Input
+                    placeholder="Ex: company.com"
+                    value={expDomain}
+                    onChange={e => setExpDomain(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+
+                <div className="border-t border-border" />
+
+                {/* Current position */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-white">Current position</p>
+                    <Switch checked={expCurrent} onCheckedChange={setExpCurrent} />
+                  </div>
+                  <p className="text-xs text-foreground">Check if this is your current role</p>
+                </div>
+
+                {/* Start date */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Start date*</p>
+                  <div className="flex gap-3">
+                    <Select value={expStartMonth} onValueChange={setExpStartMonth}>
+                      <SelectTrigger className="h-9 w-full rounded-xl">
+                        <SelectValue placeholder="Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={expStartYear} onValueChange={setExpStartYear}>
+                      <SelectTrigger className="h-9 w-full rounded-xl">
+                        <SelectValue placeholder="Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* End date */}
+                {!expCurrent && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-bold text-white">End date*</p>
+                    <div className="flex gap-3">
+                      <Select value={expEndMonth} onValueChange={setExpEndMonth}>
+                        <SelectTrigger className="h-9 w-full rounded-xl">
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={expEndYear} onValueChange={setExpEndYear}>
+                        <SelectTrigger className="h-9 w-full rounded-xl">
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-border" />
+
+                {/* Location */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Location</p>
+                  <Input
+                    placeholder="Ex: Bengaluru, India"
+                    value={expLocation}
+                    onChange={e => setExpLocation(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                  <div className="flex gap-1">
+                    {(["remote", "hybrid", "onsite"] as const).map(type => (
+                      <label
+                        key={type}
+                        className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                          expLocationType === type
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border text-muted-foreground hover:border-foreground/50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="locationType"
+                          value={type}
+                          checked={expLocationType === type}
+                          onChange={() => setExpLocationType(type)}
+                          className="sr-only"
+                        />
+                        {type.charAt(0).toUpperCase() + type.slice(1).replace("onsite", "On-site")}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Description</p>
+                  <div className="flex flex-col rounded-xl border border-input bg-input/30 px-4 pt-3 pb-2">
+                    <textarea
+                      placeholder="Key technologies, projects, and achievements"
+                      value={expDescription}
+                      onChange={e => setExpDescription(e.target.value)}
+                      maxLength={5000}
+                      rows={4}
+                      className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    <span className="ml-auto text-xs text-foreground">{expDescription.length}/5000</span>
+                  </div>
+                </div>
+
+                {/* Skills */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Skills</p>
+                  <div className="flex items-center gap-2 rounded-xl border border-input bg-input/30 px-3 h-9">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-muted-foreground">
+                      <path d="M10 3a7 7 0 016.068 10.492 2.813 2.813 0 012.076.67l.157.147 1.872 1.871a2.823 2.823 0 01-3.852 4.125l-.14-.132-1.872-1.872a2.817 2.817 0 01-.818-2.234A7 7 0 1110 3zm0 1.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11z" fillRule="evenodd" />
+                    </svg>
+                    <input
+                      placeholder="Search skills"
+                      value={expSkillInput}
+                      onChange={e => setExpSkillInput(e.target.value)}
+                      onKeyDown={handleExpSkillKeyDown}
+                      className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                  </div>
+                  <p className="text-xs text-foreground">Add commas (,) to add multiple skills. Press Enter to submit them.</p>
+                  {expSkills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {expSkills.map(s => (
+                        <div key={s} className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-medium text-foreground">
+                          {s}
+                          <button
+                            type="button"
+                            onClick={() => setExpSkills(prev => prev.filter(x => x !== s))}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Education Sheet */}
+      <AnimatePresence>
+        {eduOpen && (
+          <>
+            <motion.div
+              key="edu-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/40"
+              onClick={() => setEduOpen(false)}
+            />
+            <motion.div
+              key="edu-sheet"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-[28rem] flex-col bg-background border-l border-border"
+            >
+              {/* Header */}
+              <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
+                <Button variant="ghost" size="icon-sm" className="mr-2 shrink-0" onClick={() => setEduOpen(false)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </Button>
+                <p className="flex-1 text-sm font-bold text-white">Add Education</p>
+                <Button
+                  size="sm"
+                  disabled={addEducation.isPending || !eduSchool.trim()}
+                  onClick={async () => {
+                    await addEducation.mutateAsync({
+                      institution: eduSchool.trim(),
+                      degree: eduDegree.trim() || undefined,
+                      field: eduField.trim() || undefined,
+                      startYear: eduStartYear ? Number(eduStartYear) : undefined,
+                      startMonth: eduStartMonth ? Number(eduStartMonth) : undefined,
+                      endYear: eduCurrent ? undefined : (eduEndYear ? Number(eduEndYear) : undefined),
+                      endMonth: eduCurrent ? undefined : (eduEndMonth ? Number(eduEndMonth) : undefined),
+                      isCurrent: eduCurrent,
+                      grade: eduGrade.trim() || undefined,
+                    });
+                    setEduOpen(false);
+                    setEduSchool(""); setEduDegree(""); setEduField("");
+                    setEduStartMonth(""); setEduStartYear(""); setEduEndMonth(""); setEduEndYear("");
+                    setEduGrade(""); setEduDescription(""); setEduCurrent(false);
+                  }}
+                >
+                  {addEducation.isPending ? "Saving…" : "Save"}
+                </Button>
+              </div>
+
+              {/* Body */}
+              <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+
+                {/* School */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">School*</p>
+                  <Input
+                    placeholder="School"
+                    value={eduSchool}
+                    onChange={e => setEduSchool(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+
+                {/* Degree */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Degree*</p>
+                  <Input
+                    placeholder="Ex: Bachelor, Master, PhD, Diploma, Certificate"
+                    value={eduDegree}
+                    onChange={e => setEduDegree(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+
+                {/* Field of Study */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Field of Study*</p>
+                  <Input
+                    placeholder="Ex: Science in Computer Science"
+                    value={eduField}
+                    onChange={e => setEduField(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+
+                <div className="border-t border-border" />
+
+                {/* Current education toggle */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-white">Current education</p>
+                    <Switch checked={eduCurrent} onCheckedChange={setEduCurrent} />
+                  </div>
+                  <p className="text-xs text-foreground">Check if you are currently enrolled in this program or pursuing this degree.</p>
+                </div>
+
+                {/* Start date */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Start date*</p>
+                  <div className="flex gap-3">
+                    <Select value={eduStartMonth} onValueChange={setEduStartMonth}>
+                      <SelectTrigger className="h-9 w-full rounded-xl">
+                        <SelectValue placeholder="Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={eduStartYear} onValueChange={setEduStartYear}>
+                      <SelectTrigger className="h-9 w-full rounded-xl">
+                        <SelectValue placeholder="Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* End date */}
+                {!eduCurrent && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-bold text-white">End date*</p>
+                    <div className="flex gap-3">
+                      <Select value={eduEndMonth} onValueChange={setEduEndMonth}>
+                        <SelectTrigger className="h-9 w-full rounded-xl">
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={eduEndYear} onValueChange={setEduEndYear}>
+                        <SelectTrigger className="h-9 w-full rounded-xl">
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-border" />
+
+                {/* Grade */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Grade</p>
+                  <Input
+                    placeholder="Ex: 3.8/4.0, First Class Honours, 85%"
+                    value={eduGrade}
+                    onChange={e => setEduGrade(e.target.value)}
+                    className="h-9 rounded-xl"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-bold text-white">Description</p>
+                  <div className="flex flex-col rounded-xl border border-input bg-input/30 px-4 pt-3 pb-2">
+                    <textarea
+                      placeholder="Relevant projects, hackathons, technical clubs"
+                      value={eduDescription}
+                      onChange={e => setEduDescription(e.target.value)}
+                      maxLength={5000}
+                      rows={4}
+                      className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    <span className="ml-auto text-xs text-foreground">{eduDescription.length}/5000</span>
+                  </div>
+                </div>
+
               </div>
             </motion.div>
           </>

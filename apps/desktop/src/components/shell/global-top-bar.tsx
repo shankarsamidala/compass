@@ -39,7 +39,7 @@ export function GlobalTopBar() {
         <button
           type="button"
           aria-label="Open search"
-          className="relative flex h-8 w-[20rem] max-w-[24rem] items-center overflow-hidden rounded-lg border border-transparent bg-background px-2.5 text-left transition-colors hover:bg-accent xl:h-11 xl:w-[26rem] xl:max-w-[30rem] xl:rounded-xl xl:px-3"
+          className="relative flex h-8 w-[20rem] max-w-[24rem] items-center overflow-hidden rounded-lg border border-sidebar-border bg-card px-2.5 text-left transition-colors hover:bg-accent xl:h-11 xl:w-[26rem] xl:max-w-[30rem] xl:rounded-xl xl:px-3"
         >
           <HugeiconsIcon icon={Search01Icon} size={16} className="mr-2 shrink-0 text-muted-foreground xl:mr-3" />
           <span className="min-w-0 flex-1 text-[13px] text-muted-foreground xl:text-sm">Search</span>
