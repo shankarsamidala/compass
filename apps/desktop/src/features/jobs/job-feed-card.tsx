@@ -53,7 +53,7 @@ export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => vo
   const blurb = plainText(job.jd);
 
   return (
-    <article className="group relative flex flex-col rounded-xl border-[1.5px] border-border bg-card transition-colors hover:border-brand/50">
+    <article className="group relative flex flex-col rounded-xl border-[1.5px] border-border bg-card transition-colors hover:border-brand">
       {/* Whole-card click overlay */}
       <button type="button" onClick={onClick} aria-label={`Open ${job.title}`} className="absolute inset-0 z-0 rounded-xl" />
 
@@ -62,8 +62,8 @@ export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => vo
           {/* Title + company + fit band */}
           <div className="flex items-start gap-3">
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <p className="truncate text-lg font-semibold leading-snug text-foreground">{job.title}</p>
-              <p className="text-xs leading-normal text-muted-foreground">
+              <p className="truncate text-lg font-semibold leading-snug text-white">{job.title}</p>
+              <p className="text-xs leading-normal text-foreground">
                 {job.company}
                 {posted ? <span> · {posted}</span> : null}
               </p>
@@ -81,7 +81,7 @@ export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => vo
               {meta.map((m) => (
                 <div
                   key={m.text}
-                  className="flex items-center gap-1 rounded border border-border px-1.5 py-px text-[10px] text-muted-foreground"
+                  className="flex items-center gap-1 rounded border border-border px-1.5 py-px text-[10px] text-foreground"
                 >
                   <HugeiconsIcon icon={m.icon} size={10} className="shrink-0" />
                   <span className="whitespace-nowrap">{m.text}</span>
@@ -91,7 +91,7 @@ export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => vo
           )}
 
           {/* JD blurb (HTML stripped, clamped) */}
-          {blurb ? <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{blurb}</p> : null}
+          {blurb ? <p className="line-clamp-2 text-sm leading-relaxed text-foreground">{blurb}</p> : null}
         </div>
 
         {/* Footer action bar */}
@@ -106,9 +106,9 @@ export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => vo
               e.stopPropagation();
               onClick?.();
             }}
-            className="ml-auto inline-flex items-center gap-1 rounded-lg bg-brand px-3.5 py-1.5 text-sm font-medium text-brand-foreground transition-colors hover:bg-brand-hover"
+            className="ml-auto inline-flex items-center gap-1 rounded-lg bg-brand px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
           >
-            View
+            Insights
             <HugeiconsIcon icon={ArrowRight01Icon} size={15} />
           </button>
         </footer>
@@ -124,7 +124,7 @@ function CardAction({ icon, label }: { icon: IconSvgElement; label: string }) {
       aria-label={label}
       title={label}
       onClick={(e) => e.stopPropagation()}
-      className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      className="flex size-8 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-accent hover:text-white"
     >
       <HugeiconsIcon icon={icon} size={18} />
     </button>

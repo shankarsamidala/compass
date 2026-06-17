@@ -38,13 +38,14 @@ export function JobsPage() {
     <div className="relative w-full px-6 pb-16 pt-6">
       <header className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Jobs</h1>
-          <p className="text-sm text-muted-foreground">Roles matched to your target profile.</p>
+          <h1 className="text-xl font-bold tracking-tight text-white">Jobs</h1>
+          <p className="text-sm text-foreground">Roles matched to your target profile.</p>
         </div>
         <Button
           size="sm"
           onClick={() => scan.mutate()}
           disabled={scan.isPending}
+          className="bg-brand text-white hover:bg-brand-hover"
         >
           {scan.isPending ? (
             <><Loader2 className="mr-2 size-4 animate-spin" />Scanning…</>
@@ -67,7 +68,7 @@ export function JobsPage() {
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1920px]:grid-cols-5">
           {filtered.map((job) => (
             <JobFeedCard key={job.id} job={job} onClick={() => setOpenId(job.id)} />
           ))}
