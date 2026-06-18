@@ -586,9 +586,21 @@ export interface ExperienceApi {
 }
 
 /** The full bridge exposed on `window.compass`. Grows as features land. */
+export interface CvUpload {
+  id: string;
+  s3Key: string;
+  fileName: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
 export interface CvApi {
-  /** Upload raw CV file bytes to S3. Returns the S3 key. */
-  uploadFile(fileName: string, bytes: Uint8Array): Promise<Result<{ s3Key: string; bucket: string }>>;
+  /** Upload raw CV file bytes to S3. Returns upload metadata. */
+  uploadFile(fileName: string, bytes: Uint8Array): Promise<Result<CvUpload>>;
+  /** List all uploaded source files for this user (newest first). */
+  listUploads(): Promise<Result<CvUpload[]>>;
+  /** Delete an upload record by id. */
+  deleteUpload(id: string): Promise<Result<void>>;
 }
 
 export interface CompassApi {

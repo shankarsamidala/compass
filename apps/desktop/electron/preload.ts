@@ -34,6 +34,8 @@ const api: CompassApi = {
   },
   cv: {
     uploadFile: (fileName, bytes) => ipcRenderer.invoke("cv:upload-file", fileName, bytes),
+    listUploads: () => ipcRenderer.invoke("cv:list-uploads"),
+    deleteUpload: (id) => ipcRenderer.invoke("cv:delete-upload", id),
   },
   jobs: {
     list: () => ipcRenderer.invoke("jobs:list"),

@@ -56,6 +56,8 @@ export function registerIpcHandlers(): void {
   safeHandle("cv:upload-file", (fileName: string, bytes: Uint8Array) =>
     cvService.uploadFile(fileName, bytes),
   );
+  safeHandle("cv:list-uploads", () => cvService.listUploads());
+  safeHandle("cv:delete-upload", (id: string) => cvService.deleteUpload(id));
 
   // ── Jobs (feed + detail + scan) ──
   safeHandle("jobs:list", () => jobsService.list());

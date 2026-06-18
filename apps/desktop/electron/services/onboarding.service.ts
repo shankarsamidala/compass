@@ -94,7 +94,7 @@ export const onboardingService = {
         authedFetch("/cv/import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cvText: data.resumeText, replace: false }),
+          body: JSON.stringify({ cvText: data.resumeText, replace: true }),
         }).catch(() => undefined),
       ]);
     }
@@ -116,7 +116,7 @@ export const onboardingService = {
       authedFetch("/cv/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cvText: trimmed, replace: false }),
+        body: JSON.stringify({ cvText: trimmed, replace: true }),
       }).catch(() => undefined),
     ]);
 

@@ -20,8 +20,9 @@ import {
   MapsGlobal02Icon, PhoneArrowDownIcon, GithubIcon, Link01Icon,
   Edit03Icon, SourceCodeIcon,
 } from "@hugeicons/core-free-icons";
-import FileUpload, { DropZone, FileList, type FileInfo } from "@/components/ui/file-upload";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { api } from "@/lib/ipc";
+import { useCvUploads, useDeleteCvUpload, useInvalidateCvUploads } from "./cv-uploads-api";
 
 type StackTool = { id: string; title: string; faviconUrl: string };
 
@@ -106,6 +107,64 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
   const { data: hotTakesRaw } = useHotTakes();
   const hotTakes = hotTakesRaw ?? [];
 
+  // ── Resume upload (persisted — must be before completionSections) ───────────
+  const { data: cvUploads = [] } = useCvUploads();
+  const deleteCvUpload = useDeleteCvUpload();
+  const invalidateCvUploads = useInvalidateCvUploads();
+
+  const resumeInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFile, setPendingFile] = useState<{ name: string; text: string } | null>(null);
+  const [resumePickState, setResumePickState] = useState<"idle" | "reading" | "ready" | "importing" | "done" | "error">("idle");
+  const [resumeMsg, setResumeMsg] = useState<string | null>(null);
+
+  const clearPending = () => {
+    setPendingFile(null);
+    setResumePickState("idle");
+    setResumeMsg(null);
+    if (resumeInputRef.current) resumeInputRef.current.value = "";
+  };
+
+  const handleResumeSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setResumePickState("reading");
+    setResumeMsg(null);
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const [extractRes, uploadRes] = await Promise.all([
+        api.document.extractText(f.name, bytes),
+        api.cv.uploadFile(f.name, bytes),
+      ]);
+      if (!extractRes.ok) { setResumePickState("error"); setResumeMsg(extractRes.error); return; }
+      if (uploadRes.ok) invalidateCvUploads();
+      setPendingFile({ name: f.name, text: extractRes.data.text });
+      setResumePickState("ready");
+    } catch (err) {
+      setResumePickState("error");
+      setResumeMsg(err instanceof Error ? err.message : "Could not read file");
+    }
+  };
+
+  const handleResumeImport = async () => {
+    if (!pendingFile) return;
+    setResumePickState("importing");
+    setResumeMsg(null);
+    const res = await api.onboarding.importResume(pendingFile.text);
+    if (res.ok) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["experiences"] }),
+        queryClient.invalidateQueries({ queryKey: ["education"] }),
+        queryClient.invalidateQueries({ queryKey: ["projects"] }),
+        queryClient.invalidateQueries({ queryKey: ["certifications"] }),
+      ]);
+      setResumePickState("done");
+      setResumeMsg("Profile updated");
+    } else {
+      setResumePickState("error");
+      setResumeMsg(res.error);
+    }
+  };
+
   // ── Live profile completion ───────────────────────────────────────────────
   const completionSections = [
     { label: "Add a headline & about you", done: Boolean(profile?.headline?.trim() && profile?.bio?.trim()) },
@@ -116,7 +175,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
     { label: "Add a project", done: projectList.length >= 1 },
     { label: "Add a certification", done: certList.length >= 1 },
     { label: "Add a proof point", done: hotTakes.length >= 1 },
-    { label: "Upload your resume", done: false }, // resume isn't persisted yet
+    { label: "Upload your resume", done: cvUploads.length > 0 },
   ];
   const completionDone = completionSections.filter((s) => s.done).length;
   const completionPct = Math.round((completionDone / completionSections.length) * 100);
@@ -125,61 +184,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
   const completionOffset = COMPLETION_CIRC * (1 - completionPct / 100);
   const addProofPoint = useAddProofPoint();
   const removeProofPoint = useRemoveProofPoint();
-
-  // ── Resume upload (right sidebar) ────────────────────────────────────────
-  const [resumeFiles, setResumeFiles] = useState<FileInfo[]>([]);
-  const [resumeText, setResumeText] = useState("");
-  const [resumeExtractState, setResumeExtractState] = useState<"idle" | "extracting" | "ready" | "error">("idle");
-  const [resumeImportState, setResumeImportState] = useState<"idle" | "importing" | "done" | "error">("idle");
-  const [resumeMsg, setResumeMsg] = useState<string | null>(null);
-
-  const handleResumeSelect = async (picked: FileInfo[]) => {
-    setResumeFiles(picked);
-    setResumeText("");
-    setResumeExtractState("idle");
-    setResumeImportState("idle");
-    setResumeMsg(null);
-    const f = picked[0]?.file;
-    if (!f) return;
-    setResumeExtractState("extracting");
-    try {
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      const [extractRes] = await Promise.all([
-        api.document.extractText(f.name, bytes),
-        api.cv.uploadFile(f.name, bytes), // upload to S3 in parallel, best-effort
-      ]);
-      if (extractRes.ok) {
-        setResumeText(extractRes.data.text);
-        setResumeExtractState("ready");
-      } else {
-        setResumeExtractState("error");
-        setResumeMsg(extractRes.error);
-      }
-    } catch (e) {
-      setResumeExtractState("error");
-      setResumeMsg(e instanceof Error ? e.message : "Could not read file");
-    }
-  };
-
-  const handleResumeImport = async () => {
-    if (!resumeText) return;
-    setResumeImportState("importing");
-    setResumeMsg(null);
-    const res = await api.onboarding.importResume(resumeText);
-    if (res.ok) {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["experiences"] }),
-        queryClient.invalidateQueries({ queryKey: ["education"] }),
-        queryClient.invalidateQueries({ queryKey: ["projects"] }),
-        queryClient.invalidateQueries({ queryKey: ["certifications"] }),
-      ]);
-      setResumeImportState("done");
-      setResumeMsg("Profile updated from resume");
-    } else {
-      setResumeImportState("error");
-      setResumeMsg(res.error);
-    }
-  };
 
   const [hotTakeOpen, setHotTakeOpen] = useState(false);
   const [showAllProofPoints, setShowAllProofPoints] = useState(false);
@@ -862,56 +866,80 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
 
         {/* Resume upload & import */}
         <section className="flex flex-col gap-3 rounded-2xl border border-border p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-white">Resume</p>
-            {resumeExtractState === "ready" && resumeImportState !== "done" && (
-              <Button
-                size="sm"
-                disabled={resumeImportState === "importing"}
-                onClick={handleResumeImport}
-              >
-                {resumeImportState === "importing" ? "Importing…" : "Import"}
+          <p className="text-sm font-bold text-white">Resume</p>
+
+          {/* Uploaded list — persists across tab switches */}
+          {cvUploads.length > 0 && (
+            <ul className="flex flex-col gap-1.5">
+              {cvUploads.map((u) => (
+                <li key={u.id} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 text-muted-foreground">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-white">{u.fileName}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {new Date(u.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {u.sizeBytes < 1024 * 1024
+                      ? `${Math.round(u.sizeBytes / 1024)} KB`
+                      : `${(u.sizeBytes / (1024 * 1024)).toFixed(1)} MB`}
+                  </span>
+                  <button type="button" aria-label="Remove"
+                    disabled={deleteCvUpload.isPending}
+                    onClick={() => deleteCvUpload.mutate(u.id)}
+                    className="shrink-0 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                      <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Pending file ready to import */}
+          {pendingFile && resumePickState !== "done" && (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0 text-muted-foreground">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="min-w-0 flex-1 truncate text-xs text-white">{pendingFile.name}</span>
+              <Button size="sm" disabled={resumePickState === "importing"} onClick={handleResumeImport}>
+                {resumePickState === "importing" ? "Importing…" : "Import"}
               </Button>
-            )}
-            {resumeImportState === "done" && (
-              <span className="text-xs text-emerald-500">Imported</span>
-            )}
-          </div>
-          <FileUpload
-            files={resumeFiles}
-            accept=".pdf,.doc,.docx"
-            maxSize={10}
-            maxCount={1}
-            onFileSelectChange={handleResumeSelect}
-            onRemove={(id) => {
-              setResumeFiles((p) => p.filter((x) => x.id !== id));
-              setResumeText("");
-              setResumeExtractState("idle");
-              setResumeImportState("idle");
-              setResumeMsg(null);
-            }}
-          >
-            <DropZone prompt="Drop CV here or click to browse" />
-            <FileList canRemove onRemove={(id) => {
-              setResumeFiles((p) => p.filter((x) => x.id !== id));
-              setResumeText("");
-              setResumeExtractState("idle");
-              setResumeImportState("idle");
-              setResumeMsg(null);
-            }} />
-          </FileUpload>
-          {resumeExtractState === "extracting" && (
-            <p className="text-xs text-muted-foreground text-center">Reading resume…</p>
+              <button type="button" onClick={clearPending} aria-label="Discard"
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
           )}
-          {resumeExtractState === "ready" && resumeImportState === "idle" && (
-            <p className="text-xs text-muted-foreground text-center">Ready — click Import to update your profile</p>
-          )}
-          {(resumeExtractState === "error" || resumeImportState === "error") && (
-            <p className="text-xs text-destructive text-center">{resumeMsg}</p>
-          )}
-          {resumeImportState === "done" && (
-            <p className="text-xs text-emerald-500 text-center">{resumeMsg}</p>
-          )}
+
+          {/* Status messages */}
+          {resumePickState === "reading" && <p className="text-xs text-muted-foreground">Reading file…</p>}
+          {resumePickState === "ready" && <p className="text-xs text-muted-foreground">Click Import to update your profile</p>}
+          {resumePickState === "done" && <p className="text-xs text-emerald-500">{resumeMsg}</p>}
+          {resumePickState === "error" && <p className="text-xs text-destructive">{resumeMsg}</p>}
+
+          {/* File picker */}
+          <Field>
+            <FieldLabel htmlFor="resume-upload" className="sr-only">Upload resume</FieldLabel>
+            <input
+              ref={resumeInputRef}
+              id="resume-upload"
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={handleResumeSelect}
+              className="h-9 w-full min-w-0 rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground"
+            />
+            <FieldDescription>PDF or Word, up to 10 MB</FieldDescription>
+          </Field>
         </section>
 
         {/* Public profile & URL */}
