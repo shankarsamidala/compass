@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
+import { trackAction } from "@/lib/analytics";
 
 /** The user's ranked job feed (career-ops GET /jobs via IPC). */
 export function useJobsFeed() {
@@ -33,6 +34,7 @@ export function useJobQuickEval() {
     mutationFn: async (id: string) => {
       const res = await api.jobs.evaluateQuick(id);
       if (!res.ok) throw new Error(res.error);
+      trackAction("evaluation_run", { kind: "quick" });
       return res.data;
     },
   });
@@ -44,6 +46,7 @@ export function useJobFullEval() {
     mutationFn: async (id: string) => {
       const res = await api.jobs.evaluate(id);
       if (!res.ok) throw new Error(res.error);
+      trackAction("evaluation_run", { kind: "full" });
       return res.data;
     },
   });

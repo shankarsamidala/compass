@@ -22,6 +22,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { api } from "@/lib/ipc";
+import { trackAction } from "@/lib/analytics";
 import { useCvUploads, useDeleteCvUpload, useInvalidateCvUploads } from "./cv-uploads-api";
 
 type StackTool = { id: string; title: string; faviconUrl: string };
@@ -136,7 +137,10 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
         api.cv.uploadFile(f.name, bytes),
       ]);
       if (!extractRes.ok) { setResumePickState("error"); setResumeMsg(extractRes.error); return; }
-      if (uploadRes.ok) invalidateCvUploads();
+      if (uploadRes.ok) {
+        invalidateCvUploads();
+        trackAction("cv_uploaded", { file_type: f.name.split(".").pop()?.toLowerCase() ?? "unknown", size_bytes: f.size });
+      }
       setPendingFile({ name: f.name, text: extractRes.data.text });
       setResumePickState("ready");
     } catch (err) {
@@ -159,6 +163,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
       ]);
       setResumePickState("done");
       setResumeMsg("Profile updated");
+      trackAction("cv_imported", { source: pendingFile.name.split(".").pop()?.toLowerCase() ?? "unknown" });
     } else {
       setResumePickState("error");
       setResumeMsg(res.error);
