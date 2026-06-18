@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useJobsFeed } from "./api";
 import { JobFeedCard } from "./job-feed-card";
-import { JobDetail } from "./job-detail";
+import { JobInsightsSheet } from "./job-insights-sheet";
 import { useSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/ipc";
@@ -63,9 +63,12 @@ export function JobsPage() {
         </p>
       )}
 
-      {isLoading ? (
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      {isLoading || scan.isPending ? (
+        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
+          <Loader2 className="size-7 animate-spin text-brand" />
+          <p className="text-sm text-muted-foreground">
+            {scan.isPending ? "Scanning jobs for your roles…" : "Loading…"}
+          </p>
         </div>
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1920px]:grid-cols-5">
@@ -83,7 +86,11 @@ export function JobsPage() {
         </div>
       )}
 
-      <JobDetail jobId={openId} onClose={() => setOpenId(null)} />
+      <JobInsightsSheet
+        open={openId !== null}
+        onOpenChange={(v) => !v && setOpenId(null)}
+        job={filtered.find((j) => j.id === openId) ?? null}
+      />
     </div>
   );
 }

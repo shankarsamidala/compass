@@ -1,6 +1,7 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import {
   ComputerIcon,
+  UserCircleIcon,
   TestTube01Icon,
   Target02Icon,
   SparklesIcon,
@@ -37,6 +38,7 @@ import {
 
 export type SettingsTabId =
   // ── Account ──────────────────────────────────────────────────────────────
+  | "profile"
   | "general"
   | "account-security"
   | "notifications"
@@ -96,6 +98,7 @@ export interface SettingsSection {
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     tabs: [
+      { id: "profile", label: "Profile", icon: UserCircleIcon },
       { id: "general", label: "General", icon: ComputerIcon },
       { id: "account-security", label: "Account & Security", icon: LockIcon },
       { id: "notifications", label: "Notifications", icon: Notification01Icon },

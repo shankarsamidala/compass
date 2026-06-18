@@ -19,7 +19,7 @@ function defaults(): AppSettings {
     scan: {
       sources: ["naukri"],
       maxPerRole: 20,
-      jobAge: 7,
+      jobAge: 1,
       minMatch: "all",
     },
   };

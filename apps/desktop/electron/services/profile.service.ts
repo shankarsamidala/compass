@@ -17,6 +17,12 @@ function toPrefs(p: any): ProfilePrefs {
     expectedCtc: num(p?.expectedCtc),
     headline: p?.headline ?? null,
     bio: p?.narrative ?? null,
+    fullName: p?.fullName ?? null,
+    username: p?.username ?? null,
+    phone: p?.phone ?? null,
+    linkedin: p?.linkedin ?? null,
+    github: p?.github ?? null,
+    portfolioUrl: p?.portfolioUrl ?? null,
   };
 }
 

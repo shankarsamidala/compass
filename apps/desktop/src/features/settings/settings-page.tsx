@@ -8,6 +8,7 @@ import { AiPanel } from "./panels/ai-panel";
 import { JobSearchPanel } from "./panels/job-search-panel";
 import { PlaceholderPanel } from "./panels/placeholder-panel";
 import { WorkExperiencePanel } from "./panels/work-experience-panel";
+import { ProfilePanel } from "./panels/profile-panel";
 import { EducationPanel } from "./panels/education-panel";
 import { CertificationsPanel } from "./panels/certifications-panel";
 import { ProjectsPanel } from "./panels/projects-panel";
@@ -121,7 +122,9 @@ export function SettingsPage({ defaultTab }: { defaultTab?: SettingsTabId }) {
         </aside>
 
         {/* ── Content ──────────────────────────────────────────────────────── */}
-        {tab === "work-experience" ? (
+        {tab === "profile" ? (
+          <ProfilePanel />
+        ) : tab === "work-experience" ? (
           <WorkExperiencePanel />
         ) : tab === "education" ? (
           <EducationPanel />

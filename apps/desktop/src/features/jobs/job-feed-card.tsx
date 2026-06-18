@@ -54,13 +54,22 @@ export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => vo
 
   return (
     <article className="group relative flex flex-col rounded-xl border-[1.5px] border-border bg-card transition-colors hover:border-brand">
-      {/* Whole-card click overlay */}
-      <button type="button" onClick={onClick} aria-label={`Open ${job.title}`} className="absolute inset-0 z-0 rounded-xl" />
-
-      <div className="pointer-events-none relative z-10 flex flex-1 flex-col">
+      <div className="relative z-10 flex flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-3.5 px-5 pb-5 pt-4">
-          {/* Title + company + fit band */}
+          {/* Logo + title + company + fit band */}
           <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
+              {job.logoUrl ? (
+                <img
+                  src={job.logoUrl}
+                  alt={job.company}
+                  className="size-full object-contain"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <span className="text-sm font-bold text-foreground">{job.company.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <p className="truncate text-lg font-semibold leading-snug text-white">{job.title}</p>
               <p className="text-xs leading-normal text-foreground">

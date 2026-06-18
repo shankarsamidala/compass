@@ -66,6 +66,18 @@ const stripHtml = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g
 const absUrl = (u?: string) =>
   !u ? "" : u.startsWith("http") ? u : `https://www.naukri.com${u}`;
 
+/**
+ * Parse Naukri's `createdDate`, which is epoch-ms in the v3 search response
+ * (e.g. 1781604273895) but a datetime STRING in the v4 detail response
+ * (e.g. "2026-06-16 15:34:33"). Returns an ISO string, or null if unparseable.
+ */
+function parseNaukriDate(v: unknown): string | null {
+  if (v == null || v === "") return null;
+  const s = String(v).trim();
+  const d = /^\d+$/.test(s) ? new Date(Number(s)) : new Date(s.replace(" ", "T"));
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export interface ScrapedJob {
   source: "naukri";
   sourceJobId: string;
@@ -82,6 +94,7 @@ export interface ScrapedJob {
   skills: string[];
   employmentType: string | null;
   postedAt: string | null;   // ISO date string
+  logoUrl: string | null;    // company logo (from search/detail)
 }
 
 /** Fetch full detail for a single Naukri job id. Returns null on failure. */
@@ -113,7 +126,8 @@ async function fetchDetail(jobId: string): Promise<Partial<ScrapedJob> | null> {
   const expMin = jd.minimumExperience != null ? Number(jd.minimumExperience) : null;
   const expMax = jd.maximumExperience != null ? Number(jd.maximumExperience) : null;
 
-  const createdDate = jd.createdDate ? new Date(Number(jd.createdDate)).toISOString() : null;
+  // Company logo: detail's clientLogo / banner (v4) — falls back to the v3 search logo on merge.
+  const logoUrl = (jd.clientLogo as string) ?? (jd.banner as string) ?? (jd.socialBanner as string) ?? null;
 
   return {
     company: String(cd.name ?? ""),
@@ -125,7 +139,8 @@ async function fetchDetail(jobId: string): Promise<Partial<ScrapedJob> | null> {
     fullDescription,
     skills,
     employmentType: (jd.employmentType as string) ?? null,
-    postedAt: createdDate,
+    postedAt: parseNaukriDate(jd.createdDate),
+    logoUrl,
   };
 }
 
@@ -156,12 +171,15 @@ export async function searchJobsForRole(
   keyword: string,
   max = 20,
   jobAge = 1,
+  experience?: number | null,
 ): Promise<ScrapedJob[]> {
   const limit = Math.min(max, 50);
   const age = jobAge > 0 ? `&jobAge=${jobAge}` : "";
+  // Mirror the website's experience filter (years). Omitted when unknown.
+  const exp = experience != null && experience >= 0 ? `&experience=${Math.round(experience)}` : "";
   const url =
     `https://www.naukri.com/jobapi/v3/search?noOfResults=${limit}` +
-    `&urlType=search_by_keyword&searchType=adv&keyword=${encodeURIComponent(keyword)}&pageNo=1${age}`;
+    `&urlType=search_by_keyword&searchType=adv&keyword=${encodeURIComponent(keyword)}&pageNo=1${age}${exp}`;
 
   const data = await getWithRetry(url, "search", SEARCH_HEADERS);
   if (!data || typeof data !== "object") return [];
@@ -179,6 +197,13 @@ export async function searchJobsForRole(
     const ph = (type: string) => placeholders.find((p) => p.type === type)?.label ?? "";
     const sal = (item.salaryDetail ?? {}) as Record<string, unknown>;
     const jdUrl = (item.jdURL as string) ?? (item.staticUrl as string) ?? "";
+    // Naukri pre-extracts the JD's skills in the SEARCH response — capture them here
+    // (mandatory + other + NER) so we have the JD's Stack & Tools without the detail call.
+    const ks = (item.keySkills ?? {}) as Record<string, unknown>;
+    const ksList = (arr: unknown): string[] => (Array.isArray(arr) ? arr.map(String) : []);
+    const skills = [...new Set([
+      ...ksList(ks.mandatorySkills), ...ksList(ks.otherSkills), ...ksList(ks.nerSkills),
+    ])].filter(Boolean);
     searchResults.push({
       source: "naukri",
       sourceJobId: jobId,
@@ -192,9 +217,10 @@ export async function searchJobsForRole(
       experienceMax: item.maximumExperience != null ? Number(item.maximumExperience) : null,
       shortDescription: String(item.jobDescription ?? ""),
       fullDescription: "",  // filled by detail fetch below
-      skills: [],
+      skills,
       employmentType: null,
-      postedAt: null,
+      postedAt: parseNaukriDate(item.createdDate),
+      logoUrl: (item.logoPathV3 as string) ?? (item.logoPath as string) ?? null,
     });
   }
 
@@ -213,9 +239,11 @@ export async function searchJobsForRole(
       experienceMin: detail.experienceMin ?? job.experienceMin,
       experienceMax: detail.experienceMax ?? job.experienceMax,
       fullDescription: detail.fullDescription || "",
-      skills: detail.skills ?? [],
+      // Union v3 (keySkills) + v4 (preferred/other) so we keep the richest skill set.
+      skills: [...new Set([...(job.skills ?? []), ...(detail.skills ?? [])])],
       employmentType: detail.employmentType ?? null,
-      postedAt: detail.postedAt ?? null,
+      postedAt: detail.postedAt ?? job.postedAt ?? null,
+      logoUrl: detail.logoUrl || job.logoUrl,
     };
   });
 
