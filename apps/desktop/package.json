@@ -24,20 +24,43 @@
     ],
     "mac": {
       "icon": "src/assets/icons/icon.icns",
-      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }]
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
     },
     "win": {
       "icon": "src/assets/icons/icon.ico",
-      "target": [{ "target": "nsis", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "linux": {
       "icon": "src/assets/icons/icon_512x512.png",
-      "target": [{ "target": "AppImage", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     }
   },
   "dependencies": {
     "@compass/ipc-contract": "workspace:*",
     "@compass/tokens": "workspace:*",
+    "@datadog/browser-rum": "^7.3.0",
     "@fontsource-variable/oxanium": "^5.2.8",
     "@hookform/resolvers": "^3.9.1",
     "@hugeicons/core-free-icons": "^4.2.0",

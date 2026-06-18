@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLogout } from "@/features/auth/api";
 import { GlobalTopBar } from "@/components/shell/global-top-bar";
 import { Sidebar } from "@/components/shell/sidebar/sidebar";
@@ -8,20 +8,25 @@ import { JobsPage } from "@/features/jobs/jobs-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { ProfilePage } from "@/features/profile/profile-page";
 import type { SettingsTabId } from "@/features/settings/tabs";
+import { trackView } from "@/lib/analytics";
 
 export default function App() {
   const [view, setView] = useState<ViewId>("home");
   const [settingsTab, setSettingsTab] = useState<SettingsTabId | undefined>(undefined);
   const logout = useLogout();
 
+  useEffect(() => { trackView("home"); }, []);
+
   const navigateToSettings = (tab: SettingsTabId) => {
     setSettingsTab(tab);
     setView("settings");
+    trackView("settings");
   };
 
   const handleNavigate = (id: ViewId) => {
     if (id !== "settings") setSettingsTab(undefined);
     setView(id);
+    trackView(id);
   };
 
   return (

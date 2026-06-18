@@ -23,6 +23,9 @@ importers:
       '@compass/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
+      '@datadog/browser-rum':
+        specifier: ^7.3.0
+        version: 7.3.0
       '@fontsource-variable/oxanium':
         specifier: ^5.2.8
         version: 5.2.8
@@ -210,6 +213,23 @@ packages:
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
+
+  '@datadog/browser-core@7.3.0':
+    resolution: {integrity: sha512-bP6QuYyxdjaKYHwqpvYRihSEXgz/8P1iPr1ZI6OJVeDSJ7Zz/kAqK3dU5O7y6FrP9u99CbFG+rRGDtb4ytyJiw==}
+
+  '@datadog/browser-rum-core@7.3.0':
+    resolution: {integrity: sha512-E+lBOxaE7UazwhBA3/i8qc0080MQZgxBmpdQsVxkt/UWmql523U8Hf8u/0D4eIauVCOeB6faBhNJhfa/lsRxVg==}
+
+  '@datadog/browser-rum@7.3.0':
+    resolution: {integrity: sha512-HxJ+wPBP9l4rVYo5/u7Ls1gH4Pf8W0YGSI+euJfbIdU3UngickRNMQ2tiONwZIc6JjdrVJEu1gKMU/iqAiwiWw==}
+    peerDependencies:
+      '@datadog/browser-logs': 7.3.0
+    peerDependenciesMeta:
+      '@datadog/browser-logs':
+        optional: true
+
+  '@datadog/js-core@0.0.2':
+    resolution: {integrity: sha512-tubNtQXlHiDovBB04M16MWQbUj4j0F7eu6lWMUmFo/+SD5j8adzSGcVxtSNdSR/u++IaghkCpqcAaR3ZAJh2jQ==}
 
   '@electron/asar@3.4.1':
     resolution: {integrity: sha512-i4/rNPRS84t0vSRa2HorerGRXWyF4vThfHesw0dmcWHp+cspK743UanA0suA5Q5y8kzY2y6YKrvbIUn69BCAiA==}
@@ -3051,6 +3071,23 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@datadog/browser-core@7.3.0':
+    dependencies:
+      '@datadog/js-core': 0.0.2
+
+  '@datadog/browser-rum-core@7.3.0':
+    dependencies:
+      '@datadog/browser-core': 7.3.0
+      '@datadog/js-core': 0.0.2
+
+  '@datadog/browser-rum@7.3.0':
+    dependencies:
+      '@datadog/browser-core': 7.3.0
+      '@datadog/browser-rum-core': 7.3.0
+      '@datadog/js-core': 0.0.2
+
+  '@datadog/js-core@0.0.2': {}
 
   '@electron/asar@3.4.1':
     dependencies:
