@@ -43,8 +43,11 @@ app.whenReady().then(async () => {
       clientToken,
       service: "compass-desktop",
       site: "us5.datadoghq.com",
-      env: process.env.NODE_ENV === "production" ? "beta" : "dev",
+      env: process.env.DD_RUM_ENV ?? "beta",
       version: "0.1.0",
+      defaultPrivacyLevel: "mask-user-input",
+      // Allow renderer bridge from both dev server (localhost) and prod (local file)
+      allowedWebViewHosts: ["localhost"],
     }).catch(() => {/* non-fatal */});
   }
 
