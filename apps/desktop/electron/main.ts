@@ -42,7 +42,7 @@ app.whenReady().then(async () => {
       applicationId: appId,
       clientToken,
       service: "compass-desktop",
-      site: "datadoghq.com",
+      site: "us5.datadoghq.com",
       env: process.env.NODE_ENV === "production" ? "beta" : "dev",
       version: "0.1.0",
     }).catch(() => {/* non-fatal */});

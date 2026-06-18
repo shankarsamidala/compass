@@ -10,7 +10,7 @@ export function initAnalytics() {
   datadogRum.init({
     applicationId: APP_ID,
     clientToken: CLIENT_TOKEN,
-    site: "datadoghq.com",
+    site: "us5.datadoghq.com",
     service: "compass-desktop",
     env: ENV,
     version: "0.1.0",
