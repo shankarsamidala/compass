@@ -3,6 +3,10 @@ packages:
   - "packages/*"
 # Allow these deps to run install scripts (electron downloads its binary; esbuild its native build).
 allowBuilds:
+  '@datadog/native-appsec': true
+  '@datadog/native-iast-taint-tracking': true
+  '@datadog/native-metrics': true
+  '@datadog/pprof': true
   electron: true
   electron-winstaller: false
   esbuild: true

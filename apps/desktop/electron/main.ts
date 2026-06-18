@@ -1,6 +1,8 @@
+import "@datadog/electron-sdk/instrument"; // must be before electron
 import { app, BrowserWindow, nativeImage, session } from "electron";
 import path from "node:path";
 import { registerIpcHandlers } from "./ipc/handlers";
+import { init as initDatadog } from "@datadog/electron-sdk";
 
 // Lean Electron shell for Compass. No mic/screen/accessibility permissions —
 // just a window. Career-ops services (auth, jobs, BYO-LLM) get ported in next.
@@ -32,7 +34,20 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const appId = process.env.DD_RUM_APP_ID;
+  const clientToken = process.env.DD_RUM_CLIENT_TOKEN;
+  if (appId && clientToken) {
+    await initDatadog({
+      applicationId: appId,
+      clientToken,
+      service: "compass-desktop",
+      site: "datadoghq.com",
+      env: process.env.NODE_ENV === "production" ? "beta" : "dev",
+      version: "0.1.0",
+    }).catch(() => {/* non-fatal */});
+  }
+
   session.defaultSession.webRequest.onHeadersReceived(
     { urls: ["https://api.daily.dev/*"] },
     (details, callback) => {
