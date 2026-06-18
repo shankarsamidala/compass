@@ -1,6 +1,7 @@
 import { safeHandle } from "../core/ipc";
 import { authService } from "../services/auth.service";
 import { onboardingService } from "../services/onboarding.service";
+import { cvService } from "../services/cv.service";
 import { suggestService } from "../services/suggest.service";
 import { llmService } from "../services/llm.service";
 import { documentService } from "../services/document.service";
@@ -51,6 +52,9 @@ export function registerIpcHandlers(): void {
   // ── Document (local file → text) ──
   safeHandle("document:extract", (fileName: string, bytes: Uint8Array) =>
     documentService.extractText(fileName, bytes),
+  );
+  safeHandle("cv:upload-file", (fileName: string, bytes: Uint8Array) =>
+    cvService.uploadFile(fileName, bytes),
   );
 
   // ── Jobs (feed + detail + scan) ──

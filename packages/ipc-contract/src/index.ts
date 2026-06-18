@@ -586,6 +586,11 @@ export interface ExperienceApi {
 }
 
 /** The full bridge exposed on `window.compass`. Grows as features land. */
+export interface CvApi {
+  /** Upload raw CV file bytes to S3. Returns the S3 key. */
+  uploadFile(fileName: string, bytes: Uint8Array): Promise<Result<{ s3Key: string; bucket: string }>>;
+}
+
 export interface CompassApi {
   version: string;
   auth: AuthApi;
@@ -593,6 +598,7 @@ export interface CompassApi {
   suggest: SuggestApi;
   llm: LlmApi;
   document: DocumentApi;
+  cv: CvApi;
   jobs: JobsApi;
   settings: SettingsApi;
   profile: ProfileApi;

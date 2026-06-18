@@ -32,6 +32,9 @@ const api: CompassApi = {
   document: {
     extractText: (fileName, bytes) => ipcRenderer.invoke("document:extract", fileName, bytes),
   },
+  cv: {
+    uploadFile: (fileName, bytes) => ipcRenderer.invoke("cv:upload-file", fileName, bytes),
+  },
   jobs: {
     list: () => ipcRenderer.invoke("jobs:list"),
     get: (id) => ipcRenderer.invoke("jobs:get", id),

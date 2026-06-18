@@ -144,13 +144,16 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
     setResumeExtractState("extracting");
     try {
       const bytes = new Uint8Array(await f.arrayBuffer());
-      const res = await api.document.extractText(f.name, bytes);
-      if (res.ok) {
-        setResumeText(res.data.text);
+      const [extractRes] = await Promise.all([
+        api.document.extractText(f.name, bytes),
+        api.cv.uploadFile(f.name, bytes), // upload to S3 in parallel, best-effort
+      ]);
+      if (extractRes.ok) {
+        setResumeText(extractRes.data.text);
         setResumeExtractState("ready");
       } else {
         setResumeExtractState("error");
-        setResumeMsg(res.error);
+        setResumeMsg(extractRes.error);
       }
     } catch (e) {
       setResumeExtractState("error");
