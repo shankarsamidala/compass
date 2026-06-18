@@ -150,6 +150,23 @@ export function AuthScreen() {
 
       {step === "credentials" ? (
         <form onSubmit={handleSubmit(onCredentials)} className="flex flex-col gap-4" noValidate>
+          <div className="grid grid-cols-2 gap-3">
+            <Button type="button" size="lg" variant="outline" disabled={busy} onClick={() => setError(SOON)} className="h-11 inline-flex items-center justify-center gap-2 text-sm">
+              <img src={googleIcon} alt="" className="size-4 shrink-0" />
+              Google
+            </Button>
+            <Button type="button" size="lg" variant="outline" disabled={busy} onClick={() => setError(SOON)} className="h-11 inline-flex items-center justify-center gap-2 text-sm">
+              <img src={githubIcon} alt="" className="size-4 shrink-0" />
+              Github
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">Or continue with email</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">Email address</Label>
             <Input
@@ -208,23 +225,6 @@ export function AuthScreen() {
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {busy ? "Please wait…" : "Continue"}
           </Button>
-
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">Or continue with</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Button type="button" size="lg" variant="outline" disabled={busy} onClick={() => setError(SOON)} className="h-11 inline-flex items-center justify-center gap-2 text-sm">
-              <img src={googleIcon} alt="" className="size-4 shrink-0" />
-              Google
-            </Button>
-            <Button type="button" size="lg" variant="outline" disabled={busy} onClick={() => setError(SOON)} className="h-11 inline-flex items-center justify-center gap-2 text-sm">
-              <img src={githubIcon} alt="" className="size-4 shrink-0" />
-              Github
-            </Button>
-          </div>
 
           <p className="text-center text-xs leading-relaxed text-muted-foreground">
             By continuing, you agree to our{" "}

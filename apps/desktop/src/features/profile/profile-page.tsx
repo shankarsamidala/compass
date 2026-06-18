@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useSkills, useAddSkill, useRemoveSkill, useImportSkillsFromExperiences } from "./skills-api";
 import { useHotTakes, useAddProofPoint, useRemoveProofPoint } from "./proof-points-api";
-import { useEducation, useAddEducation } from "./education-api";
+import { useEducation } from "./education-api";
 import { useCertifications } from "./certifications-api";
+import { useExperiences } from "./experience-api";
+import { useProjects } from "./projects-api";
 import type { EducationItem, CertificationItem } from "@compass/ipc-contract";
-import { useProfilePrefs, useUpdateProfile } from "@/features/settings/profile-api";
+import { useProfilePrefs } from "@/features/settings/profile-api";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -14,8 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Facebook02Icon, NewTwitterIcon, WhatsappIcon, RedditIcon, Linkedin02Icon,
-  MapsGlobal02Icon, PhoneArrowDownIcon, GithubIcon,
-  Edit03Icon, MailOpenIcon, SourceCodeIcon,
+  MapsGlobal02Icon, PhoneArrowDownIcon, GithubIcon, Link01Icon,
+  Edit03Icon, SourceCodeIcon,
 } from "@hugeicons/core-free-icons";
 
 type StackTool = { id: string; title: string; faviconUrl: string };
@@ -85,47 +87,12 @@ type Tab = "posts" | "replies" | "upvoted";
 export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (tab: import("@/features/settings/tabs").SettingsTabId) => void }) {
   const [activeTab, setActiveTab] = useState<Tab>("posts");
   const { data: profile } = useProfilePrefs();
-  const updateProfile = useUpdateProfile();
 
-  const [aboutOpen, setAboutOpen] = useState(false);
-  const [editHeadline, setEditHeadline] = useState("");
-  const [editBio, setEditBio] = useState("");
-  const [aiAboutLoading, setAiAboutLoading] = useState(false);
-  const [aiAboutError, setAiAboutError] = useState<string | null>(null);
-
-  function openAbout() {
-    setEditHeadline(profile?.headline ?? "");
-    setEditBio(profile?.bio ?? "");
-    setAiAboutError(null);
-    setAboutOpen(true);
-  }
-
-  async function saveAbout() {
-    await updateProfile.mutateAsync({ headline: editHeadline, bio: editBio });
-    setAboutOpen(false);
-  }
-
-  async function writeAboutWithAI() {
-    setAiAboutError(null);
-    setAiAboutLoading(true);
-    try {
-      const res = await window.compass.llm.generateAbout(editHeadline || undefined, editBio || undefined);
-      if (res.ok) {
-        setEditHeadline(res.data.headline);
-        setEditBio(res.data.bio);
-      } else {
-        setAiAboutError(res.error);
-      }
-    } catch (e) {
-      setAiAboutError(e instanceof Error ? e.message : "AI failed");
-    } finally {
-      setAiAboutLoading(false);
-    }
-  }
 
   const { data: educationList = [] } = useEducation();
-  const addEducation = useAddEducation();
   const { data: certList = [] } = useCertifications();
+  const { data: experienceList = [] } = useExperiences();
+  const { data: projectList = [] } = useProjects();
 
   const { data: skills = [] } = useSkills();
   const addSkill = useAddSkill();
@@ -134,6 +101,24 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
 
   const { data: hotTakesRaw } = useHotTakes();
   const hotTakes = hotTakesRaw ?? [];
+
+  // ── Live profile completion ───────────────────────────────────────────────
+  const completionSections = [
+    { label: "Add a headline & about you", done: Boolean(profile?.headline?.trim() && profile?.bio?.trim()) },
+    { label: "Add your contact & location", done: Boolean(profile?.location?.trim()) },
+    { label: "Add work experience", done: experienceList.length >= 1 },
+    { label: "Add at least 3 education entries", done: educationList.length >= 3 },
+    { label: "Add your skills", done: skills.length >= 1 },
+    { label: "Add a project", done: projectList.length >= 1 },
+    { label: "Add a certification", done: certList.length >= 1 },
+    { label: "Add a proof point", done: hotTakes.length >= 1 },
+    { label: "Upload your resume", done: false }, // resume isn't persisted yet
+  ];
+  const completionDone = completionSections.filter((s) => s.done).length;
+  const completionPct = Math.round((completionDone / completionSections.length) * 100);
+  const completionNext = completionSections.find((s) => !s.done);
+  const COMPLETION_CIRC = 2 * Math.PI * 22; // r=22 ring
+  const completionOffset = COMPLETION_CIRC * (1 - completionPct / 100);
   const addProofPoint = useAddProofPoint();
   const removeProofPoint = useRemoveProofPoint();
 
@@ -167,17 +152,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
     }
   }
 
-  const [eduOpen, setEduOpen] = useState(false);
-  const [eduSchool, setEduSchool] = useState("");
-  const [eduDegree, setEduDegree] = useState("");
-  const [eduField, setEduField] = useState("");
-  const [eduCurrent, setEduCurrent] = useState(false);
-  const [eduStartMonth, setEduStartMonth] = useState("");
-  const [eduStartYear, setEduStartYear] = useState("");
-  const [eduEndMonth, setEduEndMonth] = useState("");
-  const [eduEndYear, setEduEndYear] = useState("");
-  const [eduGrade, setEduGrade] = useState("");
-  const [eduDescription, setEduDescription] = useState("");
 
   const [stackOpen, setStackOpen] = useState(false);
   const [stackQuery, setStackQuery] = useState("");
@@ -248,6 +222,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               variant="ghost"
               size="icon-sm"
               aria-label="Edit profile"
+              onClick={() => onNavigateToSettings?.("profile")}
               className="absolute right-4 top-4 border border-white/20 bg-black/30 text-white backdrop-blur-sm hover:bg-black/50"
             >
               <HugeiconsIcon icon={Edit03Icon} size={18} />
@@ -259,25 +234,42 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             {/* Left: name + contact info */}
             <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
               <div className="flex flex-col gap-0.5">
-                <p className="text-xl font-bold text-white">ShankR</p>
-                <span className="text-[13px] text-foreground">@sami2911</span>
+                <p className="text-xl font-bold text-white">{profile?.fullName?.trim() || "Your name"}</p>
+                {profile?.username?.trim() && (
+                  <span className="text-[13px] text-foreground">@{profile.username.trim()}</span>
+                )}
               </div>
               <div className="flex items-center gap-1 pt-1">
-                <Button variant="ghost" size="icon-sm" title="Location" className="text-foreground">
-                  <HugeiconsIcon icon={MapsGlobal02Icon} size={20} />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title="Phone" className="text-foreground">
-                  <HugeiconsIcon icon={PhoneArrowDownIcon} size={20} />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title="LinkedIn" className="text-foreground">
-                  <HugeiconsIcon icon={Linkedin02Icon} size={20} />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title="GitHub" className="text-foreground">
-                  <HugeiconsIcon icon={GithubIcon} size={20} />
-                </Button>
-                <Button variant="ghost" size="icon-sm" title="Email" className="text-foreground">
-                  <HugeiconsIcon icon={MailOpenIcon} size={20} />
-                </Button>
+                {profile?.location?.trim() && (
+                  <span title={profile.location.trim()}
+                    className="flex size-8 items-center justify-center rounded-lg text-foreground">
+                    <HugeiconsIcon icon={MapsGlobal02Icon} size={20} />
+                  </span>
+                )}
+                {profile?.phone?.trim() && (
+                  <a href={`tel:${profile.phone.trim()}`} title="Phone"
+                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent hover:text-white">
+                    <HugeiconsIcon icon={PhoneArrowDownIcon} size={20} />
+                  </a>
+                )}
+                {profile?.linkedin?.trim() && (
+                  <a href={profile.linkedin.trim()} target="_blank" rel="noreferrer" title="LinkedIn"
+                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent hover:text-white">
+                    <HugeiconsIcon icon={Linkedin02Icon} size={20} />
+                  </a>
+                )}
+                {profile?.github?.trim() && (
+                  <a href={profile.github.trim()} target="_blank" rel="noreferrer" title="GitHub"
+                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent hover:text-white">
+                    <HugeiconsIcon icon={GithubIcon} size={20} />
+                  </a>
+                )}
+                {profile?.portfolioUrl?.trim() && (
+                  <a href={profile.portfolioUrl.trim()} target="_blank" rel="noreferrer" title="Website"
+                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent hover:text-white">
+                    <HugeiconsIcon icon={Link01Icon} size={20} />
+                  </a>
+                )}
               </div>
             </div>
 
@@ -322,7 +314,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-2 py-4">
               <div className="flex items-center justify-between">
                 <p className="text-[15px] font-bold text-white">About</p>
-                <Button variant="outline" size="sm" onClick={openAbout}>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("profile")}>
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
@@ -485,69 +477,74 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                   <span>Edit</span>
                 </Button>
               </div>
-              <ul className="flex flex-col gap-4">
-                {/* Bazaarvoice */}
-                <li className="relative flex flex-row gap-2">
-                  <img
-                    className="h-8 w-8 rounded-full object-cover"
-                    alt="Bazaarvoice Inc logo"
-                    src="https://www.google.com/s2/favicons?domain=bazaarvoice.com&sz=128"
-                  />
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <p className="max-w-full text-[13px] font-bold text-white">Platform Engineer</p>
-                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground">Current</div>
-                      </div>
-                      <p className="text-xs text-foreground">Bazaarvoice Inc</p>
-                      <div className="flex items-center">
-                        <p className="text-xs text-foreground">Apr 2025</p>
-                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-foreground">•</span>
-                        <p className="text-xs text-foreground">Bengaluru, Karnataka, India</p>
-                      </div>
-                    </div>
-                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground">
-                      {"Automate deployment workflows by writing GitLab CI/CD pipelines to increase software delivery frequency and reduce manual interventions.\nManage containerized... "}
-                      <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
-                    </p>
-                    <div className="flex flex-row flex-nowrap gap-2 overflow-hidden">
-                      {["GitLab CI/CD", "Azure Kubernetes Services", "AKS"].map((s) => (
-                        <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">{s}</div>
-                      ))}
-                      <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+5</div>
-                    </div>
-                  </div>
-                </li>
-                {/* Kalpas */}
-                <li className="relative flex flex-row gap-2">
-                  <img
-                    className="h-8 w-8 rounded-full object-cover"
-                    alt="Kalpas Innovations logo"
-                    src="https://res.cloudinary.com/daily-now/image/upload/s--Sz7CgVBR--/f_auto/v1730476497/companies/kalpas"
-                  />
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      <p className="max-w-full text-[13px] font-bold text-white">Devops Engineer</p>
-                      <p className="text-xs text-foreground">Kalpas Innovations</p>
-                      <div className="flex items-center">
-                        <p className="text-xs text-foreground">Dec 2021 - Apr 2025</p>
-                        <span className="mx-1 inline-block h-4 align-middle leading-4 text-foreground">•</span>
-                        <p className="text-xs text-foreground">Bengaluru, Karnataka, India</p>
-                      </div>
-                    </div>
-                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground">
-                      {"Led a team of 4 to implement automated testing and monitoring using Jenkins and Prometheus, resulting in a 70% decrease in deployment times.\nRefactored the... "}
-                      <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
-                    </p>
-                    <div className="flex flex-row flex-nowrap gap-2 overflow-hidden">
-                      {["Jenkins", "Prometheus", "Docker"].map((s) => (
-                        <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">{s}</div>
-                      ))}
-                      <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+3</div>
-                    </div>
-                  </div>
-                </li>
-              </ul>
+              {experienceList.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
+                  <p className="text-xs text-foreground">Add your work history</p>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("work-experience")}>
+                    <PlusIcon /><span>Add Experience</span>
+                  </Button>
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-4">
+                  {experienceList.map(exp => {
+                    const logoSrc = exp.companyImage
+                      ? exp.companyImage
+                      : exp.domain
+                      ? `https://www.google.com/s2/favicons?domain=${exp.domain}&sz=128`
+                      : null;
+                    const startLabel = fmtIsoMonth(exp.startDate);
+                    const endLabel = exp.isCurrent ? "Present" : fmtIsoMonth(exp.endDate);
+                    const dateRange = [startLabel, endLabel].filter(Boolean).join(" – ");
+                    const visibleSkills = (exp.skills ?? []).slice(0, 3);
+                    const extraSkills = (exp.skills ?? []).length - visibleSkills.length;
+                    return (
+                      <li key={exp.id} className="relative flex flex-row gap-2">
+                        <div className="mt-0.5 h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border/60 bg-card flex items-center justify-center">
+                          {logoSrc ? (
+                            <img className="h-full w-full object-cover" alt={exp.company} src={logoSrc}
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                          ) : (
+                            <span className="text-xs font-bold text-foreground">{exp.company.charAt(0).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col gap-2">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <p className="max-w-full text-[13px] font-bold text-white">{exp.title}</p>
+                              {exp.isCurrent && (
+                                <span className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground">Current</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-foreground">{exp.company}</p>
+                            {(dateRange || exp.location) && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {dateRange && <p className="text-xs text-foreground">{dateRange}</p>}
+                                {dateRange && exp.location && <span className="text-foreground">•</span>}
+                                {exp.location && <p className="text-xs text-foreground">{exp.location}</p>}
+                              </div>
+                            )}
+                          </div>
+                          {exp.description && (
+                            <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground line-clamp-3">
+                              {exp.description}
+                            </p>
+                          )}
+                          {visibleSkills.length > 0 && (
+                            <div className="flex flex-row flex-wrap gap-2">
+                              {visibleSkills.map(s => (
+                                <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">{s}</div>
+                              ))}
+                              {extraSkills > 0 && (
+                                <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+{extraSkills}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
             {/* Education */}
@@ -645,36 +642,55 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                   <span>Edit</span>
                 </Button>
               </div>
-              <ul className="flex flex-col gap-4">
-                <li className="relative flex flex-row gap-2">
-                  <div className="h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-foreground font-bold">
-                    J
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <p className="max-w-full text-[13px] font-bold text-white">Jenkins Cicd</p>
-                        <div className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground">
-                          Current
+              {projectList.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
+                  <p className="text-xs text-foreground">Add your projects and side work</p>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("projects")}>
+                    <PlusIcon /><span>Add Project</span>
+                  </Button>
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-4">
+                  {projectList.map(proj => {
+                    const visibleStack = (proj.techStack ?? []).slice(0, 3);
+                    const extraStack = (proj.techStack ?? []).length - visibleStack.length;
+                    const dateLabel = fmtIsoMonth(proj.startDate);
+                    return (
+                      <li key={proj.id} className="relative flex flex-row gap-2">
+                        <div className="mt-0.5 h-8 w-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs text-foreground font-bold">
+                          {proj.title.charAt(0).toUpperCase()}
                         </div>
-                      </div>
-                      <p className="text-xs text-foreground">Jun 2026</p>
-                    </div>
-                    <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground">
-                      {"Automated code deployment pipelines using Jenkins and Github to ensure consistent build artifacts across environments.\nContainerized application services with... "}
-                      <Button variant="link" size="xs" className="inline h-auto p-0 text-blue-500">Show more</Button>
-                    </p>
-                    <div className="flex flex-row flex-nowrap gap-2 overflow-hidden">
-                      {["AWS", "Jenkins", "Ci/Cd"].map((s) => (
-                        <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">
-                          {s}
+                        <div className="flex min-w-0 flex-1 flex-col gap-2">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <p className="max-w-full text-[13px] font-bold text-white">{proj.title}</p>
+                              {proj.isCurrent && (
+                                <span className="self-start font-bold text-[10px] rounded px-1 inline-flex items-center border border-border text-foreground">Current</span>
+                              )}
+                            </div>
+                            {dateLabel && <p className="text-xs text-foreground">{dateLabel}</p>}
+                          </div>
+                          {proj.description && (
+                            <p className="select-text break-words whitespace-pre-wrap text-[13px] text-foreground line-clamp-3">
+                              {proj.description}
+                            </p>
+                          )}
+                          {visibleStack.length > 0 && (
+                            <div className="flex flex-row flex-wrap gap-2">
+                              {visibleStack.map(s => (
+                                <div key={s} className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">{s}</div>
+                              ))}
+                              {extraStack > 0 && (
+                                <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+{extraStack}</div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      ))}
-                      <div className="self-start text-xs rounded-lg px-2 py-1 border border-border text-foreground">+3</div>
-                    </div>
-                  </div>
-                </li>
-              </ul>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
             {/* Achievement Showcase */}
@@ -770,17 +786,17 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                 <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-yellow">
                   <path d="M14.182 4.269a1 1 0 10-1.364 1.462L18.463 11H3a1 1 0 100 2h15.463l-5.645 5.269a1 1 0 001.364 1.462l7.5-7a1 1 0 000-1.462l-7.5-7z" />
                 </svg>
-                <p className="text-xs text-foreground">Add Headline.</p>
+                <p className="text-xs text-foreground">{completionNext ? completionNext.label : "Your profile is complete 🎉"}</p>
               </div>
             </div>
             <div className="relative flex shrink-0 items-center justify-center" style={{ width: 50, height: 50 }}>
               <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="25" cy="25" r="22" className="stroke-border" strokeWidth="5" fill="transparent" />
                 <circle cx="25" cy="25" r="22" strokeWidth="5" strokeLinecap="round"
-                  strokeDasharray="138.23007675795088" strokeDashoffset="27.64601535159017"
+                  strokeDasharray={COMPLETION_CIRC} strokeDashoffset={completionOffset}
                   transform="rotate(-90 25 25)" fill="transparent" className="stroke-yellow" />
               </svg>
-              <p className="absolute leading-none text-sm font-bold text-yellow">80%</p>
+              <p className="absolute leading-none text-sm font-bold text-yellow">{completionPct}%</p>
             </div>
           </div>
         </div>
@@ -830,16 +846,16 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
           <div className="my-3 flex flex-col gap-2">
             <div className="flex gap-2">
               <div className="flex-1 rounded-xl border border-border p-2 text-center">
-                <p className="text-[15px] font-bold text-white">1</p>
+                <p className="text-[15px] font-bold text-white">0</p>
                 <p className="text-xs text-foreground">Views this week</p>
               </div>
               <div className="flex-1 rounded-xl border border-border p-2 text-center">
-                <p className="text-[15px] font-bold text-white">2</p>
+                <p className="text-[15px] font-bold text-white">0</p>
                 <p className="text-xs text-foreground">Views this month</p>
               </div>
             </div>
             <div className="rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-white">1</p>
+              <p className="text-[15px] font-bold text-white">0</p>
               <p className="text-xs text-foreground">Total profile views</p>
             </div>
           </div>
@@ -851,25 +867,17 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
           <a className="text-xs text-blue-500 hover:underline mt-0.5">Learn more</a>
           <div className="my-3 flex gap-2">
             <div className="flex-1 rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-white">2</p>
+              <p className="text-[15px] font-bold text-white">0</p>
               <p className="text-xs text-foreground">Longest streak 🏆</p>
             </div>
             <div className="flex-1 rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-white">7</p>
+              <p className="text-[15px] font-bold text-white">0</p>
               <p className="text-xs text-foreground">Total reading days</p>
             </div>
           </div>
           <h3 className="my-1 text-[13px] text-foreground">Top tags by reading days</h3>
-          <div className="my-3 grid max-w-full grid-cols-2 gap-2">
-            {[
-              "Database", "Devtools", "Github", "Laravel", "Microsoft-sql-server", "Performance",
-            ].map((tag) => (
-              <div key={tag} className="relative flex flex-row justify-between overflow-hidden rounded border border-border px-2 py-0.5">
-                <span className="z-10 my-auto text-xs text-foreground max-w-full truncate">{tag}</span>
-                <span className="z-10 my-auto text-xs text-foreground">+100%</span>
-                <div className="absolute inset-y-0 left-0 w-full bg-blue-500/15" />
-              </div>
-            ))}
+          <div className="my-3 rounded-xl border border-dashed border-border p-4 text-center">
+            <p className="text-xs text-foreground">No reading activity yet</p>
           </div>
           <h3 className="mb-3 text-[13px] text-foreground">Posts read in the last months (6)</h3>
           {/* Heatmap */}
@@ -1220,97 +1228,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
         )}
       </AnimatePresence>
 
-      {/* About (headline + bio) edit sheet */}
-      <AnimatePresence>
-        {aboutOpen && (
-          <>
-            <motion.div
-              key="about-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/40"
-              onClick={() => setAboutOpen(false)}
-            />
-            <motion.div
-              key="about-sheet"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-[28rem] flex-col bg-background border-l border-border"
-            >
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div>
-                  <p className="text-sm font-bold text-white">About</p>
-                  <p className="text-xs text-foreground">Your headline and bio</p>
-                </div>
-                <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setAboutOpen(false)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </Button>
-              </div>
-              <div className="flex flex-col gap-5 overflow-y-auto p-4">
-                {/* Write with AI banner */}
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand/5 px-4 py-3">
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-sm font-medium">Write with AI</span>
-                    <span className="text-xs text-foreground">Draft or refine your headline and bio using your local model.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={writeAboutWithAI}
-                    disabled={aiAboutLoading}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-colors hover:bg-brand-hover disabled:opacity-50"
-                  >
-                    {aiAboutLoading ? (
-                      <svg className="size-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                      </svg>
-                    ) : (
-                      <svg className="size-3.5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
-                      </svg>
-                    )}
-                    {aiAboutLoading ? "Writing…" : "Write"}
-                  </button>
-                </div>
-                {aiAboutError && <p className="text-xs text-destructive">{aiAboutError}</p>}
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-bold text-white">Headline</p>
-                  <Input
-                    placeholder="e.g. Platform Engineer · Scaling distributed systems at startup speed"
-                    value={editHeadline}
-                    onChange={e => setEditHeadline(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-bold text-white">Bio</p>
-                  <textarea
-                    placeholder="e.g. Sami is a platform engineer who builds resilient infra for product teams. He's obsessed with developer experience and has a habit of automating anything tedious."
-                    value={editBio}
-                    onChange={e => setEditBio(e.target.value)}
-                    rows={5}
-                    className="w-full resize-none rounded-xl border border-input bg-input/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
-                  />
-                </div>
-              </div>
-              <div className="border-t border-border p-4">
-                <Button
-                  className="w-full"
-                  disabled={updateProfile.isPending}
-                  onClick={saveAbout}
-                >
-                  {updateProfile.isPending ? "Saving…" : "Save"}
-                </Button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
       {/* Work Experience Sheet */}
       <AnimatePresence>
         {expOpen && (
@@ -1545,188 +1462,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
         )}
       </AnimatePresence>
 
-      {/* Education Sheet */}
-      <AnimatePresence>
-        {eduOpen && (
-          <>
-            <motion.div
-              key="edu-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/40"
-              onClick={() => setEduOpen(false)}
-            />
-            <motion.div
-              key="edu-sheet"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-[28rem] flex-col bg-background border-l border-border"
-            >
-              {/* Header */}
-              <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
-                <Button variant="ghost" size="icon-sm" className="mr-2 shrink-0" onClick={() => setEduOpen(false)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </Button>
-                <p className="flex-1 text-sm font-bold text-white">Add Education</p>
-                <Button
-                  size="sm"
-                  disabled={addEducation.isPending || !eduSchool.trim()}
-                  onClick={async () => {
-                    await addEducation.mutateAsync({
-                      institution: eduSchool.trim(),
-                      degree: eduDegree.trim() || undefined,
-                      field: eduField.trim() || undefined,
-                      startYear: eduStartYear ? Number(eduStartYear) : undefined,
-                      startMonth: eduStartMonth ? Number(eduStartMonth) : undefined,
-                      endYear: eduCurrent ? undefined : (eduEndYear ? Number(eduEndYear) : undefined),
-                      endMonth: eduCurrent ? undefined : (eduEndMonth ? Number(eduEndMonth) : undefined),
-                      isCurrent: eduCurrent,
-                      grade: eduGrade.trim() || undefined,
-                    });
-                    setEduOpen(false);
-                    setEduSchool(""); setEduDegree(""); setEduField("");
-                    setEduStartMonth(""); setEduStartYear(""); setEduEndMonth(""); setEduEndYear("");
-                    setEduGrade(""); setEduDescription(""); setEduCurrent(false);
-                  }}
-                >
-                  {addEducation.isPending ? "Saving…" : "Save"}
-                </Button>
-              </div>
-
-              {/* Body */}
-              <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
-
-                {/* School */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">School*</p>
-                  <Input
-                    placeholder="School"
-                    value={eduSchool}
-                    onChange={e => setEduSchool(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                </div>
-
-                {/* Degree */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Degree*</p>
-                  <Input
-                    placeholder="Ex: Bachelor, Master, PhD, Diploma, Certificate"
-                    value={eduDegree}
-                    onChange={e => setEduDegree(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                </div>
-
-                {/* Field of Study */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Field of Study*</p>
-                  <Input
-                    placeholder="Ex: Science in Computer Science"
-                    value={eduField}
-                    onChange={e => setEduField(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                </div>
-
-                <div className="border-t border-border" />
-
-                {/* Current education toggle */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-bold text-white">Current education</p>
-                    <Switch checked={eduCurrent} onCheckedChange={setEduCurrent} />
-                  </div>
-                  <p className="text-xs text-foreground">Check if you are currently enrolled in this program or pursuing this degree.</p>
-                </div>
-
-                {/* Start date */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Start date*</p>
-                  <div className="flex gap-3">
-                    <Select value={eduStartMonth} onValueChange={setEduStartMonth}>
-                      <SelectTrigger className="h-9 w-full rounded-xl">
-                        <SelectValue placeholder="Month" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={eduStartYear} onValueChange={setEduStartYear}>
-                      <SelectTrigger className="h-9 w-full rounded-xl">
-                        <SelectValue placeholder="Year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* End date */}
-                {!eduCurrent && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-bold text-white">End date*</p>
-                    <div className="flex gap-3">
-                      <Select value={eduEndMonth} onValueChange={setEduEndMonth}>
-                        <SelectTrigger className="h-9 w-full rounded-xl">
-                          <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select value={eduEndYear} onValueChange={setEduEndYear}>
-                        <SelectTrigger className="h-9 w-full rounded-xl">
-                          <SelectValue placeholder="Year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-
-                <div className="border-t border-border" />
-
-                {/* Grade */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Grade</p>
-                  <Input
-                    placeholder="Ex: 3.8/4.0, First Class Honours, 85%"
-                    value={eduGrade}
-                    onChange={e => setEduGrade(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Description</p>
-                  <div className="flex flex-col rounded-xl border border-input bg-input/30 px-4 pt-3 pb-2">
-                    <textarea
-                      placeholder="Relevant projects, hackathons, technical clubs"
-                      value={eduDescription}
-                      onChange={e => setEduDescription(e.target.value)}
-                      maxLength={5000}
-                      rows={4}
-                      className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                    <span className="ml-auto text-xs text-foreground">{eduDescription.length}/5000</span>
-                  </div>
-                </div>
-
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -69,7 +69,7 @@ export interface OnboardingExperience {
   endDate?: string;
   isCurrent: boolean;
   skills?: string[];
-  bullets?: string[];
+  description?: string;
 }
 export interface OnboardingEducation {
   institution: string;
@@ -100,6 +100,8 @@ export interface OnboardingSubmit {
   education: OnboardingEducation[];
   projects: OnboardingProject[];
   proofPoints: OnboardingProofPoint[];
+  /** Raw text extracted from the uploaded resume (step 7). If present, main calls POST /cv/import after saving wizard records. */
+  resumeText?: string;
 }
 
 export interface OnboardingApi {
@@ -148,6 +150,7 @@ export interface FeedJob {
   source: string;
   jobUrl: string | null;
   jd: string | null;
+  logoUrl: string | null;
   postedAt: string | null;
   /** Embedding fit 0–100 (null when no profile vector / Qdrant down). */
   score: number | null;
@@ -164,6 +167,88 @@ export interface ScanResult {
   perRole: Array<{ role: string; found: number }>;
 }
 
+// ── Job evaluation (career-ops Blocks A–G) ───────────────────────────────────
+
+export type EvalRecommendation = "apply" | "consider" | "skip";
+export type LegitimacyTier = "High Confidence" | "Proceed with Caution" | "Suspicious";
+
+export interface EvalBlockA {
+  archetype?: string; domain?: string; function?: string;
+  seniority?: string; remote?: string; team_size?: string; tldr?: string;
+}
+export interface EvalRequirement {
+  jd_requirement: string; jd_required: boolean;
+  match: "exact" | "adjacent" | "none"; evidence: string;
+}
+export interface EvalGap {
+  requirement: string; hard_blocker: boolean; learnable: boolean;
+  learning_curve?: string; adjacent_skill?: string; mitigation: string;
+}
+export interface EvalBlockB {
+  requirements_map: EvalRequirement[];
+  gaps: EvalGap[];
+  overall_match_pct: number;
+}
+export interface EvalBlockC {
+  level_detected: string; level_candidate: string;
+  sell_senior_plan: string[]; downlevel_plan?: string;
+}
+export interface EvalSalary { source: string; range: string; level?: string; currency?: string; }
+export interface EvalBlockD {
+  salary_data: EvalSalary[]; demand_trend: string; company_comp_reputation?: string;
+}
+export interface EvalChange {
+  section: string; current: string; proposed: string; why: string;
+  /** true = only uses skills already in the profile; false = hallucination risk. */
+  evidence_based: boolean;
+}
+export interface EvalBlockE {
+  cv_changes: EvalChange[]; linkedin_changes: EvalChange[];
+}
+export interface EvalStory {
+  jd_requirement: string; title: string;
+  situation: string; task: string; action: string; result: string; reflection: string;
+}
+export interface EvalBlockF {
+  stories: EvalStory[];
+  case_study?: { project: string; why: string; how_to_present: string };
+  red_flag_qa?: Array<{ question: string; answer: string }>;
+}
+export interface EvalSignal {
+  signal: string; finding: string; weight: "Positive" | "Neutral" | "Concerning";
+}
+export interface EvalBlockG {
+  assessment_tier: LegitimacyTier; signals: EvalSignal[]; context_notes?: string;
+}
+export interface EvalMachineSummary {
+  recommendation: EvalRecommendation;
+  score?: number;
+  top_gaps?: string[];
+  top_strengths?: string[];
+  seniority?: string;
+  remote?: string;
+  risk_level?: string;
+  domain?: string;
+  confidence?: number;
+  next_action?: string;
+}
+/** Normalized job evaluation (quick = partial, full = complete). */
+export interface JobEvaluation {
+  id: string;
+  jobId?: string;
+  status: "partial" | "complete";
+  score: number;              // 1–5
+  archetype: string;
+  legitimacyTier: LegitimacyTier | null;
+  recommendation: EvalRecommendation;
+  machineSummary: EvalMachineSummary;
+  blocks: {
+    a?: EvalBlockA; b?: EvalBlockB; c?: EvalBlockC; d?: EvalBlockD;
+    e?: EvalBlockE; f?: EvalBlockF; g?: EvalBlockG;
+  };
+  rawReport?: string;
+}
+
 export interface JobsApi {
   /** The user's ranked feed (career-ops GET /jobs). */
   list(): Promise<Result<{ jobs: FeedJob[] }>>;
@@ -171,6 +256,10 @@ export interface JobsApi {
   get(id: string): Promise<Result<{ job: FeedJob }>>;
   /** Scrape Naukri for the user's target roles and ingest into the pool (POST /jobs/scan). */
   scan(opts: { maxPerRole: number; jobAge: number }): Promise<Result<ScanResult>>;
+  /** Fast triage pass for a pooled job (POST /jobs/:id/evaluate/quick). */
+  evaluateQuick(id: string): Promise<Result<JobEvaluation>>;
+  /** Decision-view eval for a pooled job — per-block B/C/D/G, web-grounded D/G (POST /jobs/:id/evaluate/blocks). */
+  evaluate(id: string): Promise<Result<JobEvaluation>>;
 }
 
 // ── Settings domain (app-local, non-secret) ──────────────────────────────────
@@ -220,6 +309,13 @@ export interface ProfilePrefs {
   expectedCtc: number | null;
   headline: string | null;
   bio: string | null;
+  // Identity & contact
+  fullName: string | null;
+  username: string | null;
+  phone: string | null;
+  linkedin: string | null;
+  github: string | null;
+  portfolioUrl: string | null;
 }
 
 /** Profile fields the Job-preferences UI may write (subset of PUT /profile). */
@@ -232,6 +328,15 @@ export interface ProfilePatch {
   openToRelocate?: boolean;
   headline?: string;
   bio?: string;
+  // Identity & contact
+  fullName?: string;
+  username?: string;
+  location?: string;
+  phone?: string;
+  linkedin?: string;
+  github?: string;
+  portfolioUrl?: string;
+  totalExperienceYears?: number;
 }
 
 export interface ProfileApi {

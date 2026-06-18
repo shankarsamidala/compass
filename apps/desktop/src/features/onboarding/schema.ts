@@ -320,8 +320,8 @@ export function toSubmit(v: OnboardingValues): OnboardingSubmit {
         endDate: e.isCurrent ? undefined : monthToDate(e.endDate),
         isCurrent: e.isCurrent,
         skills: arr(e.skills),
-        bullets: e.highlights.trim()
-          ? e.highlights.split("\n").map((b) => b.trim()).filter(Boolean)
+        description: e.highlights.trim()
+          ? e.highlights.split("\n").map((b) => b.trim()).filter(Boolean).join("\n")
           : undefined,
       })),
     education: v.eduEntries
@@ -352,5 +352,6 @@ export function toSubmit(v: OnboardingValues): OnboardingSubmit {
         metrics: str(pp.metric),
         url: normalizeUrl(pp.url),
       })),
+    resumeText: v.resumeText.trim() || undefined,
   };
 }

@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 export const config = schema.parse({
-  apiUrl: process.env.COMPASS_API_URL ?? "http://127.0.0.1:3000",
+  apiUrl: process.env.COMPASS_API_URL ?? "https://api.beta.reinit.in",
   // BYO-LLM: local inference endpoint + default model (user-overridable).
   ollamaUrl: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434",
   ollamaModel: process.env.OLLAMA_MODEL ?? "qwen2.5:7b-instruct",

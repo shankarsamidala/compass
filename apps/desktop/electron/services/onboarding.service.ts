@@ -81,6 +81,24 @@ export const onboardingService = {
       ...uniqueSkills.map((skill, i) => postJson("/skills", { skill, section: "Primary", sortOrder: i })),
     ]);
 
+    // 2b. Resume import — save raw text + parse into structured records (both best-effort).
+    if (data.resumeText?.trim()) {
+      await Promise.all([
+        // Persist raw text to co_cvs so it can be re-used later (fromStoredCv: true).
+        authedFetch("/cv", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contentMd: data.resumeText }),
+        }).catch(() => undefined),
+        // Parse and append structured records (experiences, education, certs, projects).
+        authedFetch("/cv/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cvText: data.resumeText, replace: false }),
+        }).catch(() => undefined),
+      ]);
+    }
+
     // 3. Flip the gate (single source of truth).
     return this.complete();
   },
