@@ -1,5 +1,5 @@
 import { authedFetch } from "../core/http";
-import { ok, err, type Result, type OnboardingSubmit } from "@compass/ipc-contract";
+import { ok, err, type Result, type OnboardingSubmit, type CvImportResult } from "@compass/ipc-contract";
 
 async function postJson(path: string, body: unknown) {
   return authedFetch(path, {
@@ -101,5 +101,31 @@ export const onboardingService = {
 
     // 3. Flip the gate (single source of truth).
     return this.complete();
+  },
+
+  async importResume(cvText: string): Promise<Result<CvImportResult>> {
+    const trimmed = cvText.trim();
+    if (!trimmed) return err("No resume text provided", "INVALID_INPUT");
+
+    const [, importRes] = await Promise.all([
+      authedFetch("/cv", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contentMd: trimmed }),
+      }).catch(() => undefined),
+      authedFetch("/cv/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cvText: trimmed, replace: false }),
+      }).catch(() => undefined),
+    ]);
+
+    if (!importRes) return err("Could not reach the server", "NETWORK");
+    const json = await importRes.json().catch(() => ({}));
+    if (!importRes.ok) {
+      if (importRes.status === 401) return err("Session expired", "INVALID_TOKEN");
+      return err(json?.error || "Import failed", json?.code);
+    }
+    return ok(json as CvImportResult);
   },
 };

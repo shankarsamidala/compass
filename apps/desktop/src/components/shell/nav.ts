@@ -60,27 +60,27 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
       { id: "home", label: "Home", icon: Home01Icon, description: "Your job search at a glance." },
-      { id: "start", label: "Start Compass", icon: ChatSpark01Icon, description: "Kick off a new tailored application." },
+      { id: "start", label: "New Session", icon: ChatSpark01Icon, description: "Kick off a new tailored application." },
     ],
   },
   {
     items: [
       { id: "following", label: "Following", icon: UserGroupIcon, description: "Companies and people you follow." },
-      { id: "happening", label: "Happening Now", icon: Fire02Icon, description: "Live activity and trending roles." },
+      { id: "happening", label: "Trending", icon: Fire02Icon, description: "Live activity and trending roles." },
     ],
   },
   {
     title: "Opportunities",
     items: [
-      { id: "jobs", label: "Jobs", icon: Target02Icon, description: "Browse and scan roles that match you." },
-      { id: "compare", label: "Compare", icon: GitCompareIcon, description: "Weigh offers side by side." },
-      { id: "insights", label: "Insights", icon: Analytics01Icon, description: "Trends and analytics on your search." },
+      { id: "jobs", label: "Job Board", icon: Target02Icon, description: "Browse and scan roles that match you." },
+      { id: "compare", label: "Offer Compare", icon: GitCompareIcon, description: "Weigh offers side by side." },
+      { id: "insights", label: "Job Insights", icon: Analytics01Icon, description: "Trends and analytics on your search." },
     ],
   },
   {
     title: "Toolkit",
     items: [
-      { id: "profile", label: "Profile & CV", icon: UserCircleIcon, description: "Your profile and tailored CVs." },
+      { id: "profile", label: "My Profile", icon: UserCircleIcon, description: "Your profile and tailored CVs." },
       { id: "story-bank", label: "Story Bank", icon: BookOpen01Icon, description: "Reusable STAR stories for interviews." },
       { id: "training", label: "Training", icon: Mortarboard02Icon, description: "Courses and certs worth your time." },
       { id: "projects", label: "Projects", icon: PuzzleIcon, description: "Portfolio projects that showcase you." },
@@ -105,8 +105,8 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Reinit Apps",
     defaultOpen: false,
     items: [
-      { id: "mobile", label: "Mobile", icon: SmartPhone02Icon, description: "Reinit on your phone." },
-      { id: "desktop", label: "Desktop", icon: ComputerIcon, description: "The Reinit desktop app." },
+      { id: "mobile", label: "Mobile App", icon: SmartPhone02Icon, description: "Reinit on your phone." },
+      { id: "desktop", label: "Desktop App", icon: ComputerIcon, description: "The Reinit desktop app." },
     ],
   },
 ];

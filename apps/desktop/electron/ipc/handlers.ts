@@ -32,6 +32,7 @@ export function registerIpcHandlers(): void {
   safeHandle("onboarding:status", () => onboardingService.status());
   safeHandle("onboarding:complete", () => onboardingService.complete());
   safeHandle("onboarding:submit", (data) => onboardingService.submit(data));
+  safeHandle("onboarding:import-resume", (cvText) => onboardingService.importResume(cvText));
 
   // ── Suggest (autocomplete) ──
   safeHandle("suggest:query", (kind, q) => suggestService.query(kind, q));
@@ -56,6 +57,8 @@ export function registerIpcHandlers(): void {
   safeHandle("jobs:list", () => jobsService.list());
   safeHandle("jobs:get", (id: string) => jobsService.get(id));
   safeHandle("jobs:scan", (opts: { maxPerRole: number; jobAge: number }) => jobsService.scan(opts));
+  safeHandle("jobs:evaluate-quick", (id: string) => jobsService.evaluateQuick(id));
+  safeHandle("jobs:evaluate", (id: string) => jobsService.evaluate(id));
 
   // ── Settings (app-local) ──
   safeHandle("settings:get", () => settingsService.get());

@@ -19,6 +19,7 @@ const api: CompassApi = {
     status: () => ipcRenderer.invoke("onboarding:status"),
     complete: () => ipcRenderer.invoke("onboarding:complete"),
     submit: (data) => ipcRenderer.invoke("onboarding:submit", data),
+    importResume: (cvText) => ipcRenderer.invoke("onboarding:import-resume", cvText),
   },
   suggest: {
     query: (kind, q) => ipcRenderer.invoke("suggest:query", kind, q),
@@ -35,6 +36,8 @@ const api: CompassApi = {
     list: () => ipcRenderer.invoke("jobs:list"),
     get: (id) => ipcRenderer.invoke("jobs:get", id),
     scan: (opts) => ipcRenderer.invoke("jobs:scan", opts),
+    evaluateQuick: (id) => ipcRenderer.invoke("jobs:evaluate-quick", id),
+    evaluate: (id) => ipcRenderer.invoke("jobs:evaluate", id),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),

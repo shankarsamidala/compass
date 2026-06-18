@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSkills, useAddSkill, useRemoveSkill, useImportSkillsFromExperiences } from "./skills-api";
 import { useHotTakes, useAddProofPoint, useRemoveProofPoint } from "./proof-points-api";
 import { useEducation } from "./education-api";
@@ -19,6 +20,8 @@ import {
   MapsGlobal02Icon, PhoneArrowDownIcon, GithubIcon, Link01Icon,
   Edit03Icon, SourceCodeIcon,
 } from "@hugeicons/core-free-icons";
+import FileUpload, { DropZone, FileList, type FileInfo } from "@/components/ui/file-upload";
+import { api } from "@/lib/ipc";
 
 type StackTool = { id: string; title: string; faviconUrl: string };
 
@@ -87,6 +90,7 @@ type Tab = "posts" | "replies" | "upvoted";
 export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (tab: import("@/features/settings/tabs").SettingsTabId) => void }) {
   const [activeTab, setActiveTab] = useState<Tab>("posts");
   const { data: profile } = useProfilePrefs();
+  const queryClient = useQueryClient();
 
 
   const { data: educationList = [] } = useEducation();
@@ -121,6 +125,58 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
   const completionOffset = COMPLETION_CIRC * (1 - completionPct / 100);
   const addProofPoint = useAddProofPoint();
   const removeProofPoint = useRemoveProofPoint();
+
+  // ── Resume upload (right sidebar) ────────────────────────────────────────
+  const [resumeFiles, setResumeFiles] = useState<FileInfo[]>([]);
+  const [resumeText, setResumeText] = useState("");
+  const [resumeExtractState, setResumeExtractState] = useState<"idle" | "extracting" | "ready" | "error">("idle");
+  const [resumeImportState, setResumeImportState] = useState<"idle" | "importing" | "done" | "error">("idle");
+  const [resumeMsg, setResumeMsg] = useState<string | null>(null);
+
+  const handleResumeSelect = async (picked: FileInfo[]) => {
+    setResumeFiles(picked);
+    setResumeText("");
+    setResumeExtractState("idle");
+    setResumeImportState("idle");
+    setResumeMsg(null);
+    const f = picked[0]?.file;
+    if (!f) return;
+    setResumeExtractState("extracting");
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const res = await api.document.extractText(f.name, bytes);
+      if (res.ok) {
+        setResumeText(res.data.text);
+        setResumeExtractState("ready");
+      } else {
+        setResumeExtractState("error");
+        setResumeMsg(res.error);
+      }
+    } catch (e) {
+      setResumeExtractState("error");
+      setResumeMsg(e instanceof Error ? e.message : "Could not read file");
+    }
+  };
+
+  const handleResumeImport = async () => {
+    if (!resumeText) return;
+    setResumeImportState("importing");
+    setResumeMsg(null);
+    const res = await api.onboarding.importResume(resumeText);
+    if (res.ok) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["experiences"] }),
+        queryClient.invalidateQueries({ queryKey: ["education"] }),
+        queryClient.invalidateQueries({ queryKey: ["projects"] }),
+        queryClient.invalidateQueries({ queryKey: ["certifications"] }),
+      ]);
+      setResumeImportState("done");
+      setResumeMsg("Profile updated from resume");
+    } else {
+      setResumeImportState("error");
+      setResumeMsg(res.error);
+    }
+  };
 
   const [hotTakeOpen, setHotTakeOpen] = useState(false);
   const [showAllProofPoints, setShowAllProofPoints] = useState(false);
@@ -800,6 +856,60 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             </div>
           </div>
         </div>
+
+        {/* Resume upload & import */}
+        <section className="flex flex-col gap-3 rounded-2xl border border-border p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-white">Resume</p>
+            {resumeExtractState === "ready" && resumeImportState !== "done" && (
+              <Button
+                size="sm"
+                disabled={resumeImportState === "importing"}
+                onClick={handleResumeImport}
+              >
+                {resumeImportState === "importing" ? "Importing…" : "Import"}
+              </Button>
+            )}
+            {resumeImportState === "done" && (
+              <span className="text-xs text-emerald-500">Imported</span>
+            )}
+          </div>
+          <FileUpload
+            files={resumeFiles}
+            accept=".pdf,.doc,.docx"
+            maxSize={10}
+            maxCount={1}
+            onFileSelectChange={handleResumeSelect}
+            onRemove={(id) => {
+              setResumeFiles((p) => p.filter((x) => x.id !== id));
+              setResumeText("");
+              setResumeExtractState("idle");
+              setResumeImportState("idle");
+              setResumeMsg(null);
+            }}
+          >
+            <DropZone prompt="Drop CV here or click to browse" />
+            <FileList canRemove onRemove={(id) => {
+              setResumeFiles((p) => p.filter((x) => x.id !== id));
+              setResumeText("");
+              setResumeExtractState("idle");
+              setResumeImportState("idle");
+              setResumeMsg(null);
+            }} />
+          </FileUpload>
+          {resumeExtractState === "extracting" && (
+            <p className="text-xs text-muted-foreground text-center">Reading resume…</p>
+          )}
+          {resumeExtractState === "ready" && resumeImportState === "idle" && (
+            <p className="text-xs text-muted-foreground text-center">Ready — click Import to update your profile</p>
+          )}
+          {(resumeExtractState === "error" || resumeImportState === "error") && (
+            <p className="text-xs text-destructive text-center">{resumeMsg}</p>
+          )}
+          {resumeImportState === "done" && (
+            <p className="text-xs text-emerald-500 text-center">{resumeMsg}</p>
+          )}
+        </section>
 
         {/* Public profile & URL */}
         <section className="flex flex-col rounded-2xl border border-border p-4">

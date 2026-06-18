@@ -104,11 +104,18 @@ export interface OnboardingSubmit {
   resumeText?: string;
 }
 
+export interface CvImportResult {
+  imported: { experiences: number; education: number; certifications: number; projects: number };
+  reviewFlags: string[];
+}
+
 export interface OnboardingApi {
   status(): Promise<Result<{ onboardingCompleted: boolean }>>;
   complete(): Promise<Result<{ onboardingCompleted: boolean }>>;
   /** Idempotent: PUT profile → replace records → mark complete. */
   submit(data: OnboardingSubmit): Promise<Result<{ onboardingCompleted: boolean }>>;
+  /** Save raw CV text + parse into structured profile records (PUT /cv + POST /cv/import). */
+  importResume(cvText: string): Promise<Result<CvImportResult>>;
 }
 
 // ── Suggest domain (autocomplete) ────────────────────────────────────────────
