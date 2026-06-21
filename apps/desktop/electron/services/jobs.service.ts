@@ -1,6 +1,7 @@
 import { authedFetch } from "../core/http";
 import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation } from "@compass/ipc-contract";
 import { searchJobsForRole } from "./naukri.service";
+import { cliService } from "./cli.service";
 
 /** Normalize quick (blockA/evaluationId) and full (blocks/id) eval responses → JobEvaluation. */
 function toEvaluation(j: any): JobEvaluation {
@@ -184,5 +185,40 @@ export const jobsService = {
     if (res.status === 404) return err("Job not found", "NOT_FOUND");
     if (!res.ok) return err(json?.error || "Could not evaluate this job", json?.code);
     return ok(toEvaluation(json));
+  },
+
+  /**
+   * Evaluate a job by driving the reinit SKILL headless (claude -p). The agent
+   * syncs the profile, evaluates A–G against it, and pushes the report to the
+   * dashboard (Atlas /evaluations) tagged to this jobId. Result lands in the feed
+   * (card flips to Insights) — no server LLM endpoint involved.
+   */
+  async evaluateViaAgent(id: string): Promise<Result<{ result: string }>> {
+    // Pull the job so we can hand the agent the full JD + identity.
+    const jr = await authedFetch(`/jobs/${encodeURIComponent(id)}`, { method: "GET" });
+    if (!jr) return err("Could not reach the server", "NETWORK");
+    if (jr.status === 401) return err("Session expired", "INVALID_TOKEN");
+    const jj = await jr.json().catch(() => ({}));
+    const job = jj?.job;
+    if (!jr.ok || !job) return err(jj?.error || "Job not found", "NOT_FOUND");
+
+    const prompt = [
+      "Use the reinit skill to evaluate ONE job end to end and push the result to the dashboard. Steps:",
+      "1. Run get-profile to sync the latest profile (cv.md / profile.yml).",
+      "2. Evaluate this job (A–G) against my profile.",
+      `3. Push the evaluation report to the dashboard so it appears in the app, tagged to jobId ${id}.`,
+      "",
+      `Company: ${job.company ?? ""}`,
+      `Role: ${job.title ?? ""}`,
+      `Job ID: ${id}`,
+      job.jobUrl ? `Job URL: ${job.jobUrl}` : "",
+      "",
+      "Job description:",
+      (job.jd ?? job.jobDescription ?? "").slice(0, 14000),
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    return cliService.runReinit(prompt);
   },
 };

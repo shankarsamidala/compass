@@ -8,17 +8,7 @@ import { SignOutButton } from "./sign-out-button";
  */
 export function OnboardingFlow() {
   return (
-    <AuthLayout
-      maxWidthClass="max-w-xl"
-      footer={false}
-      topRight={<SignOutButton />}
-      brand={{
-        lead: "A few quick details,",
-        accent: "then we get to work.",
-        subtitle:
-          "We use these to tailor matches and recommendations. You can edit everything later from your profile.",
-      }}
-    >
+    <AuthLayout maxWidthClass="max-w-xl" topRight={<SignOutButton />}>
       <OnboardingShell />
     </AuthLayout>
   );

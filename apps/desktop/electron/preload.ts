@@ -26,8 +26,10 @@ const api: CompassApi = {
   },
   llm: {
     optimizeProofPoint: (draft, metric) => ipcRenderer.invoke("llm:optimize-proof-point", draft, metric),
-    extractProofPoints: (resumeText) => ipcRenderer.invoke("llm:extract-proof-points", resumeText),
+    extractProofPoints: (resumeText?: string) => ipcRenderer.invoke("llm:extract-proof-points", resumeText),
     generateAbout: (headline, bio) => ipcRenderer.invoke("llm:generate-about", headline, bio),
+    writeJobDescription: (company, title, draft) =>
+      ipcRenderer.invoke("llm:write-job-description", company, title, draft),
   },
   document: {
     extractText: (fileName, bytes) => ipcRenderer.invoke("document:extract", fileName, bytes),
@@ -43,6 +45,20 @@ const api: CompassApi = {
     scan: (opts) => ipcRenderer.invoke("jobs:scan", opts),
     evaluateQuick: (id) => ipcRenderer.invoke("jobs:evaluate-quick", id),
     evaluate: (id) => ipcRenderer.invoke("jobs:evaluate", id),
+    evaluateAgent: (id) => ipcRenderer.invoke("jobs:evaluate-agent", id),
+  },
+  cli: {
+    configure: () => ipcRenderer.invoke("cli:configure"),
+    configureWithToken: (token) => ipcRenderer.invoke("cli:configure-with-token", token),
+    status: () => ipcRenderer.invoke("cli:status"),
+    detect: () => ipcRenderer.invoke("cli:detect"),
+    install: () => ipcRenderer.invoke("cli:install"),
+    isAgentTrusted: () => ipcRenderer.invoke("cli:agent-trusted"),
+    trustAgent: () => ipcRenderer.invoke("cli:trust-agent"),
+  },
+  evaluations: {
+    list: () => ipcRenderer.invoke("evaluations:list"),
+    get: (id) => ipcRenderer.invoke("evaluations:get", id),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),

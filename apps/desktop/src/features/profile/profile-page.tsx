@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sparkles } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Facebook02Icon, NewTwitterIcon, WhatsappIcon, RedditIcon, Linkedin02Icon,
@@ -149,11 +150,12 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
     }
   };
 
-  const handleResumeImport = async () => {
-    if (!pendingFile) return;
+  // Parse a resume into structured records. Pass fresh text for a new upload, or
+  // omit to re-parse the resume already on file (the stored dump).
+  const runImport = async (text: string | undefined, source: string) => {
     setResumePickState("importing");
     setResumeMsg(null);
-    const res = await api.onboarding.importResume(pendingFile.text);
+    const res = await api.onboarding.importResume(text);
     if (res.ok) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["experiences"] }),
@@ -161,14 +163,25 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
         queryClient.invalidateQueries({ queryKey: ["projects"] }),
         queryClient.invalidateQueries({ queryKey: ["certifications"] }),
       ]);
+      const i = res.data.imported;
+      const added = i.experiences + i.education + i.projects + i.certifications;
       setResumePickState("done");
-      setResumeMsg("Profile updated");
-      trackAction("cv_imported", { source: pendingFile.name.split(".").pop()?.toLowerCase() ?? "unknown" });
+      setResumeMsg(
+        added > 0
+          ? `Added ${added} new ${added === 1 ? "entry" : "entries"} from your resume`
+          : "Your profile already has everything from this resume",
+      );
+      trackAction("cv_imported", { source });
     } else {
       setResumePickState("error");
       setResumeMsg(res.error);
     }
   };
+  const handleResumeImport = () => {
+    if (!pendingFile) return;
+    runImport(pendingFile.text, pendingFile.name.split(".").pop()?.toLowerCase() ?? "upload");
+  };
+  const handleImportStored = () => runImport(undefined, "stored");
 
   // ── Live profile completion ───────────────────────────────────────────────
   const completionSections = [
@@ -195,30 +208,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
   const [hotTakeText, setHotTakeText] = useState("");
   const [hotTakeUrl, setHotTakeUrl] = useState("");
 
-  const [expOpen, setExpOpen] = useState(false);
-  const [expTitle, setExpTitle] = useState("");
-  const [expEmploymentType, setExpEmploymentType] = useState("");
-  const [expCompany, setExpCompany] = useState("");
-  const [expDomain, setExpDomain] = useState("");
-  const [expCurrent, setExpCurrent] = useState(false);
-  const [expStartMonth, setExpStartMonth] = useState("");
-  const [expStartYear, setExpStartYear] = useState("");
-  const [expEndMonth, setExpEndMonth] = useState("");
-  const [expEndYear, setExpEndYear] = useState("");
-  const [expLocation, setExpLocation] = useState("");
-  const [expLocationType, setExpLocationType] = useState<"remote" | "hybrid" | "onsite" | "">("");
-  const [expDescription, setExpDescription] = useState("");
-  const [expSkillInput, setExpSkillInput] = useState("");
-  const [expSkills, setExpSkills] = useState<string[]>([]);
-
-  function handleExpSkillKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const raw = expSkillInput.split(",").map(s => s.trim()).filter(Boolean);
-      setExpSkills(prev => [...new Set([...prev, ...raw])]);
-      setExpSkillInput("");
-    }
-  }
 
 
   const [stackOpen, setStackOpen] = useState(false);
@@ -906,6 +895,23 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             </ul>
           )}
 
+          {/* Import details from the resume already on file (onboarding only stores
+              the dump — this parses it into experience/education/projects/certs). */}
+          {cvUploads.length > 0 && !pendingFile && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <Sparkles className="size-4 shrink-0 text-brand" />
+                <div className="flex min-w-0 flex-col leading-tight">
+                  <span className="text-xs font-medium text-white">Import details from resume</span>
+                  <span className="text-[11px] text-muted-foreground">Auto-fill experience, education, projects &amp; certifications.</span>
+                </div>
+              </div>
+              <Button size="sm" disabled={resumePickState === "importing"} onClick={handleImportStored} className="shrink-0">
+                {resumePickState === "importing" ? "Importing…" : "Import"}
+              </Button>
+            </div>
+          )}
+
           {/* Pending file ready to import */}
           {pendingFile && resumePickState !== "done" && (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
@@ -1374,239 +1380,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
         )}
       </AnimatePresence>
 
-      {/* Work Experience Sheet */}
-      <AnimatePresence>
-        {expOpen && (
-          <>
-            <motion.div
-              key="exp-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/40"
-              onClick={() => setExpOpen(false)}
-            />
-            <motion.div
-              key="exp-sheet"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed right-0 top-11 xl:top-14 z-50 flex h-[calc(100vh-2.75rem)] xl:h-[calc(100vh-3.5rem)] w-[28rem] flex-col bg-background border-l border-border"
-            >
-              {/* Header */}
-              <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
-                <Button variant="ghost" size="icon-sm" className="mr-2 shrink-0" onClick={() => setExpOpen(false)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </Button>
-                <p className="flex-1 text-sm font-bold text-white">Add Work Experience</p>
-                <Button size="sm" onClick={() => setExpOpen(false)}>Save</Button>
-              </div>
-
-              {/* Body */}
-              <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
-
-                {/* Job Title */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Job Title*</p>
-                  <Input
-                    placeholder="Ex: Senior Frontend Engineer"
-                    value={expTitle}
-                    onChange={e => setExpTitle(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                </div>
-
-                {/* Employment Type */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Employment Type</p>
-                  <Select value={expEmploymentType} onValueChange={setExpEmploymentType}>
-                    <SelectTrigger className="h-9 w-full rounded-xl">
-                      <SelectValue placeholder="Please select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["Full-time", "Part-time", "Contract", "Freelance", "Internship", "Apprenticeship", "Other"].map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Company */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Company or organization*</p>
-                  <Input
-                    placeholder="Company or organization"
-                    value={expCompany}
-                    onChange={e => setExpCompany(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                </div>
-
-                {/* Company domain */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Company domain</p>
-                  <Input
-                    placeholder="Ex: company.com"
-                    value={expDomain}
-                    onChange={e => setExpDomain(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                </div>
-
-                <div className="border-t border-border" />
-
-                {/* Current position */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-bold text-white">Current position</p>
-                    <Switch checked={expCurrent} onCheckedChange={setExpCurrent} />
-                  </div>
-                  <p className="text-xs text-foreground">Check if this is your current role</p>
-                </div>
-
-                {/* Start date */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Start date*</p>
-                  <div className="flex gap-3">
-                    <Select value={expStartMonth} onValueChange={setExpStartMonth}>
-                      <SelectTrigger className="h-9 w-full rounded-xl">
-                        <SelectValue placeholder="Month" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={expStartYear} onValueChange={setExpStartYear}>
-                      <SelectTrigger className="h-9 w-full rounded-xl">
-                        <SelectValue placeholder="Year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* End date */}
-                {!expCurrent && (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-bold text-white">End date*</p>
-                    <div className="flex gap-3">
-                      <Select value={expEndMonth} onValueChange={setExpEndMonth}>
-                        <SelectTrigger className="h-9 w-full rounded-xl">
-                          <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STACK_MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select value={expEndYear} onValueChange={setExpEndYear}>
-                        <SelectTrigger className="h-9 w-full rounded-xl">
-                          <SelectValue placeholder="Year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STACK_YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-
-                <div className="border-t border-border" />
-
-                {/* Location */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Location</p>
-                  <Input
-                    placeholder="Ex: Bengaluru, India"
-                    value={expLocation}
-                    onChange={e => setExpLocation(e.target.value)}
-                    className="h-9 rounded-xl"
-                  />
-                  <div className="flex gap-1">
-                    {(["remote", "hybrid", "onsite"] as const).map(type => (
-                      <label
-                        key={type}
-                        className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                          expLocationType === type
-                            ? "border-foreground bg-foreground text-background"
-                            : "border-border text-muted-foreground hover:border-foreground/50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="locationType"
-                          value={type}
-                          checked={expLocationType === type}
-                          onChange={() => setExpLocationType(type)}
-                          className="sr-only"
-                        />
-                        {type.charAt(0).toUpperCase() + type.slice(1).replace("onsite", "On-site")}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Description</p>
-                  <div className="flex flex-col rounded-xl border border-input bg-input/30 px-4 pt-3 pb-2">
-                    <textarea
-                      placeholder="Key technologies, projects, and achievements"
-                      value={expDescription}
-                      onChange={e => setExpDescription(e.target.value)}
-                      maxLength={5000}
-                      rows={4}
-                      className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                    <span className="ml-auto text-xs text-foreground">{expDescription.length}/5000</span>
-                  </div>
-                </div>
-
-                {/* Skills */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-bold text-white">Skills</p>
-                  <div className="flex items-center gap-2 rounded-xl border border-input bg-input/30 px-3 h-9">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-muted-foreground">
-                      <path d="M10 3a7 7 0 016.068 10.492 2.813 2.813 0 012.076.67l.157.147 1.872 1.871a2.823 2.823 0 01-3.852 4.125l-.14-.132-1.872-1.872a2.817 2.817 0 01-.818-2.234A7 7 0 1110 3zm0 1.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11z" fillRule="evenodd" />
-                    </svg>
-                    <input
-                      placeholder="Search skills"
-                      value={expSkillInput}
-                      onChange={e => setExpSkillInput(e.target.value)}
-                      onKeyDown={handleExpSkillKeyDown}
-                      className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                  </div>
-                  <p className="text-xs text-foreground">Add commas (,) to add multiple skills. Press Enter to submit them.</p>
-                  {expSkills.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {expSkills.map(s => (
-                        <div key={s} className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-medium text-foreground">
-                          {s}
-                          <button
-                            type="button"
-                            onClick={() => setExpSkills(prev => prev.filter(x => x !== s))}
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
     </div>
   );

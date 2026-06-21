@@ -2,15 +2,16 @@ import { useLayoutEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useSession } from "@/features/auth/api";
 import { AuthFlow } from "@/features/auth/auth-flow";
-import { OnboardingGuard } from "@/features/onboarding/onboarding-guard";
+import { SetupGuard } from "@/features/setup/setup-guard";
 import { setAnalyticsUser, clearAnalyticsUser } from "@/lib/analytics";
 
 /**
  * Auth gate (REIN-305). Reads the session via Query and routes: loading spinner →
  * authed app vs the auth flow. Session is restored on launch by `auth:session`.
  *
- * Theme: the app is dark, the auth screens are light. We toggle `dark` on <html>
- * by auth state (loading stays dark by default → no flash).
+ * Theme: auth, setup, and onboarding render dark via their own AuthLayout wrapper;
+ * we additionally toggle `dark` on <html> once inside the app so the full shell is
+ * dark (loading stays dark by default → no flash).
  */
 export function AuthGate() {
   const { data, isPending } = useSession();
@@ -19,8 +20,9 @@ export function AuthGate() {
 
   useLayoutEffect(() => {
     if (isPending) return; // keep the default dark during the session check
-    // Dark only once inside the app; auth + onboarding render light (like studio).
-    document.documentElement.classList.toggle("dark", authed && onboarded);
+    // The whole app is dark (auth, setup, onboarding, app). Keep `dark` on <html>
+    // so portaled UI (combobox/popover dropdowns render at <body>) inherits it too.
+    document.documentElement.classList.add("dark");
     if (authed && data?.data?.user) {
       setAnalyticsUser(data.data.user.id, data.data.user.email);
     } else if (!authed) {
@@ -36,5 +38,5 @@ export function AuthGate() {
     );
   }
 
-  return authed ? <OnboardingGuard /> : <AuthFlow />;
+  return authed ? <SetupGuard /> : <AuthFlow />;
 }

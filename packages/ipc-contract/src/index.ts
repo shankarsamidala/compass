@@ -114,8 +114,8 @@ export interface OnboardingApi {
   complete(): Promise<Result<{ onboardingCompleted: boolean }>>;
   /** Idempotent: PUT profile → replace records → mark complete. */
   submit(data: OnboardingSubmit): Promise<Result<{ onboardingCompleted: boolean }>>;
-  /** Save raw CV text + parse into structured profile records (PUT /cv + POST /cv/import). */
-  importResume(cvText: string): Promise<Result<CvImportResult>>;
+  /** Parse a resume → structured records (agent → Ollama). Omit cvText to re-parse the stored resume. */
+  importResume(cvText?: string): Promise<Result<CvImportResult>>;
 }
 
 // ── Suggest domain (autocomplete) ────────────────────────────────────────────
@@ -131,12 +131,14 @@ export interface SuggestApi {
 // ── LLM domain (BYO-LLM: server prompts, local inference) ────────────────────
 
 export interface LlmApi {
-  /** Rewrite a rough proof-point draft into a polished line + extracted metric, via local Ollama. */
+  /** Rewrite a rough proof-point draft into a polished line + extracted metric (agent → Ollama). */
   optimizeProofPoint(draft: string, metric?: string): Promise<Result<{ text: string; metric: string }>>;
-  /** Extract candidate proof points from resume text, via local Ollama. */
-  extractProofPoints(resumeText: string): Promise<Result<{ points: { title: string; metric: string }[] }>>;
-  /** Generate or refine a profile headline + bio, via local Ollama. */
+  /** Extract proof points from resume text; omit to use the stored CV dump (agent → Ollama). */
+  extractProofPoints(resumeText?: string): Promise<Result<{ points: { title: string; metric: string }[] }>>;
+  /** Generate or refine a profile headline + bio, grounded in the stored resume (agent → Ollama). */
   generateAbout(headline?: string, bio?: string): Promise<Result<{ headline: string; bio: string }>>;
+  /** Write/rewrite one job's description from the stored resume (agent → Ollama). */
+  writeJobDescription(company: string, title: string, draft?: string): Promise<Result<{ text: string }>>;
 }
 
 // ── Document domain (local file → text) ──────────────────────────────────────
@@ -267,6 +269,8 @@ export interface JobsApi {
   evaluateQuick(id: string): Promise<Result<JobEvaluation>>;
   /** Decision-view eval for a pooled job — per-block B/C/D/G, web-grounded D/G (POST /jobs/:id/evaluate/blocks). */
   evaluate(id: string): Promise<Result<JobEvaluation>>;
+  /** Evaluate a job by running the reinit skill headless (claude -p) → pushes to /evaluations. */
+  evaluateAgent(id: string): Promise<Result<{ result: string }>>;
 }
 
 // ── Settings domain (app-local, non-secret) ──────────────────────────────────
@@ -603,9 +607,89 @@ export interface CvApi {
   deleteUpload(id: string): Promise<Result<void>>;
 }
 
+/** Result of a successful CLI configure. */
+export interface CliConfigured {
+  tokenPrefix: string;
+  apiUrl: string;
+  configPath: string;
+}
+/** State of the local ~/.reinit config. */
+export interface CliStatus {
+  configured: boolean;
+  apiUrl: string;
+  tokenPrefix?: string;
+  configPath: string;
+}
+/** Which agent CLIs / tools are installed on this machine (PATH probe). */
+export interface CliDetection {
+  claude: boolean;
+  codex: boolean;
+  gemini: boolean;
+  copilot: boolean;
+  node: boolean;
+  npx: boolean;
+  ollama: boolean;
+}
+/** Result of the one-click `npx @reinit-ai/cli install` run. */
+export interface CliInstallResult {
+  output: string;
+}
+
+/**
+ * REINIT CLI domain — one-click setup for the `/reinit` skill. Mints a long-lived
+ * API token and writes ~/.reinit/config so the skill works with no manual paste.
+ */
+export interface CliApi {
+  /** Auto: mint a token for the logged-in user + write the config. */
+  configure(): Promise<Result<CliConfigured>>;
+  /** Manual: write a token the user pasted. */
+  configureWithToken(token: string): Promise<Result<CliConfigured>>;
+  /** Read the current ~/.reinit config state. */
+  status(): Promise<Result<CliStatus>>;
+  /** Probe PATH for installed agent CLIs / tools. */
+  detect(): Promise<Result<CliDetection>>;
+  /** One-click: run `npx @reinit-ai/cli install` for non-Claude CLIs. */
+  install(): Promise<Result<CliInstallResult>>;
+  /** Has the user granted the agent permanent permission to run unattended? */
+  isAgentTrusted(): Promise<Result<{ trusted: boolean }>>;
+  /** Grant permanent permission — future skill runs go fully unattended. */
+  trustAgent(): Promise<Result<void>>;
+}
+
+/** A row in the evaluations list (lightweight). */
+export interface EvaluationSummary {
+  id: string;
+  jobId: string | null;
+  companyName: string | null;
+  roleTitle: string | null;
+  jobUrl: string | null;
+  archetype: string | null;
+  score: number | null;
+  legitimacyTier: string | null;
+  status: string;
+  createdAt: string;
+}
+/** Full evaluation incl. the report body (detail view). */
+export interface EvaluationDetail extends EvaluationSummary {
+  jobDescription: string | null;
+  rawReport: string | null;
+  machineSummary: unknown;
+}
+
+/**
+ * Evaluations domain — reports pushed back by the skill (Atlas /evaluations).
+ * The dashboard reads these to show pulled jobs + their A–H reports.
+ */
+export interface EvaluationsApi {
+  list(): Promise<Result<{ evaluations: EvaluationSummary[] }>>;
+  get(id: string): Promise<Result<{ evaluation: EvaluationDetail }>>;
+}
+
 export interface CompassApi {
   version: string;
   auth: AuthApi;
+  cli: CliApi;
+  evaluations: EvaluationsApi;
   onboarding: OnboardingApi;
   suggest: SuggestApi;
   llm: LlmApi;

@@ -1,20 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, Controller, type UseFormReturn } from "react-hook-form";
 import { Pencil, Trash2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ChipInput } from "./chip-input";
-import { SuggestCombobox } from "./suggest-combobox";
-import { EMPLOYMENT_TYPES, ALL_SKILLS, blankExperience, type OnboardingValues } from "../schema";
+import { AsyncCombobox } from "./async-combobox";
+import { CompanyComboboxNova } from "./company-combobox-nova";
+import { OptionCombobox } from "./option-combobox";
+import { DateField } from "./date-field";
+import { SkillField } from "./skill-field";
+import { EMPLOYMENT_TYPES, blankExperience, type OnboardingValues } from "../schema";
 
 export function StepWorkHistory({
   form,
@@ -29,13 +24,27 @@ export function StepWorkHistory({
   const values = watch("experiences");
   const [openIndex, setOpenIndex] = useState(0);
 
-  // Always keep one open form (no "add first" click). Skipped for freshers.
+  // Seed the first row ONCE from steps 1–3 (current company/designation, profile
+  // location, target employment type) so the user doesn't retype their current job.
+  // Guarded with a ref so StrictMode's double-effect can't append it twice.
+  const seededRef = useRef(false);
   useEffect(() => {
-    if (!fresher && fields.length === 0) {
-      append(blankExperience());
-      setOpenIndex(0);
-    }
-  }, [fresher, fields.length, append]);
+    if (seededRef.current || fresher || fields.length > 0) return;
+    seededRef.current = true;
+    const company = form.getValues("currentCompany")?.trim();
+    const title = form.getValues("currentDesignation")?.trim();
+    const location = form.getValues("location")?.trim(); // from step 1 (profile)
+    const employmentType = form.getValues("employmentType"); // from step 2 (targets)
+    append({
+      ...blankExperience(),
+      ...(company ? { company } : {}),
+      ...(title ? { title } : {}),
+      ...(location ? { location } : {}),
+      ...(employmentType ? { employmentType } : {}),
+      ...(company || title ? { isCurrent: true } : {}),
+    });
+    setOpenIndex(0);
+  }, [fresher, fields.length, append, form]);
 
   // "Add another role" lives in the shell footer (next to Continue). Register it
   // via a ref so the latest closure (current fields.length) is always used.
@@ -114,42 +123,39 @@ export function StepWorkHistory({
               <div className="flex flex-col gap-1.5">
                 <Label>Role title</Label>
                 <Controller control={control} name={`experiences.${i}.title`} render={({ field }) => (
-                  <SuggestCombobox value={field.value} onChange={field.onChange} kind="roles" placeholder="Search role, e.g. Senior Engineer…" />
+                  <AsyncCombobox value={field.value} onChange={field.onChange} kind="roles" placeholder="Search role, e.g. Senior Engineer…" />
                 )} />
                 {errors.experiences?.[i]?.title && <p className="text-xs text-destructive">{String(errors.experiences[i]?.title?.message)}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Company</Label>
-                <Input className="h-11" placeholder="e.g. Acme Inc." {...register(`experiences.${i}.company`)} />
+                <Controller control={control} name={`experiences.${i}.company`} render={({ field }) => (
+                  <CompanyComboboxNova value={field.value ?? ""} onChange={field.onChange} placeholder="e.g. Acme Inc." />
+                )} />
                 {errors.experiences?.[i]?.company && <p className="text-xs text-destructive">{String(errors.experiences[i]?.company?.message)}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Location</Label>
                 <Controller control={control} name={`experiences.${i}.location`} render={({ field }) => (
-                  <SuggestCombobox value={field.value} onChange={field.onChange} kind="locations" placeholder="Search city…" />
+                  <AsyncCombobox value={field.value} onChange={field.onChange} kind="locations" placeholder="Search city…" />
                 )} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Employment type</Label>
                 <Controller control={control} name={`experiences.${i}.employmentType`} render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="!h-11 w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
-                    <SelectContent>
-                      {EMPLOYMENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <OptionCombobox options={EMPLOYMENT_TYPES} value={field.value} onChange={field.onChange} placeholder="Select type" />
                 )} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Start</Label>
                 <Controller control={control} name={`experiences.${i}.startDate`} render={({ field }) => (
-                  <input type="month" value={field.value} onChange={(e) => field.onChange(e.target.value)} className="h-11 rounded-4xl border border-input bg-input/30 px-3.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+                  <DateField value={field.value} onChange={field.onChange} placeholder="Start date" />
                 )} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>End</Label>
                 <Controller control={control} name={`experiences.${i}.endDate`} render={({ field }) => (
-                  <input type="month" value={field.value} disabled={watch(`experiences.${i}.isCurrent`)} onChange={(e) => field.onChange(e.target.value)} className="h-11 rounded-4xl border border-input bg-input/30 px-3.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50" />
+                  <DateField value={field.value} onChange={field.onChange} disabled={watch(`experiences.${i}.isCurrent`)} placeholder="End date" />
                 )} />
               </div>
             </div>
@@ -164,7 +170,7 @@ export function StepWorkHistory({
             <div className="flex flex-col gap-1.5">
               <Label>Skills</Label>
               <Controller control={control} name={`experiences.${i}.skills`} render={({ field }) => (
-                <ChipInput value={field.value} onChange={field.onChange} placeholder="Add skills…" suggestions={ALL_SKILLS} />
+                <SkillField value={field.value ?? []} onChange={field.onChange} placeholder="Add skills…" />
               )} />
             </div>
 

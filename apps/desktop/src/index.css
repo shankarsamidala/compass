@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "@fontsource-variable/oxanium";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -28,7 +29,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.875rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -42,46 +43,60 @@
   --brand: #d97757;
   --brand-hover: #c4603e;
   --brand-foreground: #ffffff;
+
+  /* Tag/chip palette (daily.dev style) — 12 colors. Assigned per label; see chip-input.tsx. */
+  --chip-1-fg: #2a533c;  --chip-1-bg: rgba(0, 96, 38, 0.157);
+  --chip-2-fg: #264a72;  --chip-2-bg: rgba(0, 118, 217, 0.204);
+  --chip-3-fg: #5a2a72;  --chip-3-bg: rgba(124, 0, 217, 0.16);
+  --chip-4-fg: #72532a;  --chip-4-bg: rgba(217, 128, 0, 0.16);
+  --chip-5-fg: #722a3c;  --chip-5-bg: rgba(217, 0, 76, 0.14);
+  --chip-6-fg: #1f5450;  --chip-6-bg: rgba(0, 150, 136, 0.16);
+  --chip-7-fg: #2d3470;  --chip-7-bg: rgba(40, 53, 217, 0.16);
+  --chip-8-fg: #743a1f;  --chip-8-bg: rgba(230, 90, 0, 0.15);
+  --chip-9-fg: #1c4f5e;  --chip-9-bg: rgba(0, 160, 200, 0.16);
+  --chip-10-fg: #6a2060; --chip-10-bg: rgba(200, 0, 160, 0.15);
+  --chip-11-fg: #41551f; --chip-11-bg: rgba(120, 170, 0, 0.16);
+  --chip-12-fg: #43337a; --chip-12-bg: rgba(90, 60, 220, 0.16);
 }
 
 /* Dark theme — natively's near-black, cool-tinted palette (not neutral grey).
    Hierarchy: chrome (sidebar/header) darkest → content → raised cards. */
 .dark {
   /* ── Backgrounds ──────────────────────────────────────────────────── */
-  --background: #0e1217;
-  --card: #1c1f26;
-  --popover: #1c1f26;
-  --secondary: #1c1f26;
-  --muted: #1c1f26;
+  --background: oklch(0.145 0 0);
+  --card: oklch(0.205 0 0);
+  --popover: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --muted: oklch(0.269 0 0);
 
   /* ── Text hierarchy ───────────────────────────────────────────────── */
-  --foreground: #a8b3cf;
-  --card-foreground: #a8b3cf;
-  --popover-foreground: #a8b3cf;
-  --secondary-foreground: #a8b3cf;
-  --sidebar-foreground: #a8b3cf;
-  --primary: #cfd6e6;
-  --primary-foreground: #0e1217;
-  --muted-foreground: rgba(168, 179, 207, 0.45);
+  --foreground: oklch(0.985 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --muted-foreground: oklch(0.708 0 0);
 
   /* ── Interactive surfaces ─────────────────────────────────────────── */
-  --accent: rgba(255, 255, 255, 0.06);
-  --accent-foreground: #cfd6e6;
-  --border: rgba(168, 179, 207, 0.2);
-  --input: rgba(168, 179, 207, 0.2);
-  --ring: #a8b3cf;
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
 
   /* ── Semantic / status ────────────────────────────────────────────── */
-  --destructive: #f1685e;
+  --destructive: oklch(0.704 0.191 22.216);
 
   /* ── Sidebar ──────────────────────────────────────────────────────── */
-  --sidebar: #0e1217;
-  --sidebar-primary: #3da5e4;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(255, 255, 255, 0.055);
-  --sidebar-accent-foreground: #cfd6e6;
-  --sidebar-border: rgba(168, 179, 207, 0.2);
-  --sidebar-ring: #a8b3cf;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 
   /* ── Accent palette (from daily.dev visible CSS) ──────────────────── */
   --pink: #fc538d;
@@ -99,11 +114,25 @@
   --brand-foreground: #ffffff;
 
   /* ── Charts ───────────────────────────────────────────────────────── */
-  --chart-1: #5c9bfa;
-  --chart-2: #fc538d;
-  --chart-3: #ce3df3;
-  --chart-4: #ffe923;
-  --chart-5: #d97757;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+
+  /* Tag/chip palette — brighter text on stronger translucent bg for dark mode (12). */
+  --chip-1-fg: #7fd8a8;  --chip-1-bg: rgba(0, 96, 38, 0.28);
+  --chip-2-fg: #8fc4ff;  --chip-2-bg: rgba(0, 118, 217, 0.28);
+  --chip-3-fg: #c9a0ff;  --chip-3-bg: rgba(124, 0, 217, 0.28);
+  --chip-4-fg: #e7c07a;  --chip-4-bg: rgba(217, 128, 0, 0.26);
+  --chip-5-fg: #f0a0b4;  --chip-5-bg: rgba(217, 0, 76, 0.24);
+  --chip-6-fg: #6fd6c9;  --chip-6-bg: rgba(0, 150, 136, 0.28);
+  --chip-7-fg: #a0aaff;  --chip-7-bg: rgba(40, 53, 217, 0.28);
+  --chip-8-fg: #ffb27a;  --chip-8-bg: rgba(230, 90, 0, 0.26);
+  --chip-9-fg: #7fd4ec;  --chip-9-bg: rgba(0, 160, 200, 0.28);
+  --chip-10-fg: #f0a0e0; --chip-10-bg: rgba(200, 0, 160, 0.26);
+  --chip-11-fg: #c2e07a; --chip-11-bg: rgba(120, 170, 0, 0.26);
+  --chip-12-fg: #b4a0ff; --chip-12-bg: rgba(90, 60, 220, 0.28);
 }
 
 @theme inline {
@@ -164,7 +193,11 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-sans);
+  --font-sans: 'Oxanium Variable', sans-serif;
+  --font-heading: var(--font-sans);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 @layer base {
@@ -172,7 +205,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply font-sans bg-background text-foreground;
   }
   html,
   body,
@@ -202,6 +235,12 @@
     width: 0;
     height: 0;
     display: none;                  /* Chromium/WebKit (Electron) */
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
   }
 }
 

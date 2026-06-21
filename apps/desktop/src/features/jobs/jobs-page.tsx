@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useJobsFeed } from "./api";
 import { JobFeedCard } from "./job-feed-card";
 import { JobInsightsSheet } from "./job-insights-sheet";
@@ -30,6 +30,58 @@ export function JobsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.jobs }),
   });
 
+  // Run the reinit skill (claude -p) to evaluate one job → pushes to /evaluations.
+  const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
+  const [evalError, setEvalError] = useState<string | null>(null);
+
+  // One-time permission: the first Evaluate asks the user to allow the agent to
+  // run unattended; after that it runs fully (--dangerously-skip-permissions).
+  const { data: trusted, refetch: refetchTrust } = useQuery({
+    queryKey: ["agent-trusted"],
+    queryFn: async () => {
+      const r = await api.cli.isAgentTrusted();
+      return r.ok ? r.data.trusted : false;
+    },
+  });
+  const [consentJobId, setConsentJobId] = useState<string | null>(null);
+
+  const evaluate = useMutation({
+    mutationFn: async (jobId: string) => {
+      setEvaluatingId(jobId);
+      setEvalError(null);
+      const res = await api.jobs.evaluateAgent(jobId);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onError: (e) => setEvalError((e as Error).message),
+    onSettled: () => {
+      setEvaluatingId(null);
+      qc.invalidateQueries({ queryKey: ["evaluations"] });
+    },
+  });
+
+  // Gate evaluate behind one-time consent.
+  const handleEvaluate = (jobId: string) => {
+    if (trusted) evaluate.mutate(jobId);
+    else setConsentJobId(jobId);
+  };
+  const grantAndEvaluate = async () => {
+    const jobId = consentJobId;
+    setConsentJobId(null);
+    await api.cli.trustAgent();
+    await refetchTrust();
+    if (jobId) evaluate.mutate(jobId);
+  };
+
+  // Which jobs already have a stored evaluation → card shows "Insights" vs "Evaluate".
+  const { data: evaluatedIds } = useQuery({
+    queryKey: ["evaluations"],
+    queryFn: async () => {
+      const r = await api.evaluations.list();
+      return new Set((r.ok ? r.data.evaluations : []).map((e) => e.jobId).filter(Boolean) as string[]);
+    },
+  });
+
   const minMatch = settings?.scan.minMatch ?? "all";
   const threshold = MATCH_THRESHOLDS[minMatch];
   const filtered = jobs?.filter((j) => j.score === null || j.score >= threshold) ?? [];
@@ -56,6 +108,12 @@ export function JobsPage() {
       {scan.isError && (
         <p className="mb-4 text-sm text-destructive">{(scan.error as Error).message}</p>
       )}
+      {evalError && <p className="mb-4 text-sm text-destructive">Evaluation failed: {evalError}</p>}
+      {evaluatingId && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Evaluating with REINIT… this runs the skill in the background and can take a minute.
+        </p>
+      )}
 
       {scan.isSuccess && (
         <p className="mb-4 text-sm text-muted-foreground">
@@ -73,7 +131,14 @@ export function JobsPage() {
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1920px]:grid-cols-5">
           {filtered.map((job) => (
-            <JobFeedCard key={job.id} job={job} onClick={() => setOpenId(job.id)} />
+            <JobFeedCard
+              key={job.id}
+              job={job}
+              evaluated={evaluatedIds?.has(job.id) ?? false}
+              evaluating={evaluatingId === job.id}
+              onEvaluate={() => handleEvaluate(job.id)}
+              onClick={() => setOpenId(job.id)}
+            />
           ))}
         </div>
       ) : (
@@ -91,6 +156,34 @@ export function JobsPage() {
         onOpenChange={(v) => !v && setOpenId(null)}
         job={filtered.find((j) => j.id === openId) ?? null}
       />
+
+      {consentJobId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-white">Allow REINIT to evaluate jobs?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Evaluation runs the REINIT agent (Claude) on your machine — it reads your profile,
+              researches the role on the web, scores the fit (A–G), and saves the report to your
+              dashboard. It runs in the background using your own Claude.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Granting permission lets it run automatically from now on, without asking each time.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setConsentJobId(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-brand text-white hover:bg-brand-hover"
+                onClick={grantAndEvaluate}
+              >
+                Allow &amp; evaluate
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

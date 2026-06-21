@@ -91,32 +91,40 @@ export function OnboardingShell() {
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{submitError}</p>
       )}
 
-      <div className="flex items-center justify-between">
-        {step > 1 ? (
+      {step === 1 ? (
+        // Step 1 has no Back / Add — give Continue the full width.
+        <Button
+          type="submit"
+          size="lg"
+          disabled={submitting}
+          className="w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+        >
+          Continue
+        </Button>
+      ) : (
+        <div className="flex items-center justify-between">
           <Button type="button" size="lg" variant="outline" onClick={back} disabled={submitting} className="gap-2">
             <ArrowLeft className="size-4" />
             Back
           </Button>
-        ) : (
-          <span />
-        )}
-        <div className="flex items-center gap-2">
-          {addAnother && (
-            <Button type="button" size="lg" variant="outline" onClick={addAnother} disabled={submitting} className="gap-2">
-              <Plus className="size-4" />
-              Add another
+          <div className="flex items-center gap-2">
+            {addAnother && (
+              <Button type="button" size="lg" variant="outline" onClick={addAnother} disabled={submitting} className="gap-2">
+                <Plus className="size-4" />
+                Add another
+              </Button>
+            )}
+            <Button
+              type="submit"
+              size="lg"
+              disabled={submitting}
+              className="bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+            >
+              {isLast ? (submitting ? "Finishing…" : "Finish setup") : "Continue"}
             </Button>
-          )}
-          <Button
-            type="submit"
-            size="lg"
-            disabled={submitting}
-            className="bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
-          >
-            {isLast ? (submitting ? "Finishing…" : "Finish setup") : "Continue"}
-          </Button>
+          </div>
         </div>
-      </div>
+      )}
     </form>
   );
 }

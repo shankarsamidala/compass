@@ -12,6 +12,7 @@ import { ProfilePanel } from "./panels/profile-panel";
 import { EducationPanel } from "./panels/education-panel";
 import { CertificationsPanel } from "./panels/certifications-panel";
 import { ProjectsPanel } from "./panels/projects-panel";
+import { CliPanel } from "./panels/cli-panel";
 
 // External link icon (matches daily.dev's arrow-out-of-box style)
 function ExternalIcon() {
@@ -159,6 +160,8 @@ function ActivePanel({ tab }: { tab: SettingsTabId }) {
       return <AiPanel />;
     case "job-search":
       return <JobSearchPanel />;
+    case "reinit-api":
+      return <CliPanel />;
     default:
       return <PlaceholderPanel label={SETTINGS_TABS.find((t) => t.id === tab)?.label ?? tab} />;
   }

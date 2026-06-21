@@ -7,6 +7,7 @@ import {
   Bookmark01Icon,
   SentIcon,
   ArrowRight01Icon,
+  SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import type { FeedJob } from "@compass/ipc-contract";
@@ -36,7 +37,19 @@ function ago(iso?: string | null): string | null {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => void }) {
+export function JobFeedCard({
+  job,
+  onClick,
+  onEvaluate,
+  evaluated = false,
+  evaluating = false,
+}: {
+  job: FeedJob;
+  onClick?: () => void;
+  onEvaluate?: () => void;
+  evaluated?: boolean;
+  evaluating?: boolean;
+}) {
   const scored = job.score != null;
   const posted = ago(job.postedAt);
 
@@ -111,14 +124,23 @@ export function JobFeedCard({ job, onClick }: { job: FeedJob; onClick?: () => vo
           <CardAction icon={SentIcon} label="Share" />
           <button
             type="button"
+            disabled={evaluating}
             onClick={(e) => {
               e.stopPropagation();
-              onClick?.();
+              if (evaluated) onClick?.();
+              else onEvaluate?.();
             }}
-            className="ml-auto inline-flex items-center gap-1 rounded-lg bg-brand px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-hover"
+            className={cn(
+              "ml-auto inline-flex items-center gap-1 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-60",
+              evaluated
+                ? "bg-brand text-white hover:bg-brand-hover"
+                : "border border-brand/40 text-brand hover:bg-brand/10",
+            )}
           >
-            Insights
-            <HugeiconsIcon icon={ArrowRight01Icon} size={15} />
+            {evaluating ? "Evaluating…" : evaluated ? "Insights" : "Evaluate"}
+            {!evaluating && (
+              <HugeiconsIcon icon={evaluated ? ArrowRight01Icon : SparklesIcon} size={15} />
+            )}
           </button>
         </footer>
       </div>

@@ -1,4 +1,6 @@
 import { useState, useRef } from "react";
+import { Sparkles } from "lucide-react";
+import { api } from "@/lib/ipc";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Add01Icon, Edit01Icon, Delete01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
@@ -358,6 +360,17 @@ function ExperienceForm({
   const set = <K extends keyof FormState>(key: K, val: FormState[K]) =>
     setForm((p) => ({ ...p, [key]: val }));
 
+  const [descBusy, setDescBusy] = useState(false);
+  const [descErr, setDescErr] = useState<string | null>(null);
+  const generateDescription = async () => {
+    setDescBusy(true);
+    setDescErr(null);
+    const res = await api.llm.writeJobDescription(form.company, form.title, form.description);
+    if (res.ok) set("description", res.data.text);
+    else setDescErr(res.error);
+    setDescBusy(false);
+  };
+
   const addSkill = (raw: string) => {
     const tags = raw.split(",").map((s) => s.trim()).filter(Boolean);
     setForm((p) => ({ ...p, skills: [...new Set([...p.skills, ...tags])], skillInput: "" }));
@@ -504,7 +517,19 @@ function ExperienceForm({
 
         {/* Description */}
         <Field>
-          <FieldTitle>Description</FieldTitle>
+          <div className="flex items-center justify-between">
+            <FieldTitle>Description</FieldTitle>
+            <button
+              type="button"
+              onClick={generateDescription}
+              disabled={descBusy || (!form.company.trim() && !form.title.trim())}
+              className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 px-2.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/10 disabled:opacity-50"
+            >
+              <Sparkles className="size-3.5" />
+              {descBusy ? "Writing…" : "From résumé"}
+            </button>
+          </div>
+          {descErr && <p className="text-xs text-destructive">{descErr}</p>}
           <div className="relative">
             <Textarea
               rows={5}

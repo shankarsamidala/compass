@@ -37,7 +37,7 @@ export function AddButton({ label, onClick }: { label: string; onClick: () => vo
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-11 items-center justify-center gap-2 rounded-2xl border border-dashed border-input text-sm font-medium text-muted-foreground",
+        "flex h-10 items-center justify-center gap-2 rounded-2xl border border-dashed border-input text-sm font-medium text-muted-foreground",
         "transition-colors hover:border-brand hover:text-foreground",
       )}
     >
@@ -63,7 +63,7 @@ export function MonthField({
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className="h-11 rounded-4xl border border-input bg-input/30 px-3.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+      className="h-10 rounded-lg border border-input bg-transparent dark:bg-input/30 px-3.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
     />
   );
 }

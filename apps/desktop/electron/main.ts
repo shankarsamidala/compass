@@ -7,6 +7,11 @@ import { init as initDatadog } from "@datadog/electron-sdk";
 // Lean Electron shell for Compass. No mic/screen/accessibility permissions —
 // just a window. Career-ops services (auth, jobs, BYO-LLM) get ported in next.
 
+// Don't use the macOS Keychain for Chromium's os_crypt — it pops a Keychain
+// prompt on launch (and errors with userCanceledErr if dismissed). We store no
+// secrets in Chromium storage, so the "basic" password store is fine and silent.
+app.commandLine.appendSwitch("password-store", "basic");
+
 function createWindow() {
   const iconFile = process.platform === "win32" ? "icon.ico" : "icon.icns";
   const iconPath = path.join(__dirname, "../src/assets/icons", iconFile);

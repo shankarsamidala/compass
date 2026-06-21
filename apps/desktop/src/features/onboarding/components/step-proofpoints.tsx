@@ -163,11 +163,11 @@ export function StepProofPoints({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Metric (optional)</Label>
-              <Input className="h-11" placeholder="e.g. -22% cost · 2.1s → 380ms" {...register(`proofPoints.${i}.metric`)} />
+              <Input className="h-10" placeholder="e.g. -22% cost · 2.1s → 380ms" {...register(`proofPoints.${i}.metric`)} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Evidence link (optional)</Label>
-              <Input className="h-11" placeholder="github.com/… or article link" {...register(`proofPoints.${i}.url`)} />
+              <Input className="h-10" placeholder="github.com/… or article link" {...register(`proofPoints.${i}.url`)} />
             </div>
           </div>
         );

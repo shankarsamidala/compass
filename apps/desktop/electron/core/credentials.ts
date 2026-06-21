@@ -20,6 +20,12 @@ class Credentials {
   private file(): string {
     return join(app.getPath("userData"), "auth.bin");
   }
+  // Fallback when OS encryption (Keychain) isn't available — e.g. an unsigned dev
+  // build, or the user dismissed the Keychain prompt. Without this the session
+  // simply never persists and the app logs out on every reload.
+  private plainFile(): string {
+    return join(app.getPath("userData"), "auth.json");
+  }
 
   private load(): void {
     if (this.loaded) return;
@@ -28,6 +34,11 @@ class Credentials {
       const f = this.file();
       if (existsSync(f) && safeStorage.isEncryptionAvailable()) {
         this.cache = JSON.parse(safeStorage.decryptString(readFileSync(f)));
+        return;
+      }
+      const p = this.plainFile();
+      if (existsSync(p)) {
+        this.cache = JSON.parse(Buffer.from(readFileSync(p, "utf8"), "base64").toString("utf8"));
       }
     } catch {
       this.cache = null;
@@ -36,16 +47,30 @@ class Credentials {
 
   private persist(): void {
     const f = this.file();
+    const p = this.plainFile();
     if (!this.cache) {
+      for (const x of [f, p]) {
+        try {
+          rmSync(x, { force: true });
+        } catch {
+          /* ignore */
+        }
+      }
+      return;
+    }
+    const json = JSON.stringify(this.cache);
+    if (safeStorage.isEncryptionAvailable()) {
+      writeFileSync(f, safeStorage.encryptString(json));
       try {
-        rmSync(f, { force: true });
+        rmSync(p, { force: true });
       } catch {
         /* ignore */
       }
       return;
     }
-    if (!safeStorage.isEncryptionAvailable()) return; // never write plaintext tokens
-    writeFileSync(f, safeStorage.encryptString(JSON.stringify(this.cache)));
+    // No OS encryption available → persist obfuscated (base64) so the session
+    // survives reloads. userData is per-user; the API token already lives in ~/.reinit.
+    writeFileSync(p, Buffer.from(json, "utf8").toString("base64"));
   }
 
   setSession(session: Session): void {

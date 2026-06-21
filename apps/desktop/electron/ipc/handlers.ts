@@ -1,5 +1,7 @@
 import { safeHandle } from "../core/ipc";
 import { authService } from "../services/auth.service";
+import { cliService } from "../services/cli.service";
+import { evaluationsService } from "../services/evaluations.service";
 import { onboardingService } from "../services/onboarding.service";
 import { cvService } from "../services/cv.service";
 import { suggestService } from "../services/suggest.service";
@@ -42,11 +44,14 @@ export function registerIpcHandlers(): void {
   safeHandle("llm:optimize-proof-point", (draft: string, metric?: string) =>
     llmService.optimizeProofPoint(draft, metric),
   );
-  safeHandle("llm:extract-proof-points", (resumeText: string) =>
+  safeHandle("llm:extract-proof-points", (resumeText?: string) =>
     llmService.extractProofPoints(resumeText),
   );
   safeHandle("llm:generate-about", (headline?: string, bio?: string) =>
     llmService.generateAbout(headline, bio),
+  );
+  safeHandle("llm:write-job-description", (company: string, title: string, draft?: string) =>
+    llmService.writeJobDescription(company, title, draft),
   );
 
   // ── Document (local file → text) ──
@@ -65,8 +70,22 @@ export function registerIpcHandlers(): void {
   safeHandle("jobs:scan", (opts: { maxPerRole: number; jobAge: number }) => jobsService.scan(opts));
   safeHandle("jobs:evaluate-quick", (id: string) => jobsService.evaluateQuick(id));
   safeHandle("jobs:evaluate", (id: string) => jobsService.evaluate(id));
+  safeHandle("jobs:evaluate-agent", (id: string) => jobsService.evaluateViaAgent(id));
 
   // ── Settings (app-local) ──
+  // ── REINIT CLI (REIN-319) ──
+  safeHandle("cli:configure", () => cliService.configure());
+  safeHandle("cli:configure-with-token", (token: string) => cliService.configureWithToken(token));
+  safeHandle("cli:status", () => cliService.status());
+  safeHandle("cli:detect", () => cliService.detect());
+  safeHandle("cli:install", () => cliService.install());
+  safeHandle("cli:agent-trusted", () => cliService.isAgentTrusted());
+  safeHandle("cli:trust-agent", () => cliService.trustAgent());
+
+  // ── Evaluations dashboard (REIN-320) ──
+  safeHandle("evaluations:list", () => evaluationsService.list());
+  safeHandle("evaluations:get", (id: string) => evaluationsService.get(id));
+
   safeHandle("settings:get", () => settingsService.get());
   safeHandle("settings:update", (patch) => settingsService.update(patch));
   safeHandle("settings:list-models", (provider, baseUrl) =>

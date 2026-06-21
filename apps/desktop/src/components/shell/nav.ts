@@ -26,6 +26,7 @@ export type ViewId =
   | "following"
   | "happening"
   | "jobs"
+  | "reports"
   | "compare"
   | "insights"
   | "profile"
@@ -73,6 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Opportunities",
     items: [
       { id: "jobs", label: "Job Board", icon: Target02Icon, description: "Browse and scan roles that match you." },
+      { id: "reports", label: "Reports", icon: BookOpen01Icon, description: "Evaluations pushed back from your agent." },
       { id: "compare", label: "Offer Compare", icon: GitCompareIcon, description: "Weigh offers side by side." },
       { id: "insights", label: "Job Insights", icon: Analytics01Icon, description: "Trends and analytics on your search." },
     ],

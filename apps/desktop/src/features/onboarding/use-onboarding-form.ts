@@ -6,8 +6,8 @@ import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { onboardingSchema, DEFAULT_VALUES, STEP_FIELDS, toSubmit, type OnboardingValues } from "./schema";
 
-/** Steps: resume, profile, targets, experience, work history, education,
- *  projects, proof points. (Resume is UI-only until its backend lands.) */
+/** Steps: profile, targets, experience, work history, education, projects,
+ *  resume (upload → S3 + dump), proof points. */
 export const TOTAL_STEPS = 8;
 
 export function useOnboardingForm() {

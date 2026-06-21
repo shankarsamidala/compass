@@ -7,6 +7,7 @@ import { NAV_BY_ID, type ViewId } from "@/components/shell/nav";
 import { JobsPage } from "@/features/jobs/jobs-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { ProfilePage } from "@/features/profile/profile-page";
+import { EvaluationsPage } from "@/features/evaluations/evaluations-page";
 import type { SettingsTabId } from "@/features/settings/tabs";
 import { trackView } from "@/lib/analytics";
 
@@ -47,6 +48,8 @@ export default function App() {
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {view === "jobs" ? (
             <JobsPage />
+          ) : view === "reports" ? (
+            <EvaluationsPage />
           ) : view === "settings" ? (
             <SettingsPage defaultTab={settingsTab} />
           ) : view === "profile" ? (
