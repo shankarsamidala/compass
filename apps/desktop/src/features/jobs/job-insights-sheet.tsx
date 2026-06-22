@@ -1,4 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import type { FeedJob, JobRanking } from "@compass/ipc-contract";
+import { api } from "@/lib/ipc";
 import { JobInsightsSheet as PolarInsightsSheet } from "./job-insights";
 import type { Job } from "./job-insights/job-types";
 
@@ -48,18 +50,41 @@ const DEMO_REASONING =
   "GCP DevOps + Terraform/K8s/CI-CD with GenAI as a bonus growth angle; strong fit, apply soon.";
 
 export function JobInsightsSheet({
-  open, onOpenChange, ranking,
+  open, onOpenChange, job, ranking,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   job?: FeedJob | null;
   ranking?: JobRanking | null;
 }) {
+  // Fetch the full job (the list omits the JD) so "About the Role" uses the real
+  // scraped description.
+  const { data: full } = useQuery({
+    queryKey: ["job-detail", job?.id],
+    queryFn: async () => {
+      const r = await api.jobs.get(job!.id);
+      return r.ok ? r.data.job : null;
+    },
+    enabled: open && !!job?.id,
+  });
+  const realJd = full?.jd ?? job?.jd ?? null;
+
+  // About the Role from the real JD; rest still demo for now.
+  const sheetJob: Job = {
+    ...STATIC_JOB,
+    description_summary: realJd ?? STATIC_JOB.description_summary,
+    responsibilities: realJd ? undefined : STATIC_JOB.responsibilities,
+    requirements: realJd ? undefined : STATIC_JOB.requirements,
+    tech_stack: realJd ? undefined : STATIC_JOB.tech_stack,
+    key_skills: realJd ? undefined : STATIC_JOB.key_skills,
+    preferred_skills: realJd ? undefined : STATIC_JOB.preferred_skills,
+  };
+
   return (
     <PolarInsightsSheet
       open={open}
       onOpenChange={onOpenChange}
-      job={open ? STATIC_JOB : null}
+      job={open ? sheetJob : null}
       dimensions={ranking?.dimensions ?? DEMO_DIMENSIONS}
       score={ranking?.score != null ? Number(ranking.score) : 4.2}
       recommendation={ranking?.recommendation ?? "Apply"}
