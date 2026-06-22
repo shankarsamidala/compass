@@ -69,9 +69,15 @@ export function JobInsightsSheet({
   });
   const realJd = full?.jd ?? job?.jd ?? null;
 
-  // About the Role from the real JD; rest still demo for now.
+  // Real header fields (title / company / location / logo / apply link) + real
+  // JD for About; the rest is still demo for now.
   const sheetJob: Job = {
     ...STATIC_JOB,
+    title: job?.title ?? STATIC_JOB.title,
+    company_name: job?.company ?? STATIC_JOB.company_name,
+    location_cities: job?.location ? [job.location] : STATIC_JOB.location_cities,
+    logo_url: job?.logoUrl ?? STATIC_JOB.logo_url,
+    source_url: job?.jobUrl ?? STATIC_JOB.source_url,
     description_summary: realJd ?? STATIC_JOB.description_summary,
     responsibilities: realJd ? undefined : STATIC_JOB.responsibilities,
     requirements: realJd ? undefined : STATIC_JOB.requirements,
