@@ -31,6 +31,11 @@ const STATIC_JOB: Job = {
   salary_min: 18,
   salary_max: 28,
   posted_raw: "2 days ago",
+  // Drives the Fit Summary card (Location/Seniority/Experience)
+  match_breakdown: { overall_pct: 84, skills_pct: 88, experience_pct: 80, seniority_pct: 82, location_pct: 90 },
+  // Drives the Urgency card (Posted/Applicants/Openings)
+  applicants: 142,
+  openings: 3,
 };
 
 // Demo fallback so the scored sections render in preview; the real ofertas
