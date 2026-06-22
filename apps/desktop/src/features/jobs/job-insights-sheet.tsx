@@ -33,6 +33,15 @@ const STATIC_JOB: Job = {
   posted_raw: "2 days ago",
 };
 
+// Demo fallback so the scored sections render in preview; the real ofertas
+// ranking overrides these per job once it's been ranked.
+const DEMO_DIMENSIONS = {
+  northStar: 5, cvMatch: 4, level: 4, comp: 3, growth: 4,
+  remote: 3, reputation: 4, techStack: 5, speed: 3, culture: 4,
+};
+const DEMO_REASONING =
+  "GCP DevOps + Terraform/K8s/CI-CD with GenAI as a bonus growth angle; strong fit, apply soon.";
+
 export function JobInsightsSheet({
   open, onOpenChange, ranking,
 }: {
@@ -46,11 +55,11 @@ export function JobInsightsSheet({
       open={open}
       onOpenChange={onOpenChange}
       job={open ? STATIC_JOB : null}
-      dimensions={ranking?.dimensions ?? null}
-      score={ranking?.score != null ? Number(ranking.score) : null}
-      recommendation={ranking?.recommendation ?? null}
-      reasoning={ranking?.reasoning ?? null}
-      legitimacy={ranking?.legitimacy ?? null}
+      dimensions={ranking?.dimensions ?? DEMO_DIMENSIONS}
+      score={ranking?.score != null ? Number(ranking.score) : 4.2}
+      recommendation={ranking?.recommendation ?? "Apply"}
+      reasoning={ranking?.reasoning ?? DEMO_REASONING}
+      legitimacy={ranking?.legitimacy ?? "High Confidence"}
     />
   );
 }
