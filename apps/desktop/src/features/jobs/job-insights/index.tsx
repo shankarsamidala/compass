@@ -84,13 +84,7 @@ const OPP_MAP: [string, string][] = [
   ["culture", "cultural_signals"],
 ];
 
-const REC_STYLE: Record<string, string> = {
-  apply: "bg-foreground text-brand",
-  consider: "border border-border bg-muted text-foreground/75",
-  skip: "border border-border bg-muted text-muted-foreground",
-};
-
-export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, recommendation, reasoning, legitimacy }: JobInsightsSheetProps) {
+export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, reasoning, legitimacy }: JobInsightsSheetProps) {
   const [imgError, setImgError] = useState(false);
 
   const realBreakdown = job?.match_breakdown ?? null;
@@ -111,13 +105,11 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
       }
     : null;
   const lvl = dimensions?.level;
-  // No strategy text from ofertas (gap) — show only the alignment badge so the
-  // reasoning isn't duplicated (it already appears under the chart).
-  const levelData = lvl != null
-    ? { alignment: (lvl >= 4 ? "at" : lvl <= 2 ? "below" : "at") as "above" | "at" | "below", confidence: "high" as const, strategy: "" }
+  // Level Fit shows the reasoning text (no alignment badge). Gated on reasoning.
+  const levelData = reasoning
+    ? { alignment: (lvl != null ? (lvl >= 4 ? "at" : lvl <= 2 ? "below" : "at") : "at") as "above" | "at" | "below", confidence: "high" as const, strategy: reasoning }
     : null;
   const legitTier = legitimacyToTier(legitimacy);
-  const recKey = (recommendation ?? "").toLowerCase();
   const urgency = job ? computeUrgency(job) : null;
 
   return (
@@ -231,16 +223,6 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                         </div>
                       )}
 
-                      {(recommendation || reasoning) && (
-                        <div className="border-surface-border mt-3 flex items-start gap-2 border-t border-dashed pt-3">
-                          {recommendation && (
-                            <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold", REC_STYLE[recKey] ?? REC_STYLE.consider)}>
-                              {recommendation}
-                            </span>
-                          )}
-                          {reasoning && <p className="text-muted-foreground text-[11px] leading-relaxed">{reasoning}</p>}
-                        </div>
-                      )}
 
                     </div>
                   </AnimatedSection>
