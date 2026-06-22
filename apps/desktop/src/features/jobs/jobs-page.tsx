@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, LayoutGrid, Table2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useJobsFeed } from "./api";
 import { JobFeedCard } from "./job-feed-card";
+import { JobsDataTable } from "./jobs-data-table";
 import { JobInsightsSheet } from "./job-insights-sheet";
 import { useSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
-import type { MatchFloor } from "@compass/ipc-contract";
+import type { EvaluationSummary, MatchFloor } from "@compass/ipc-contract";
 
 const MATCH_THRESHOLDS: Record<MatchFloor, number> = { all: 0, fair: 40, strong: 70 };
 
@@ -43,44 +45,59 @@ export function JobsPage() {
       return r.ok ? r.data.trusted : false;
     },
   });
-  const [consentJobId, setConsentJobId] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ type: "single"; id: string } | { type: "many"; ids: string[] } | null>(null);
 
-  const evaluate = useMutation({
-    mutationFn: async (jobId: string) => {
-      setEvaluatingId(jobId);
-      setEvalError(null);
-      const res = await api.jobs.evaluateAgent(jobId);
-      if (!res.ok) throw new Error(res.error);
-      return res.data;
-    },
-    onError: (e) => setEvalError((e as Error).message),
-    onSettled: () => {
-      setEvaluatingId(null);
-      qc.invalidateQueries({ queryKey: ["evaluations"] });
-    },
-  });
+  // Evaluate jobs sequentially (one agent run at a time — never spawn concurrent
+  // claude processes). Used for both single and bulk.
+  const runEvaluations = async (ids: string[]) => {
+    setEvalError(null);
+    for (const id of ids) {
+      setEvaluatingId(id);
+      const res = await api.jobs.evaluateAgent(id);
+      if (!res.ok) { setEvalError(res.error); break; }
+    }
+    setEvaluatingId(null);
+    qc.invalidateQueries({ queryKey: ["evaluations"] });
+  };
 
-  // Gate evaluate behind one-time consent.
+  // Gate behind one-time consent (single or bulk).
   const handleEvaluate = (jobId: string) => {
-    if (trusted) evaluate.mutate(jobId);
-    else setConsentJobId(jobId);
+    if (trusted) void runEvaluations([jobId]);
+    else setPending({ type: "single", id: jobId });
+  };
+  const handleEvaluateMany = (ids: string[]) => {
+    if (!ids.length) return;
+    if (trusted) void runEvaluations(ids);
+    else setPending({ type: "many", ids });
   };
   const grantAndEvaluate = async () => {
-    const jobId = consentJobId;
-    setConsentJobId(null);
+    const p = pending;
+    setPending(null);
     await api.cli.trustAgent();
     await refetchTrust();
-    if (jobId) evaluate.mutate(jobId);
+    if (p) void runEvaluations(p.type === "single" ? [p.id] : p.ids);
   };
 
-  // Which jobs already have a stored evaluation → card shows "Insights" vs "Evaluate".
-  const { data: evaluatedIds } = useQuery({
+  // Stored evaluations → drives "Insights vs Evaluate" + the table's score/legit columns.
+  const { data: evalByJob } = useQuery({
     queryKey: ["evaluations"],
     queryFn: async () => {
       const r = await api.evaluations.list();
-      return new Set((r.ok ? r.data.evaluations : []).map((e) => e.jobId).filter(Boolean) as string[]);
+      const m = new Map<string, EvaluationSummary>();
+      for (const e of r.ok ? r.data.evaluations : []) if (e.jobId) m.set(e.jobId, e);
+      return m;
     },
   });
+  const evaluatedIds = evalByJob; // Map has .has(id)
+
+  // Cards (discovery) vs Table (ranked decision board). Persisted.
+  const [view, setView] = useState<"cards" | "table">(
+    () => (localStorage.getItem("reinit:jobs-view") as "cards" | "table") || "cards",
+  );
+  const setViewPersist = (v: "cards" | "table") => {
+    localStorage.setItem("reinit:jobs-view", v);
+    setView(v);
+  };
 
   const minMatch = settings?.scan.minMatch ?? "all";
   const threshold = MATCH_THRESHOLDS[minMatch];
@@ -93,16 +110,36 @@ export function JobsPage() {
           <h1 className="text-xl font-bold tracking-tight text-white">Jobs</h1>
           <p className="text-sm text-foreground">Roles matched to your target profile.</p>
         </div>
-        <Button
-          size="sm"
-          onClick={() => scan.mutate()}
-          disabled={scan.isPending}
-          className="bg-brand text-white hover:bg-brand-hover"
-        >
-          {scan.isPending ? (
-            <><Loader2 className="mr-2 size-4 animate-spin" />Scanning…</>
-          ) : "Scan Jobs"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-lg border border-border p-0.5">
+            <button
+              type="button"
+              aria-label="Card view"
+              onClick={() => setViewPersist("cards")}
+              className={cn("rounded-md p-1.5", view === "cards" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground")}
+            >
+              <LayoutGrid className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Table view"
+              onClick={() => setViewPersist("table")}
+              className={cn("rounded-md p-1.5", view === "table" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground")}
+            >
+              <Table2 className="size-4" />
+            </button>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => scan.mutate()}
+            disabled={scan.isPending}
+            className="bg-brand text-white hover:bg-brand-hover"
+          >
+            {scan.isPending ? (
+              <><Loader2 className="mr-2 size-4 animate-spin" />Scanning…</>
+            ) : "Scan Jobs"}
+          </Button>
+        </div>
       </header>
 
       {scan.isError && (
@@ -129,18 +166,29 @@ export function JobsPage() {
           </p>
         </div>
       ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1920px]:grid-cols-5">
-          {filtered.map((job) => (
-            <JobFeedCard
-              key={job.id}
-              job={job}
-              evaluated={evaluatedIds?.has(job.id) ?? false}
-              evaluating={evaluatingId === job.id}
-              onEvaluate={() => handleEvaluate(job.id)}
-              onClick={() => setOpenId(job.id)}
-            />
-          ))}
-        </div>
+        view === "table" ? (
+          <JobsDataTable
+            jobs={filtered}
+            evalByJob={evalByJob ?? new Map()}
+            evaluatingId={evaluatingId}
+            onEvaluate={handleEvaluate}
+            onInsights={setOpenId}
+            onEvaluateMany={handleEvaluateMany}
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1920px]:grid-cols-5">
+            {filtered.map((job) => (
+              <JobFeedCard
+                key={job.id}
+                job={job}
+                evaluated={evaluatedIds?.has(job.id) ?? false}
+                evaluating={evaluatingId === job.id}
+                onEvaluate={() => handleEvaluate(job.id)}
+                onClick={() => setOpenId(job.id)}
+              />
+            ))}
+          </div>
+        )
       ) : (
         <div className="mt-16 text-center text-sm text-muted-foreground">
           {error
@@ -157,7 +205,7 @@ export function JobsPage() {
         job={filtered.find((j) => j.id === openId) ?? null}
       />
 
-      {consentJobId && (
+      {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
             <h2 className="text-lg font-bold text-white">Allow REINIT to evaluate jobs?</h2>
@@ -170,7 +218,7 @@ export function JobsPage() {
               Granting permission lets it run automatically from now on, without asking each time.
             </p>
             <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setConsentJobId(null)}>
+              <Button variant="outline" size="sm" onClick={() => setPending(null)}>
                 Cancel
               </Button>
               <Button
