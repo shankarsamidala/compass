@@ -111,8 +111,10 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
       }
     : null;
   const lvl = dimensions?.level;
+  // No strategy text from ofertas (gap) — show only the alignment badge so the
+  // reasoning isn't duplicated (it already appears under the chart).
   const levelData = lvl != null
-    ? { alignment: (lvl >= 4 ? "at" : lvl <= 2 ? "below" : "at") as "above" | "at" | "below", confidence: "high" as const, strategy: reasoning ?? "" }
+    ? { alignment: (lvl >= 4 ? "at" : lvl <= 2 ? "below" : "at") as "above" | "at" | "below", confidence: "high" as const, strategy: "" }
     : null;
   const legitTier = legitimacyToTier(legitimacy);
   const recKey = (recommendation ?? "").toLowerCase();
@@ -200,7 +202,7 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                         </span>
                       </div>
 
-                      {realBreakdown && (
+                      {hasDims && (
                         <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-2.5">
                             <div>
@@ -209,41 +211,21 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                                 {overallPercent}<span className="text-muted-foreground text-xs font-normal">/100</span>
                               </p>
                             </div>
-                            {(dimensions && Object.keys(dimensions).length > 0
-                              ? petalsFromDimensions(dimensions).map((p) => ({ label: p.label, value: p.score * 10, hex: p.hex }))
-                              : [
-                                  { label: "Skills", value: Math.round(realBreakdown.skills_pct), hex: MATCH_CHART_PALETTE[0] },
-                                  { label: "Experience", value: Math.round(realBreakdown.experience_pct), hex: MATCH_CHART_PALETTE[1] },
-                                  { label: "Seniority", value: Math.round(realBreakdown.seniority_pct), hex: MATCH_CHART_PALETTE[2] },
-                                  { label: "Location", value: Math.round(realBreakdown.location_pct), hex: MATCH_CHART_PALETTE[3] },
-                                ]
-                            ).map(({ label, value, hex }) => (
-                              <div key={label}>
+                            {petalsFromDimensions(dimensions!).map((p) => (
+                              <div key={p.label}>
                                 <div className="mb-1 flex items-center justify-between">
-                                  <span className="text-muted-foreground text-[11px]">{label}</span>
-                                  <span className="text-brand text-[11px] font-semibold">{value}%</span>
+                                  <span className="text-muted-foreground text-[11px]">{p.label}</span>
+                                  <span className="text-brand text-[11px] font-semibold">{p.score * 10}%</span>
                                 </div>
                                 <div className="bg-surface-raised h-1.5 overflow-hidden rounded-full">
-                                  <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${value}%`, backgroundColor: hex }} />
+                                  <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${p.score * 10}%`, backgroundColor: p.hex }} />
                                 </div>
                               </div>
                             ))}
                           </div>
 
                           <div className="-mr-2 flex flex-col items-center gap-1">
-                            <SVGPolarChart
-                              bars={
-                                dimensions && Object.keys(dimensions).length > 0
-                                  ? petalsFromDimensions(dimensions)
-                                  : [
-                                      { label: "Skills", score: Math.max(1, Math.round(realBreakdown.skills_pct / 10)), hex: MATCH_CHART_PALETTE[0] },
-                                      { label: "Experience", score: Math.max(1, Math.round(realBreakdown.experience_pct / 10)), hex: MATCH_CHART_PALETTE[1] },
-                                      { label: "Seniority", score: Math.max(1, Math.round(realBreakdown.seniority_pct / 10)), hex: MATCH_CHART_PALETTE[2] },
-                                      { label: "Location", score: Math.max(1, Math.round(realBreakdown.location_pct / 10)), hex: MATCH_CHART_PALETTE[3] },
-                                    ]
-                              }
-                              centerLabel={`${overallPercent}%`}
-                            />
+                            <SVGPolarChart bars={petalsFromDimensions(dimensions!)} centerLabel={`${overallPercent}%`} />
                             <p className="text-foreground text-center text-xs font-medium">Score Breakdown</p>
                           </div>
                         </div>
@@ -322,9 +304,9 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                   </AnimatedSection>
                 )}
 
-                <AnimatedSection delay={120}><LevelStrategySection job={job} data={levelData} /></AnimatedSection>
-                <AnimatedSection delay={140}><LegitimacyBadgeSection job={job} tier={legitTier} /></AnimatedSection>
-                <AnimatedSection delay={155}><OpportunityScoringSection job={job} data={opportunityData} /></AnimatedSection>
+                {levelData && <AnimatedSection delay={120}><LevelStrategySection job={job} data={levelData} /></AnimatedSection>}
+                {legitTier && <AnimatedSection delay={140}><LegitimacyBadgeSection job={job} tier={legitTier} /></AnimatedSection>}
+                {opportunityData && <AnimatedSection delay={155}><OpportunityScoringSection job={job} data={opportunityData} /></AnimatedSection>}
 
                 {/* About the Role */}
                 {(job.description_summary || job.tech_stack?.length || job.key_skills?.length || job.preferred_skills?.length || job.responsibilities?.length || job.requirements?.length) && (

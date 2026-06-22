@@ -38,7 +38,7 @@ export function LevelStrategySection({ job: _job, data: override }: { job: Job; 
               <span className="text-muted-foreground text-[10px]">({data.confidence} confidence)</span>
             )}
           </div>
-          <p className="text-foreground/70 text-[13px] leading-[1.75]">{data.strategy}</p>
+          {data.strategy && <p className="text-foreground/70 text-[13px] leading-[1.75]">{data.strategy}</p>}
         </div>
       </div>
     </CollapsibleSection>
