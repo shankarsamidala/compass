@@ -127,23 +127,11 @@ export function JobFeedCard({
           <CardAction icon={SentIcon} label="Share" />
           <button
             type="button"
-            disabled={evaluating}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (evaluated) onClick?.();
-              else onEvaluate?.();
-            }}
-            className={cn(
-              "ml-auto inline-flex items-center gap-1 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors disabled:opacity-60",
-              evaluated
-                ? "bg-brand text-white hover:bg-brand-hover"
-                : "border border-brand/40 text-brand hover:bg-brand/10",
-            )}
+            onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-brand/40 px-3.5 py-1.5 text-sm font-medium text-brand transition-colors hover:bg-brand/10"
           >
-            {evaluating ? "Evaluating…" : evaluated ? "Insights" : "Evaluate"}
-            {!evaluating && (
-              <HugeiconsIcon icon={evaluated ? ArrowRight01Icon : SparklesIcon} size={15} />
-            )}
+            Insights
+            <HugeiconsIcon icon={ArrowRight01Icon} size={15} />
           </button>
         </footer>
       </div>

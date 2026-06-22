@@ -273,14 +273,10 @@ export function JobsDataTable({
           return (
             <button
               type="button"
-              disabled={evaluatingId === r.id}
-              onClick={(e) => { e.stopPropagation(); r.evaluated ? onInsights(r.id) : onEvaluate(r.id); }}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60",
-                r.evaluated ? "bg-brand text-white hover:bg-brand-hover" : "border border-brand/40 text-brand hover:bg-brand/10",
-              )}
+              onClick={(e) => { e.stopPropagation(); onInsights(r.id); }}
+              className="inline-flex items-center gap-1 rounded-lg border border-brand/40 px-2.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/10"
             >
-              {evaluatingId === r.id ? <><Loader2 className="size-3 animate-spin" /> Evaluating…</> : r.evaluated ? "Insights" : "Evaluate"}
+              Insights
             </button>
           );
         },
