@@ -52,7 +52,7 @@ function OverallBadge({ score }: { score: number }) {
   );
 }
 
-function DimensionRow({ name, score, reason }: { name: string; score: number; reason: string }) {
+function DimensionRow({ name, score, reason }: { name: string; score: number; reason?: string }) {
   const label = DIMENSION_LABELS[name] ?? name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const pct = Math.round(score * 100);
   return (
@@ -64,13 +64,18 @@ function DimensionRow({ name, score, reason }: { name: string; score: number; re
       <div className="bg-surface-raised h-1.5 w-full overflow-hidden rounded-full">
         <div className={cn("h-full rounded-full transition-all duration-500", scoreColor(score))} style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-muted-foreground text-[10px] leading-relaxed">{reason}</p>
+      {reason && <p className="text-muted-foreground text-[10px] leading-relaxed">{reason}</p>}
     </div>
   );
 }
 
-export function OpportunityScoringSection({ job: _job }: { job: Job }) {
-  const data = DEMO;
+export interface OpportunityData {
+  overall_score: number;
+  dimensions: { name: string; score: number; reason?: string }[];
+}
+
+export function OpportunityScoringSection({ job: _job, data: override }: { job: Job; data?: OpportunityData | null }) {
+  const data = override ?? DEMO;
   return (
     <CollapsibleSection icon={Zap} title="Opportunity Score" iconClassName="text-white" iconBgClassName="bg-foreground">
       <div className="pt-1">

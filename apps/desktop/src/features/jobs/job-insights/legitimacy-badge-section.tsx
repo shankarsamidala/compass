@@ -103,9 +103,19 @@ const signalDotColor = (score: number) => {
   return "bg-muted-foreground/40";
 };
 
-export function LegitimacyBadgeSection({ job }: { job: Job }) {
+// Map an ofertas legitimacy string → tier.
+export function legitimacyToTier(s?: string | null): Tier | null {
+  if (!s) return null;
+  const t = s.toLowerCase();
+  if (t.includes("high")) return "high_confidence";
+  if (t.includes("caution")) return "caution";
+  if (t.includes("suspicious")) return "suspicious";
+  return null;
+}
+
+export function LegitimacyBadgeSection({ job, tier: tierOverride }: { job: Job; tier?: Tier | null }) {
   const signals = computeSignals(job);
-  const tier = classifyTier(signals);
+  const tier = tierOverride ?? classifyTier(signals);
   const config = tierConfig[tier];
   const Icon = config.icon;
 

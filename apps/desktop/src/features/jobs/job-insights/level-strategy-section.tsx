@@ -17,8 +17,14 @@ const alignmentConfig = {
   below: { label: "Stretch Role", color: "text-muted-foreground", bg: "bg-surface-raised border-surface-border", dot: "bg-muted-foreground" },
 } as const;
 
-export function LevelStrategySection({ job: _job }: { job: Job }) {
-  const data = DEMO;
+export interface LevelData {
+  alignment: "above" | "at" | "below";
+  confidence: "high" | "medium" | "low";
+  strategy: string;
+}
+
+export function LevelStrategySection({ job: _job, data: override }: { job: Job; data?: LevelData | null }) {
+  const data = override ?? DEMO;
   const config = alignmentConfig[data.alignment] ?? alignmentConfig.at;
 
   return (

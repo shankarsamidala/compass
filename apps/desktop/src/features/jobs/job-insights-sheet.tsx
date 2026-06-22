@@ -64,6 +64,10 @@ export function JobInsightsSheet({
       onOpenChange={onOpenChange}
       job={open ? STATIC_JOB : null}
       dimensions={dimensions}
+      score={ranking?.score != null ? Number(ranking.score) : 4.2}
+      recommendation={ranking?.recommendation ?? "Apply"}
+      reasoning={ranking?.reasoning ?? "Strong DevOps/SRE fit — modern cloud-native stack matches your CV; apply soon."}
+      legitimacy={ranking?.legitimacy ?? "High Confidence"}
     />
   );
 }

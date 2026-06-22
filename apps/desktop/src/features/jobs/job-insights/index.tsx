@@ -13,7 +13,7 @@ import { CollapsibleSection } from "./collapsible-section";
 import { verdictConfig } from "./types";
 import { locationVerdict, seniorityVerdict, experienceVerdict, computeUrgency } from "./helpers";
 import { LevelStrategySection } from "./level-strategy-section";
-import { LegitimacyBadgeSection } from "./legitimacy-badge-section";
+import { LegitimacyBadgeSection, legitimacyToTier } from "./legitimacy-badge-section";
 import { OpportunityScoringSection } from "./opportunity-scoring-section";
 import { SVGPolarChart } from "./svg-polar-chart";
 
@@ -65,11 +65,32 @@ interface JobInsightsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: Job | null;
-  // ofertas per-dimension scores (1–5). When present, the polar chart uses these.
+  // ofertas ranking data (1–5 scores). When present, drives the scored sections.
   dimensions?: Record<string, number> | null;
+  score?: number | null; // 1–5 ofertas fit score
+  recommendation?: string | null; // Apply | Consider | Skip
+  reasoning?: string | null;
+  legitimacy?: string | null; // High Confidence | Proceed with Caution | Suspicious
 }
 
-export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobInsightsSheetProps) {
+// ofertas dimension key → dashoard Opportunity dimension name.
+const OPP_MAP: [string, string][] = [
+  ["northStar", "north_star_alignment"],
+  ["cvMatch", "cv_match"],
+  ["level", "level_fit"],
+  ["growth", "growth_trajectory"],
+  ["remote", "remote_quality"],
+  ["techStack", "tech_stack_modernity"],
+  ["culture", "cultural_signals"],
+];
+
+const REC_STYLE: Record<string, string> = {
+  apply: "bg-foreground text-brand",
+  consider: "border border-border bg-muted text-foreground/75",
+  skip: "border border-border bg-muted text-muted-foreground",
+};
+
+export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, recommendation, reasoning, legitimacy }: JobInsightsSheetProps) {
   const [imgError, setImgError] = useState(false);
   const [showAllMatched, setShowAllMatched] = useState(false);
 
@@ -79,11 +100,28 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobIns
   }, [open, job]);
 
   const realBreakdown = job?.match_breakdown ?? null;
-  const overallPercent = realBreakdown
-    ? Math.round(realBreakdown.overall_pct)
-    : job?.score != null && job.score > 0
-      ? Math.round(job.score * 100)
-      : null;
+  const overallPercent = score != null
+    ? Math.round(score * 20)
+    : realBreakdown
+      ? Math.round(realBreakdown.overall_pct)
+      : job?.score != null && job.score > 0
+        ? Math.round(job.score * 100)
+        : null;
+
+  // ── ofertas-driven section data ──────────────────────────────────────────
+  const hasDims = !!dimensions && Object.keys(dimensions).length > 0;
+  const opportunityData = hasDims
+    ? {
+        overall_score: score != null ? score / 5 : OPP_MAP.reduce((s, [k]) => s + (Number(dimensions![k]) || 0), 0) / (OPP_MAP.length * 5),
+        dimensions: OPP_MAP.filter(([k]) => dimensions![k] != null).map(([k, name]) => ({ name, score: Number(dimensions![k]) / 5 })),
+      }
+    : null;
+  const lvl = dimensions?.level;
+  const levelData = lvl != null
+    ? { alignment: (lvl >= 4 ? "at" : lvl <= 2 ? "below" : "at") as "above" | "at" | "below", confidence: "high" as const, strategy: reasoning ?? "" }
+    : null;
+  const legitTier = legitimacyToTier(legitimacy);
+  const recKey = (recommendation ?? "").toLowerCase();
   const skillPercent = realBreakdown ? Math.round(realBreakdown.skills_pct) : null;
   const matchedSkills = job?.skills_matched ?? [];
   const missingSkills = job?.skills_missing ?? [];
@@ -223,8 +261,19 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobIns
                         </div>
                       )}
 
+                      {(recommendation || reasoning) && (
+                        <div className="border-surface-border mt-3 flex items-start gap-2 border-t border-dashed pt-3">
+                          {recommendation && (
+                            <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold", REC_STYLE[recKey] ?? REC_STYLE.consider)}>
+                              {recommendation}
+                            </span>
+                          )}
+                          {reasoning && <p className="text-muted-foreground text-[11px] leading-relaxed">{reasoning}</p>}
+                        </div>
+                      )}
+
                       {(matchedSkills.length > 0 || missingSkills.length > 0) && (
-                        <p className="text-muted-foreground border-surface-border mt-3 border-t border-dashed pt-3 text-[10px]">
+                        <p className="text-muted-foreground mt-2 text-[10px]">
                           <span className="text-foreground font-medium">{matchedSkills.length} skills matched</span>
                           {missingSkills.length > 0 && <>{" · "}<span className="font-medium">{missingSkills.length} to bridge</span></>}
                         </p>
@@ -291,9 +340,9 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobIns
                   </AnimatedSection>
                 )}
 
-                <AnimatedSection delay={120}><LevelStrategySection job={job} /></AnimatedSection>
-                <AnimatedSection delay={140}><LegitimacyBadgeSection job={job} /></AnimatedSection>
-                <AnimatedSection delay={155}><OpportunityScoringSection job={job} /></AnimatedSection>
+                <AnimatedSection delay={120}><LevelStrategySection job={job} data={levelData} /></AnimatedSection>
+                <AnimatedSection delay={140}><LegitimacyBadgeSection job={job} tier={legitTier} /></AnimatedSection>
+                <AnimatedSection delay={155}><OpportunityScoringSection job={job} data={opportunityData} /></AnimatedSection>
 
                 {/* Skill Fit */}
                 {(matchedSkills.length > 0 || missingSkills.length > 0 || skillPercent != null) && (
