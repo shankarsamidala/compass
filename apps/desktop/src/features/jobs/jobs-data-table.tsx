@@ -241,7 +241,7 @@ export function JobsDataTable({
       { accessorKey: "location", header: "Location", cell: ({ getValue }) => <span className="text-muted-foreground">{getValue<string>()}</span> },
       {
         accessorKey: "legit",
-        header: "Legit",
+        header: "Trust",
         filterFn: "arrIncludesSome",
         cell: ({ getValue }) => {
           const v = getValue<string>();
@@ -344,7 +344,7 @@ export function JobsDataTable({
           className="h-9 w-56"
         />
         <FacetFilter title="Recommend" options={rec.options} selected={rec.selected} onChange={rec.set} />
-        <FacetFilter title="Legit" options={legit.options} selected={legit.selected} onChange={legit.set} />
+        <FacetFilter title="Trust" options={legit.options} selected={legit.selected} onChange={legit.set} />
         {filtered && (
           <Button variant="ghost" size="sm" className="gap-1" onClick={() => { setColumnFilters([]); setGlobalFilter(""); }}>
             Reset <X className="size-3.5" />

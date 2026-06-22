@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useJobsFeed } from "./api";
 import { JobFeedCard } from "./job-feed-card";
 import { JobsDataTable } from "./jobs-data-table";
+import { Donut } from "./charts";
 import { JobInsightsSheet } from "./job-insights-sheet";
 import { useSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/button";
@@ -137,6 +138,18 @@ export function JobsPage() {
   const threshold = MATCH_THRESHOLDS[minMatch];
   const filtered = jobs?.filter((j) => j.score === null || j.score >= threshold) ?? [];
 
+  // Board-level recommendation mix (from ofertas rankings) → donut summary.
+  const recCounts = { Apply: 0, Consider: 0, Skip: 0 };
+  for (const r of rankByJob?.values() ?? []) {
+    if (r.recommendation && r.recommendation in recCounts) recCounts[r.recommendation as keyof typeof recCounts]++;
+  }
+  const totalRanked = recCounts.Apply + recCounts.Consider + recCounts.Skip;
+  const donutData = [
+    { label: "Apply", value: recCounts.Apply, color: "#22c55e" },
+    { label: "Consider", value: recCounts.Consider, color: "#eab308" },
+    { label: "Skip", value: recCounts.Skip, color: "#6b7280" },
+  ];
+
   return (
     <div className="relative w-full px-6 pb-16 pt-6">
       <header className="mb-6 flex items-center justify-between">
@@ -196,6 +209,16 @@ export function JobsPage() {
         <p className="mb-4 text-sm text-muted-foreground">
           Scan complete — {scan.data.inserted} new role{scan.data.inserted !== 1 ? "s" : ""} added across {scan.data.scannedRoles} target role{scan.data.scannedRoles !== 1 ? "s" : ""}.
         </p>
+      )}
+
+      {totalRanked > 0 && (
+        <div className="mb-6 inline-flex items-center gap-5 rounded-xl border border-border bg-card px-5 py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Scan results</p>
+            <p className="text-sm text-foreground/70">{totalRanked} job{totalRanked !== 1 ? "s" : ""} ranked</p>
+          </div>
+          <Donut data={donutData} />
+        </div>
       )}
 
       {isLoading || scan.isPending ? (

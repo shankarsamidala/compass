@@ -9,6 +9,7 @@ import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import type { FeedJob } from "@compass/ipc-contract";
 import { useJobFullEval } from "./api";
+import { ScoreRing } from "./charts";
 
 // ── Recommendation verdict ───────────────────────────────────────────────────────
 const REC: Record<string, { label: string; cls: string; dot: string }> = {
@@ -178,10 +179,7 @@ export function JobInsightsSheet({
                 <AnimatedSection delay={0}>
                   <div className="rounded-2xl border border-border bg-card/40 p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-end gap-1">
-                        <span className="text-3xl font-bold leading-none text-brand">{score.toFixed(1)}</span>
-                        <span className="text-sm font-normal text-muted-foreground">/5</span>
-                      </div>
+                      <ScoreRing value={score} />
                       <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold", rec.cls)}>
                         <span className={cn("h-1.5 w-1.5 rounded-full", rec.dot)} />{rec.label}
                       </span>
