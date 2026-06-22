@@ -1,7 +1,7 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CheckCircle2, XCircle, AlertTriangle, MapPin, Briefcase, TrendingUp, Target,
+  AlertTriangle, MapPin, Briefcase, TrendingUp,
   ExternalLink, Bookmark, IndianRupee, Shield, X, FileText, MessageSquare, ClipboardList,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -92,12 +92,6 @@ const REC_STYLE: Record<string, string> = {
 
 export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, recommendation, reasoning, legitimacy }: JobInsightsSheetProps) {
   const [imgError, setImgError] = useState(false);
-  const [showAllMatched, setShowAllMatched] = useState(false);
-
-  useEffect(() => {
-    if (!open || !job) return;
-    setShowAllMatched(false);
-  }, [open, job]);
 
   const realBreakdown = job?.match_breakdown ?? null;
   const overallPercent = score != null
@@ -122,12 +116,6 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
     : null;
   const legitTier = legitimacyToTier(legitimacy);
   const recKey = (recommendation ?? "").toLowerCase();
-  const skillPercent = realBreakdown ? Math.round(realBreakdown.skills_pct) : null;
-  const matchedSkills = job?.skills_matched ?? [];
-  const missingSkills = job?.skills_missing ?? [];
-  const SKILL_PREVIEW_COUNT = 8;
-  const visibleMatched = showAllMatched ? matchedSkills : matchedSkills.slice(0, SKILL_PREVIEW_COUNT);
-  const hiddenCount = matchedSkills.length - SKILL_PREVIEW_COUNT;
   const urgency = job ? computeUrgency(job) : null;
 
   return (
@@ -272,12 +260,6 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                         </div>
                       )}
 
-                      {(matchedSkills.length > 0 || missingSkills.length > 0) && (
-                        <p className="text-muted-foreground mt-2 text-[10px]">
-                          <span className="text-foreground font-medium">{matchedSkills.length} skills matched</span>
-                          {missingSkills.length > 0 && <>{" · "}<span className="font-medium">{missingSkills.length} to bridge</span></>}
-                        </p>
-                      )}
                     </div>
                   </AnimatedSection>
                 )}
@@ -343,60 +325,6 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                 <AnimatedSection delay={120}><LevelStrategySection job={job} data={levelData} /></AnimatedSection>
                 <AnimatedSection delay={140}><LegitimacyBadgeSection job={job} tier={legitTier} /></AnimatedSection>
                 <AnimatedSection delay={155}><OpportunityScoringSection job={job} data={opportunityData} /></AnimatedSection>
-
-                {/* Skill Fit */}
-                {(matchedSkills.length > 0 || missingSkills.length > 0 || skillPercent != null) && (
-                  <AnimatedSection delay={280}>
-                    <CollapsibleSection icon={Target} title="Skill Fit" iconClassName="text-white" iconBgClassName="bg-foreground">
-                      <div className="space-y-4 pt-1">
-                        {skillPercent != null && (
-                          <div className="space-y-1.5">
-                            <div className="bg-surface-raised h-1.5 w-full overflow-hidden rounded-full">
-                              <div className="bg-foreground h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${skillPercent}%` }} />
-                            </div>
-                            <div className="text-muted-foreground flex justify-between text-[10px]">
-                              <span>{matchedSkills.length} matched</span>
-                              <span>{missingSkills.length} missing</span>
-                            </div>
-                          </div>
-                        )}
-                        {matchedSkills.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold">
-                              <CheckCircle2 className="text-brand h-3 w-3" /> Matched Skills
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {visibleMatched.map((skill) => (
-                                <span key={skill} className="text-muted-foreground border-surface-border bg-background inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-normal">
-                                  <CheckCircle2 className="text-brand h-2.5 w-2.5 shrink-0" />{skill}
-                                </span>
-                              ))}
-                              {!showAllMatched && hiddenCount > 0 && (
-                                <button onClick={() => setShowAllMatched(true)} className="border-ink-200 text-muted-foreground hover:bg-surface-raised inline-flex cursor-pointer items-center rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors">
-                                  +{hiddenCount} more
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {missingSkills.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-foreground/75 flex items-center gap-1.5 text-xs font-semibold">
-                              <XCircle className="text-muted-foreground h-3 w-3" /> Missing Skills
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {missingSkills.map((skill) => (
-                                <span key={skill} className="text-muted-foreground border-surface-border bg-background inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-normal">
-                                  <XCircle className="text-destructive h-2.5 w-2.5 shrink-0" />{skill}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </CollapsibleSection>
-                  </AnimatedSection>
-                )}
 
                 {/* About the Role */}
                 {(job.description_summary || job.tech_stack?.length || job.key_skills?.length || job.preferred_skills?.length || job.responsibilities?.length || job.requirements?.length) && (
