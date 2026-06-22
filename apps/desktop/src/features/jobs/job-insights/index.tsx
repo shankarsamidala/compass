@@ -84,7 +84,7 @@ const OPP_MAP: [string, string][] = [
   ["culture", "cultural_signals"],
 ];
 
-export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, reasoning, legitimacy }: JobInsightsSheetProps) {
+export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, recommendation, reasoning, legitimacy }: JobInsightsSheetProps) {
   const [imgError, setImgError] = useState(false);
 
   const realBreakdown = job?.match_breakdown ?? null;
@@ -219,6 +219,18 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                           <div className="-mr-2 flex flex-col items-center gap-1">
                             <SVGPolarChart bars={petalsFromDimensions(dimensions!)} centerLabel={`${overallPercent}%`} />
                             <p className="text-foreground text-center text-xs font-medium">Score Breakdown</p>
+                            {recommendation && (
+                              <span
+                                className={cn(
+                                  "mt-1 rounded-full px-3 py-0.5 text-[11px] font-semibold",
+                                  recommendation.toLowerCase() === "apply"
+                                    ? "bg-foreground text-brand"
+                                    : "border-border bg-muted text-foreground/75 border",
+                                )}
+                              >
+                                {recommendation}
+                              </span>
+                            )}
                           </div>
                         </div>
                       )}
