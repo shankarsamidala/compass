@@ -175,7 +175,7 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobIns
                       </div>
 
                       {realBreakdown && (
-                        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-2.5">
                             <div>
                               <p className="text-muted-foreground mb-0.5 text-[10px]">Percentage match</p>
@@ -216,6 +216,7 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobIns
                                       { label: "Location", score: Math.max(1, Math.round(realBreakdown.location_pct / 10)), hex: MATCH_CHART_PALETTE[3] },
                                     ]
                               }
+                              centerLabel={`${overallPercent}%`}
                             />
                             <p className="text-foreground text-center text-xs font-medium">Score Breakdown</p>
                           </div>

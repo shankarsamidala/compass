@@ -6,7 +6,7 @@ interface Bar {
   hex: string;
 }
 
-export function SVGPolarChart({ bars }: { bars: Bar[] }) {
+export function SVGPolarChart({ bars, centerLabel }: { bars: Bar[]; centerLabel?: string }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
 
@@ -81,6 +81,14 @@ export function SVGPolarChart({ bars }: { bars: Bar[] }) {
             }}
           />
         ))}
+        {centerLabel && (
+          <>
+            <circle cx={cx} cy={cy} r={26} className="fill-background" />
+            <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" className="fill-foreground" style={{ fontSize: 20, fontWeight: 700 }}>
+              {centerLabel}
+            </text>
+          </>
+        )}
       </svg>
     </div>
   );
