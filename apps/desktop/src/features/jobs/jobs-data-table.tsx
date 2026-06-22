@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { EvaluationSummary, FeedJob } from "@compass/ipc-contract";
+import type { EvaluationSummary, FeedJob, JobRanking } from "@compass/ipc-contract";
 
 export type JobRow = {
   id: string;
@@ -30,6 +30,7 @@ export type JobRow = {
   logoUrl: string | null;
   posted: string | null;
   score: number | null;
+  rank: number | null;
   legit: string;
   recommendation: string;
   evaluated: boolean;
@@ -121,6 +122,7 @@ function FacetFilter({ title, options, selected, onChange }: {
 export function JobsDataTable({
   jobs,
   evalByJob,
+  rankByJob,
   evaluatingId,
   onEvaluate,
   onInsights,
@@ -128,6 +130,7 @@ export function JobsDataTable({
 }: {
   jobs: FeedJob[];
   evalByJob: Map<string, EvaluationSummary>;
+  rankByJob: Map<string, JobRanking>;
   evaluatingId: string | null;
   onEvaluate: (id: string) => void;
   onInsights: (id: string) => void;
@@ -136,8 +139,11 @@ export function JobsDataTable({
   const data: JobRow[] = useMemo(
     () =>
       jobs.map((j) => {
-        const ev = evalByJob.get(j.id);
-        const score = ev?.score != null ? ev.score : j.score != null ? (j.score / 100) * 5 : null;
+        const ev = evalByJob.get(j.id);        // deep oferta (richer)
+        const rk = rankByJob.get(j.id);        // ofertas triage
+        const triageScore = rk?.score != null ? Number(rk.score) : null;
+        // Priority: deep eval → triage ranking → raw feed score.
+        const score = ev?.score != null ? ev.score : triageScore != null ? triageScore : j.score != null ? (j.score / 100) * 5 : null;
         return {
           id: j.id,
           company: j.company,
@@ -147,12 +153,13 @@ export function JobsDataTable({
           logoUrl: j.logoUrl ?? null,
           posted: j.postedAt ?? null,
           score,
-          legit: legitOf(ev?.legitimacyTier ?? null),
-          recommendation: recommendationOf(ev?.score != null ? ev.score : null),
+          rank: rk?.rank ?? null,
+          legit: legitOf(ev?.legitimacyTier ?? rk?.legitimacy ?? null),
+          recommendation: ev?.score != null ? recommendationOf(ev.score) : (rk?.recommendation ?? DASH),
           evaluated: !!ev,
         };
       }),
-    [jobs, evalByJob],
+    [jobs, evalByJob, rankByJob],
   );
 
   // Stable fit-rank by score (independent of the table's current sort).
@@ -193,7 +200,8 @@ export function JobsDataTable({
         enableSorting: false,
         enableHiding: false,
         cell: ({ row }) => {
-          const r = rankById.get(row.original.id);
+          // Prefer the agent's ofertas rank; fall back to score-derived position.
+          const r = row.original.rank ?? rankById.get(row.original.id);
           return r ? <span className="font-semibold tabular-nums text-muted-foreground">#{r}</span> : <span className="text-muted-foreground">—</span>;
         },
       },

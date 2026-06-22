@@ -258,6 +258,17 @@ export interface JobEvaluation {
   rawReport?: string;
 }
 
+/** Per-user ofertas triage ranking for a pooled job (GET /rankings). */
+export interface JobRanking {
+  jobId: string;
+  score: string | null;        // numeric comes back as string from pg
+  rank: number | null;
+  legitimacy: string | null;
+  recommendation: string | null;
+  reasoning: string | null;
+  createdAt: string;
+}
+
 export interface JobsApi {
   /** The user's ranked feed (career-ops GET /jobs). */
   list(): Promise<Result<{ jobs: FeedJob[] }>>;
@@ -271,6 +282,10 @@ export interface JobsApi {
   evaluate(id: string): Promise<Result<JobEvaluation>>;
   /** Evaluate a job by running the reinit skill headless (claude -p) → pushes to /evaluations. */
   evaluateAgent(id: string): Promise<Result<{ result: string }>>;
+  /** Run ofertas (claude -p) on the freshly-scanned pool → save per-user rankings. */
+  rankScan(): Promise<Result<{ saved: number }>>;
+  /** The caller's stored ofertas rankings, to merge into the table. */
+  rankings(): Promise<Result<{ rankings: JobRanking[] }>>;
 }
 
 // ── Settings domain (app-local, non-secret) ──────────────────────────────────

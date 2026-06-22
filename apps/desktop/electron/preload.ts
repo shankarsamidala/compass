@@ -46,6 +46,8 @@ const api: CompassApi = {
     evaluateQuick: (id) => ipcRenderer.invoke("jobs:evaluate-quick", id),
     evaluate: (id) => ipcRenderer.invoke("jobs:evaluate", id),
     evaluateAgent: (id) => ipcRenderer.invoke("jobs:evaluate-agent", id),
+    rankScan: () => ipcRenderer.invoke("jobs:rank-scan"),
+    rankings: () => ipcRenderer.invoke("jobs:rankings"),
   },
   cli: {
     configure: () => ipcRenderer.invoke("cli:configure"),

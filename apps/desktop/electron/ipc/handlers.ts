@@ -71,6 +71,8 @@ export function registerIpcHandlers(): void {
   safeHandle("jobs:evaluate-quick", (id: string) => jobsService.evaluateQuick(id));
   safeHandle("jobs:evaluate", (id: string) => jobsService.evaluate(id));
   safeHandle("jobs:evaluate-agent", (id: string) => jobsService.evaluateViaAgent(id));
+  safeHandle("jobs:rank-scan", () => jobsService.rankScanViaAgent());
+  safeHandle("jobs:rankings", () => jobsService.listRankings());
 
   // ── Settings (app-local) ──
   // ── REINIT CLI (REIN-319) ──

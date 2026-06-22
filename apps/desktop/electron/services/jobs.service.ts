@@ -1,7 +1,23 @@
+import { rm, mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
+import { homedir } from "node:os";
 import { authedFetch } from "../core/http";
-import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation } from "@compass/ipc-contract";
+import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation, type JobRanking } from "@compass/ipc-contract";
 import { searchJobsForRole } from "./naukri.service";
 import { cliService } from "./cli.service";
+
+/** Slice the first JSON array out of an agent's text reply (tolerates prose/fences). */
+function extractJsonArray(text: string): unknown[] | null {
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start === -1 || end <= start) return null;
+  try {
+    const v = JSON.parse(text.slice(start, end + 1));
+    return Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Normalize quick (blockA/evaluationId) and full (blocks/id) eval responses → JobEvaluation. */
 function toEvaluation(j: any): JobEvaluation {
@@ -71,24 +87,31 @@ export const jobsService = {
     const roles: Array<{ name: string; slug: string }> = rolesJson?.roles ?? [];
     if (roles.length === 0) return err("No target roles set — add target roles in Job Preferences first.", "NO_ROLES");
 
-    // Step 1b — read the user's experience to filter the search (mirrors the website's `experience=` param).
+    // Step 1b — read the user's experience + preferred cities to filter the search
+    // (mirror the website's `experience=` and `cityTypeGid=` params).
     let experience: number | null = null;
+    let preferredLocations: string[] = [];
     const profRes = await authedFetch("/profile", { method: "GET" }).catch(() => null);
     if (profRes?.ok) {
       const prof = await profRes.json().catch(() => ({}));
       const yrs = prof?.totalExperienceYears;
       if (yrs != null && yrs !== "") experience = Number(yrs);
+      if (Array.isArray(prof?.preferredLocations)) {
+        preferredLocations = prof.preferredLocations.filter((s: unknown) => typeof s === "string" && s.trim());
+      }
     }
 
-    // Step 2 — ONE combined search across all roles (comma-separated keyword, like the
-    // naukri.com page) on the user's IP → fewer requests, Naukri's own combined ranking.
+    // Step 2 — USER-SIDE scrape (Naukri on the user's IP, never the server). One
+    // combined search across roles, jobAge=1, capped to 20, paginated, location-filtered.
     const combinedKeyword = roles.map((r) => r.name).join(", ");
-    const scraped = await searchJobsForRole(
-      combinedKeyword,
-      Math.min(50, opts.maxPerRole * roles.length),
-      opts.jobAge,
+    const scraped = await searchJobsForRole({
+      keyword: combinedKeyword,
+      max: 20,
+      jobAge: 1,
       experience,
-    ).catch(() => []);
+      location: preferredLocations.length > 0 ? preferredLocations.join(",") : undefined,
+      pages: 10,
+    }).catch(() => []);
 
     // Attribute each result to the best-matching canonical role (combined search loses
     // per-role attribution; the pool requires a canonical role per job).
@@ -111,9 +134,8 @@ export const jobsService = {
     for (const j of scraped) {
       const role = pickSlug(j.title);
       counts.set(role.name, (counts.get(role.name) ?? 0) + 1);
-      // Build a rich JD: full description + skills block so the feed card and
-      // detail view have real content, and the embedding has more signal.
-      const skillsBlock = j.skills.length > 0 ? `\n\nKey Skills: ${j.skills.join(", ")}` : "";
+      // Build a JD from the cleaned search fields (skills + experience + salary blocks).
+      const skillsBlock = j.skills?.length ? `\n\nKey Skills: ${j.skills.join(", ")}` : "";
       const expBlock = j.experienceMin != null
         ? `\n\nExperience: ${j.experienceMin}${j.experienceMax != null ? `–${j.experienceMax}` : "+"} years`
         : "";
@@ -141,24 +163,29 @@ export const jobsService = {
       return ok({ scannedRoles: roles.length, inserted: 0, refreshed: 0, embedded: 0, perRole });
     }
 
-    // Step 3 — ship scraped jobs to career-ops via user-ingest (central DB + embedding).
-    const ingestRes = await authedFetch("/jobs/user-ingest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobs: allJobs }),
-    });
-    if (!ingestRes) return err("Could not reach the server", "NETWORK");
-    if (ingestRes.status === 401) return err("Session expired", "INVALID_TOKEN");
-    const ingestJson = await ingestRes.json().catch(() => ({}));
-    if (!ingestRes.ok) return err(ingestJson?.error || "Ingest failed", ingestJson?.code);
+    // Step 3 — ship to user-ingest in chunks (a full 10-page scan can exceed the
+    // server body limit if sent as one payload).
+    let inserted = 0;
+    let refreshed = 0;
+    let embedded = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < allJobs.length; i += CHUNK) {
+      const batch = allJobs.slice(i, i + CHUNK);
+      const ingestRes = await authedFetch("/jobs/user-ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobs: batch }),
+      });
+      if (!ingestRes) return err("Could not reach the server", "NETWORK");
+      if (ingestRes.status === 401) return err("Session expired", "INVALID_TOKEN");
+      const ingestJson = await ingestRes.json().catch(() => ({}));
+      if (!ingestRes.ok) return err(ingestJson?.error || "Ingest failed", ingestJson?.code);
+      inserted += ingestJson.inserted ?? 0;
+      refreshed += ingestJson.refreshed ?? 0;
+      embedded += ingestJson.embedded ?? 0;
+    }
 
-    return ok({
-      scannedRoles: roles.length,
-      inserted: ingestJson.inserted ?? 0,
-      refreshed: ingestJson.refreshed ?? 0,
-      embedded: ingestJson.embedded ?? 0,
-      perRole,
-    });
+    return ok({ scannedRoles: roles.length, inserted, refreshed, embedded, perRole });
   },
 
   async evaluateQuick(id: string): Promise<Result<JobEvaluation>> {
@@ -220,5 +247,64 @@ export const jobsService = {
       .join("\n");
 
     return cliService.runReinit(prompt);
+  },
+
+  /**
+   * Scan ranking (`ofertas`): clear stale JDs → agent pulls this user's pooled jobs
+   * (get-jobs) → ranks them against the profile → returns JSON → POST /rankings.
+   * Runs the agent (claude -p), so it needs the one-time consent like evaluate.
+   */
+  async rankScanViaAgent(): Promise<Result<{ saved: number }>> {
+    // Fresh slate so ofertas ranks only the current batch, not old JD files.
+    const jdsDir = resolve(homedir(), ".reinit", "jds");
+    try {
+      await rm(jdsDir, { recursive: true, force: true });
+      await mkdir(jdsDir, { recursive: true });
+    } catch {
+      /* best-effort */
+    }
+
+    const prompt = [
+      "Use the reinit skill to rank my pooled jobs and return JSON. Steps:",
+      "1. Run get-profile to sync my latest profile (cv.md / config/profile.yml).",
+      "2. Run get-jobs 20 to pull my latest jobs into jds/.",
+      "3. Run ofertas to rank ALL job descriptions in jds/ against my profile.",
+      "",
+      "Then output ONLY a JSON array (no prose, no markdown fences). One object per job:",
+      '{"jobId": "<the **Job ID** value from that JD file>", "score": <number 1-5>, "rank": <integer, 1=best>, "legitimacy": "<High Confidence|Proceed with Caution|Suspicious>", "recommendation": "<Apply|Consider|Skip>", "reasoning": "<one short line>"}',
+      "Use the exact Job ID from each JD file — do not invent ids.",
+    ].join("\n");
+
+    const res = await cliService.runReinit(prompt);
+    if (!res.ok) return err(res.error, res.code);
+
+    const arr = extractJsonArray(res.data.result);
+    if (!arr) return err("The agent didn't return a ranking", "NO_RANKINGS");
+    // Keep only well-formed rows with a job id.
+    const rankings = arr
+      .filter((r): r is Record<string, unknown> => !!r && typeof r === "object" && typeof (r as any).jobId === "string")
+      .slice(0, 100);
+    if (rankings.length === 0) return ok({ saved: 0 });
+
+    const post = await authedFetch("/rankings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rankings }),
+    });
+    if (!post) return err("Could not reach the server", "NETWORK");
+    if (post.status === 401) return err("Session expired", "INVALID_TOKEN");
+    const pj = await post.json().catch(() => ({}));
+    if (!post.ok) return err(pj?.error || "Saving rankings failed", pj?.code);
+    return ok({ saved: pj.saved ?? 0 });
+  },
+
+  /** The caller's stored ofertas rankings (for merging into the feed/table). */
+  async listRankings(): Promise<Result<{ rankings: JobRanking[] }>> {
+    const res = await authedFetch("/rankings", { method: "GET" });
+    if (!res) return err("Could not reach the server", "NETWORK");
+    if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return err(json?.error || "Could not load rankings", json?.code);
+    return ok({ rankings: json.rankings ?? [] });
   },
 };

@@ -163,71 +163,115 @@ async function withConcurrency<T>(
   return results;
 }
 
+// Naukri city → GID map (filtering uses repeated `cityTypeGid=<gid>` params).
+const CITY_GID: Record<string, string> = {
+  bengaluru: "97", bangalore: "97", "bangalore rural": "6108",
+  hyderabad: "17", chennai: "183", pune: "139",
+  "delhi / ncr": "9508", "delhi ncr": "9508", delhi: "9508", "new delhi": "6",
+  noida: "220", gurugram: "73", gurgaon: "73",
+  mumbai: "134", "mumbai (all areas)": "9509",
+  kolkata: "232", ahmedabad: "51", kochi: "110", coimbatore: "184",
+  indore: "125", thiruvananthapuram: "120", trivandrum: "120",
+  remote: "9513", india: "9011",
+};
+
+function cityQuery(location?: string): string {
+  if (!location) return "";
+  const gids = location
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => (/^\d+$/.test(t) ? t : CITY_GID[t.toLowerCase()]))
+    .filter(Boolean);
+  return [...new Set(gids)].map((g) => `&cityTypeGid=${g}`).join("");
+}
+
+/** Parse one v3 search item into a minimal ScrapedJob (detail fetch enriches it). */
+function parseSearchItem(raw: unknown): ScrapedJob | null {
+  const item = raw as Record<string, unknown>;
+  const jobId = String(item.jobId ?? "");
+  if (!jobId) return null;
+  const placeholders = (item.placeholders ?? []) as Array<{ type?: string; label?: string }>;
+  const ph = (type: string) => placeholders.find((p) => p.type === type)?.label ?? "";
+  const sal = (item.salaryDetail ?? {}) as Record<string, unknown>;
+  const jdUrl = (item.jdURL as string) ?? (item.staticUrl as string) ?? "";
+  // Skills from `tagsAndSkills` (v3 search). Detail fetch unions richer v4 skills.
+  const skills = String(item.tagsAndSkills || "").split(",").map((s) => s.trim()).filter(Boolean);
+  // Work mode is the location-label prefix ("Hybrid - …" / "Remote - …").
+  const locLabel = ph("location");
+  let workMode = "Office";
+  let location = locLabel;
+  const m = locLabel.match(/^\s*(Hybrid|Remote)\s*-\s*(.*)$/i);
+  if (m) { workMode = m[1]; location = m[2].trim(); }
+  return {
+    source: "naukri",
+    sourceJobId: jobId,
+    sourceUrl: absUrl(jdUrl),
+    title: String(item.title ?? ""),
+    company: String(item.companyName ?? ""),
+    location,
+    workMode,
+    salaryRaw: ph("salary"),
+    experienceMin: item.minimumExperience != null ? Number(item.minimumExperience) : null,
+    experienceMax: item.maximumExperience != null ? Number(item.maximumExperience) : null,
+    shortDescription: stripHtml(String(item.jobDescription ?? "")),
+    fullDescription: "",
+    skills,
+    employmentType: null,
+    postedAt: parseNaukriDate(item.createdDate),
+    logoUrl: (item.logoPathV3 as string) ?? (item.logoPath as string) ?? null,
+  };
+}
+
+export interface SearchOpts {
+  keyword: string;
+  max?: number;          // final cap (default 20)
+  jobAge?: number;       // freshness (days)
+  experience?: number | null;
+  location?: string;     // comma-separated city names or GIDs
+  pages?: number;        // search pages to scan (max 10)
+}
+
 /**
- * Search Naukri by role keyword and fetch full details for each result.
- * Concurrency capped at 5 detail requests in parallel.
+ * Search Naukri (user's IP) → freshness-filter → cap to `max` → fetch full v4
+ * details for the capped set (concurrency 5). Paginated; deduped by jobId.
  */
-export async function searchJobsForRole(
-  keyword: string,
-  max = 20,
-  jobAge = 1,
-  experience?: number | null,
-): Promise<ScrapedJob[]> {
-  const limit = Math.min(max, 50);
-  const age = jobAge > 0 ? `&jobAge=${jobAge}` : "";
-  // Mirror the website's experience filter (years). Omitted when unknown.
-  const exp = experience != null && experience >= 0 ? `&experience=${Math.round(experience)}` : "";
-  const url =
-    `https://www.naukri.com/jobapi/v3/search?noOfResults=${limit}` +
-    `&urlType=search_by_keyword&searchType=adv&keyword=${encodeURIComponent(keyword)}&pageNo=1${age}${exp}`;
+export async function searchJobsForRole(opts: SearchOpts): Promise<ScrapedJob[]> {
+  const max = opts.max ?? 20;
+  const pages = Math.min(Math.max(opts.pages ?? 1, 1), 10);
+  const limit = 50;
+  const age = opts.jobAge && opts.jobAge > 0 ? `&jobAge=${opts.jobAge}` : "";
+  const exp = opts.experience != null && opts.experience >= 0 ? `&experience=${Math.round(opts.experience)}` : "";
+  const qs = `&keyword=${encodeURIComponent(opts.keyword)}${age}${exp}${cityQuery(opts.location)}`;
 
-  const data = await getWithRetry(url, "search", SEARCH_HEADERS);
-  if (!data || typeof data !== "object") return [];
-
-  const items = ((data as { jobDetails?: unknown[] }).jobDetails) ?? [];
-  const WFH_MAP: Record<string, string> = { "0": "Office", "2": "Remote", "3": "Hybrid" };
-
-  // Parse search results.
-  const searchResults: ScrapedJob[] = [];
-  for (const raw of items) {
-    const item = raw as Record<string, unknown>;
-    const jobId = String(item.jobId ?? "");
-    if (!jobId) continue;
-    const placeholders = (item.placeholders ?? []) as Array<{ type?: string; label?: string }>;
-    const ph = (type: string) => placeholders.find((p) => p.type === type)?.label ?? "";
-    const sal = (item.salaryDetail ?? {}) as Record<string, unknown>;
-    const jdUrl = (item.jdURL as string) ?? (item.staticUrl as string) ?? "";
-    // Naukri pre-extracts the JD's skills in the SEARCH response — capture them here
-    // (mandatory + other + NER) so we have the JD's Stack & Tools without the detail call.
-    const ks = (item.keySkills ?? {}) as Record<string, unknown>;
-    const ksList = (arr: unknown): string[] => (Array.isArray(arr) ? arr.map(String) : []);
-    const skills = [...new Set([
-      ...ksList(ks.mandatorySkills), ...ksList(ks.otherSkills), ...ksList(ks.nerSkills),
-    ])].filter(Boolean);
-    searchResults.push({
-      source: "naukri",
-      sourceJobId: jobId,
-      sourceUrl: absUrl(jdUrl),
-      title: String(item.title ?? ""),
-      company: String(item.companyName ?? ""),
-      location: ph("location"),
-      workMode: WFH_MAP[String(item.wfhType ?? "")] ?? "",
-      salaryRaw: String(sal.label ?? ph("salary") ?? ""),
-      experienceMin: item.minimumExperience != null ? Number(item.minimumExperience) : null,
-      experienceMax: item.maximumExperience != null ? Number(item.maximumExperience) : null,
-      shortDescription: String(item.jobDescription ?? ""),
-      fullDescription: "",  // filled by detail fetch below
-      skills,
-      employmentType: null,
-      postedAt: parseNaukriDate(item.createdDate),
-      logoUrl: (item.logoPathV3 as string) ?? (item.logoPath as string) ?? null,
-    });
+  const byId = new Map<string, ScrapedJob>();
+  for (let p = 1; p <= pages; p++) {
+    const url =
+      `https://www.naukri.com/jobapi/v3/search?noOfResults=${limit}` +
+      `&urlType=search_by_keyword&searchType=adv&pageNo=${p}${qs}`;
+    const data = await getWithRetry(url, "search", SEARCH_HEADERS);
+    if (!data || typeof data !== "object") break;
+    const items = ((data as { jobDetails?: unknown[] }).jobDetails) ?? [];
+    if (items.length === 0) break;
+    for (const raw of items) {
+      const sj = parseSearchItem(raw);
+      if (sj && !byId.has(sj.sourceJobId)) byId.set(sj.sourceJobId, sj);
+    }
+    if (items.length < limit) break;
   }
 
-  if (searchResults.length === 0) return [];
+  let jobs = [...byId.values()];
+  // Hard freshness cutoff (Naukri's jobAge is fuzzy): drop older than jobAge + 12h.
+  if (opts.jobAge && opts.jobAge > 0) {
+    const cutoff = Date.now() - (opts.jobAge * 24 + 12) * 3_600_000;
+    jobs = jobs.filter((j) => !j.postedAt || Date.parse(j.postedAt) >= cutoff);
+  }
+  // Newest first, cap to max — then only detail-fetch that capped set.
+  jobs.sort((a, b) => (Date.parse(b.postedAt || "") || 0) - (Date.parse(a.postedAt || "") || 0));
+  jobs = jobs.slice(0, max);
+  if (jobs.length === 0) return [];
 
-  // Fetch full details in parallel (concurrency 5).
-  const detailTasks = searchResults.map((job) => async () => {
+  const detailTasks = jobs.map((job) => async () => {
     const detail = await fetchDetail(job.sourceJobId).catch(() => null);
     if (!detail) return job;
     return {

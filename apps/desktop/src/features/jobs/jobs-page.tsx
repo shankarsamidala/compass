@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Loader2, LayoutGrid, Table2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useJobsFeed } from "./api";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
-import type { EvaluationSummary, MatchFloor } from "@compass/ipc-contract";
+import type { EvaluationSummary, JobRanking, MatchFloor } from "@compass/ipc-contract";
 
 const MATCH_THRESHOLDS: Record<MatchFloor, number> = { all: 0, fair: 40, strong: 70 };
 
@@ -19,6 +19,19 @@ export function JobsPage() {
   const { data: settings } = useSettings();
   const [openId, setOpenId] = useState<string | null>(null);
   const qc = useQueryClient();
+
+  // Ranking (ofertas) state — runs the agent after a scan.
+  const [ranking, setRanking] = useState(false);
+  const trustedRef = useRef(false);
+
+  const runRankScan = async () => {
+    setRanking(true);
+    setEvalError(null);
+    const r = await api.jobs.rankScan();
+    setRanking(false);
+    if (r.ok) qc.invalidateQueries({ queryKey: ["rankings"] });
+    else setEvalError(`Ranking failed: ${r.error}`);
+  };
 
   const scan = useMutation({
     mutationFn: async () => {
@@ -29,7 +42,12 @@ export function JobsPage() {
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.jobs }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.jobs });
+      // Scan → rank the fresh pool (ofertas). Gated by the one-time agent consent.
+      if (trustedRef.current) void runRankScan();
+      else setPending({ type: "rank" });
+    },
   });
 
   // Run the reinit skill (claude -p) to evaluate one job → pushes to /evaluations.
@@ -45,7 +63,21 @@ export function JobsPage() {
       return r.ok ? r.data.trusted : false;
     },
   });
-  const [pending, setPending] = useState<{ type: "single"; id: string } | { type: "many"; ids: string[] } | null>(null);
+  useEffect(() => { trustedRef.current = !!trusted; }, [trusted]);
+  const [pending, setPending] = useState<
+    { type: "single"; id: string } | { type: "many"; ids: string[] } | { type: "rank" } | null
+  >(null);
+
+  // Per-user ofertas rankings → drives the table's Rank/Score/Legit/Recommend.
+  const { data: rankByJob } = useQuery({
+    queryKey: ["rankings"],
+    queryFn: async () => {
+      const r = await api.jobs.rankings();
+      const m = new Map<string, JobRanking>();
+      for (const x of r.ok ? r.data.rankings : []) m.set(x.jobId, x);
+      return m;
+    },
+  });
 
   // Evaluate jobs sequentially (one agent run at a time — never spawn concurrent
   // claude processes). Used for both single and bulk.
@@ -75,7 +107,9 @@ export function JobsPage() {
     setPending(null);
     await api.cli.trustAgent();
     await refetchTrust();
-    if (p) void runEvaluations(p.type === "single" ? [p.id] : p.ids);
+    if (!p) return;
+    if (p.type === "rank") void runRankScan();
+    else void runEvaluations(p.type === "single" ? [p.id] : p.ids);
   };
 
   // Stored evaluations → drives "Insights vs Evaluate" + the table's score/legit columns.
@@ -151,6 +185,12 @@ export function JobsPage() {
           Evaluating with REINIT… this runs the skill in the background and can take a minute.
         </p>
       )}
+      {ranking && (
+        <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Ranking your jobs with REINIT (ofertas)… scores will appear when it finishes.
+        </p>
+      )}
 
       {scan.isSuccess && (
         <p className="mb-4 text-sm text-muted-foreground">
@@ -170,6 +210,7 @@ export function JobsPage() {
           <JobsDataTable
             jobs={filtered}
             evalByJob={evalByJob ?? new Map()}
+            rankByJob={rankByJob ?? new Map()}
             evaluatingId={evaluatingId}
             onEvaluate={handleEvaluate}
             onInsights={setOpenId}
@@ -190,7 +231,7 @@ export function JobsPage() {
           </div>
         )
       ) : (
-        <div className="mt-16 text-center text-sm text-muted-foreground">
+        <div className="flex min-h-[50vh] flex-col items-center justify-center text-center text-sm text-muted-foreground">
           {error
             ? "Couldn't load jobs. Try again."
             : jobs && jobs.length > 0
