@@ -1,0 +1,15 @@
+export const verdictConfig: Record<string, { text: string; color: string; bg: string }> = {
+  exact_match: { text: "Exact Match", color: "text-brand", bg: "bg-coral-100" },
+  remote_ok: { text: "Remote OK", color: "text-brand", bg: "bg-coral-100" },
+  good_fit: { text: "Good Fit", color: "text-brand", bg: "bg-coral-100" },
+  in_range: { text: "In Range", color: "text-brand", bg: "bg-coral-100" },
+  relocation_possible: { text: "Relocation Possible", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  relocation_needed: { text: "Relocation Needed", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  stretch_up: { text: "Stretch Role", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  overqualified: { text: "Overqualified", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  above_range: { text: "Above Range", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  below_range: { text: "Below Range", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  neutral: { text: "Neutral", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  no_data: { text: "No Data", color: "text-muted-foreground", bg: "bg-surface-raised" },
+  unknown: { text: "Unknown", color: "text-muted-foreground", bg: "bg-surface-raised" },
+};

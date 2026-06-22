@@ -161,6 +161,16 @@
   --color-brand-hover: var(--brand-hover);
   --color-brand-foreground: var(--brand-foreground);
 
+  /* ── Job-insights sheet palette (ported from dashoard, additive) ────── */
+  --color-coral-50: #FEF6F2;
+  --color-coral-100: #FDE8DF;
+  --color-coral-200: #FAC9B4;
+  --color-coral-800: #7B3820;
+  --color-ink-200: #C8C8C4;
+  --color-surface-raised: #EBEBEB;
+  --color-surface-hover: #E0E0E0;
+  --color-surface-border: #D8D8D8;
+
   /* ── Accent palette ───────────────────────────────────────────────── */
   --color-pink: var(--pink);
   --color-pink-foreground: var(--pink-foreground);
