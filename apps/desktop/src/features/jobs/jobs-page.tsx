@@ -267,6 +267,7 @@ export function JobsPage() {
         open={openId !== null}
         onOpenChange={(v) => !v && setOpenId(null)}
         job={filtered.find((j) => j.id === openId) ?? null}
+        ranking={openId ? (rankByJob?.get(openId) ?? null) : null}
       />
 
       {pending && (

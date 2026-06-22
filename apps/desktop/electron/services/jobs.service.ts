@@ -271,8 +271,8 @@ export const jobsService = {
       "3. Run ofertas to rank ALL job descriptions in jds/ against my profile.",
       "",
       "Then output ONLY a JSON array (no prose, no markdown fences). One object per job:",
-      '{"jobId": "<the **Job ID** value from that JD file>", "score": <number 1-5>, "rank": <integer, 1=best>, "legitimacy": "<High Confidence|Proceed with Caution|Suspicious>", "recommendation": "<Apply|Consider|Skip>", "reasoning": "<one short line>"}',
-      "Use the exact Job ID from each JD file — do not invent ids.",
+      '{"jobId": "<the **Job ID** value from that JD file>", "score": <number 1-5>, "rank": <integer, 1=best>, "legitimacy": "<High Confidence|Proceed with Caution|Suspicious>", "recommendation": "<Apply|Consider|Skip>", "reasoning": "<one short line>", "dimensions": {"northStar": <1-5>, "cvMatch": <1-5>, "level": <1-5>, "comp": <1-5>, "growth": <1-5>, "remote": <1-5>, "reputation": <1-5>, "techStack": <1-5>, "speed": <1-5>, "culture": <1-5>}}',
+      "dimensions are the 10 weighted ofertas matrix scores (each 1-5). Use the exact Job ID from each JD file — do not invent ids.",
     ].join("\n");
 
     const res = await cliService.runReinit(prompt);

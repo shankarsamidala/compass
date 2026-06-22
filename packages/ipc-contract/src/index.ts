@@ -266,6 +266,7 @@ export interface JobRanking {
   legitimacy: string | null;
   recommendation: string | null;
   reasoning: string | null;
+  dimensions: Record<string, number> | null; // {northStar:4, cvMatch:3, ...}
   createdAt: string;
 }
 
