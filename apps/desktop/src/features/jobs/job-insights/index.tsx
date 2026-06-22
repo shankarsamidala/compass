@@ -228,8 +228,8 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                   </AnimatedSection>
                 )}
 
-                {/* Urgency */}
-                {urgency && (
+                {/* Urgency — commented out (demo data, not real yet) */}
+                {false && urgency && (
                   <AnimatedSection delay={40}>
                     <div className="bg-background border-surface-border overflow-hidden rounded-xl border">
                       <div className="border-surface-border flex items-center justify-between border-b px-4 py-2.5">
@@ -264,8 +264,8 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                   </AnimatedSection>
                 )}
 
-                {/* Fit Summary */}
-                {realBreakdown && (
+                {/* Fit Summary — commented out (demo data, not real yet) */}
+                {false && realBreakdown && (
                   <AnimatedSection delay={80}>
                     <div className="flex gap-2">
                       {[
@@ -290,8 +290,8 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                 {legitTier && <AnimatedSection delay={140}><LegitimacyBadgeSection job={job} tier={legitTier} /></AnimatedSection>}
                 {opportunityData && <AnimatedSection delay={155}><OpportunityScoringSection job={job} data={opportunityData} /></AnimatedSection>}
 
-                {/* About the Role */}
-                {(job.description_summary || job.tech_stack?.length || job.key_skills?.length || job.preferred_skills?.length || job.responsibilities?.length || job.requirements?.length) && (
+                {/* About the Role — hidden for now (JD not structured yet) */}
+                {false && (job.description_summary || job.tech_stack?.length || job.key_skills?.length || job.preferred_skills?.length || job.responsibilities?.length || job.requirements?.length) && (
                   <AnimatedSection delay={340}>
                     <CollapsibleSection icon={ClipboardList} title="About the Role" defaultOpen={true} iconClassName="text-white" iconBgClassName="bg-foreground">
                       <div className="space-y-5 pt-2">
@@ -349,8 +349,8 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                   </AnimatedSection>
                 )}
 
-                {/* Compensation */}
-                {(job.salary_disclosed || job.salary_min != null || job.salary_max != null) && (
+                {/* Compensation — hidden for now (demo data) */}
+                {false && (job.salary_disclosed || job.salary_min != null || job.salary_max != null) && (
                   <AnimatedSection delay={520}>
                     <CollapsibleSection icon={IndianRupee} title="Compensation" defaultOpen={false} iconClassName="text-white" iconBgClassName="bg-foreground">
                       <div className="bg-background border-surface-border mt-1 space-y-3 rounded-lg border p-3 pt-3">
