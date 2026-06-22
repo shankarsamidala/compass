@@ -181,12 +181,15 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobIns
                                 {overallPercent}<span className="text-muted-foreground text-xs font-normal">/100</span>
                               </p>
                             </div>
-                            {[
-                              { label: "Skills", value: Math.round(realBreakdown.skills_pct), hex: MATCH_CHART_PALETTE[0] },
-                              { label: "Experience", value: Math.round(realBreakdown.experience_pct), hex: MATCH_CHART_PALETTE[1] },
-                              { label: "Seniority", value: Math.round(realBreakdown.seniority_pct), hex: MATCH_CHART_PALETTE[2] },
-                              { label: "Location", value: Math.round(realBreakdown.location_pct), hex: MATCH_CHART_PALETTE[3] },
-                            ].map(({ label, value, hex }) => (
+                            {(dimensions && Object.keys(dimensions).length > 0
+                              ? petalsFromDimensions(dimensions).map((p) => ({ label: p.label, value: p.score * 10, hex: p.hex }))
+                              : [
+                                  { label: "Skills", value: Math.round(realBreakdown.skills_pct), hex: MATCH_CHART_PALETTE[0] },
+                                  { label: "Experience", value: Math.round(realBreakdown.experience_pct), hex: MATCH_CHART_PALETTE[1] },
+                                  { label: "Seniority", value: Math.round(realBreakdown.seniority_pct), hex: MATCH_CHART_PALETTE[2] },
+                                  { label: "Location", value: Math.round(realBreakdown.location_pct), hex: MATCH_CHART_PALETTE[3] },
+                                ]
+                            ).map(({ label, value, hex }) => (
                               <div key={label}>
                                 <div className="mb-1 flex items-center justify-between">
                                   <span className="text-muted-foreground text-[11px]">{label}</span>
