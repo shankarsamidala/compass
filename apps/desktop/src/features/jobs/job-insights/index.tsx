@@ -19,6 +19,28 @@ import { SVGPolarChart } from "./svg-polar-chart";
 
 const MATCH_CHART_PALETTE = ["#D97757", "#3B82F6", "#10B981", "#8B5CF6"] as const;
 
+// ofertas dimensions → polar petals (score 1–5 → 2–10 for the chart radius).
+const DIM_META: { key: string; label: string; hex: string }[] = [
+  { key: "northStar", label: "North Star", hex: "#D97757" },
+  { key: "cvMatch", label: "CV Match", hex: "#3B82F6" },
+  { key: "level", label: "Level", hex: "#10B981" },
+  { key: "comp", label: "Comp", hex: "#8B5CF6" },
+  { key: "growth", label: "Growth", hex: "#F59E0B" },
+  { key: "remote", label: "Remote", hex: "#22D3EE" },
+  { key: "reputation", label: "Reputation", hex: "#EC4899" },
+  { key: "techStack", label: "Tech Stack", hex: "#84CC16" },
+  { key: "speed", label: "Speed", hex: "#F97316" },
+  { key: "culture", label: "Culture", hex: "#A78BFA" },
+];
+
+function petalsFromDimensions(dimensions: Record<string, number>): { label: string; score: number; hex: string }[] {
+  return DIM_META.filter((d) => dimensions[d.key] != null).map((d) => ({
+    label: d.label,
+    score: Math.max(1, Math.min(10, Math.round(Number(dimensions[d.key]) * 2))),
+    hex: d.hex,
+  }));
+}
+
 // Scope the dashoard LIGHT theme tokens to the sheet only.
 const LIGHT_TOKENS = {
   "--background": "#FFFFFF",
@@ -41,9 +63,11 @@ interface JobInsightsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: Job | null;
+  // ofertas per-dimension scores (1–5). When present, the polar chart uses these.
+  dimensions?: Record<string, number> | null;
 }
 
-export function JobInsightsSheet({ open, onOpenChange, job }: JobInsightsSheetProps) {
+export function JobInsightsSheet({ open, onOpenChange, job, dimensions }: JobInsightsSheetProps) {
   const [imgError, setImgError] = useState(false);
   const [showAllMatched, setShowAllMatched] = useState(false);
 
@@ -177,12 +201,16 @@ export function JobInsightsSheet({ open, onOpenChange, job }: JobInsightsSheetPr
 
                           <div className="-mr-2 flex flex-col items-center gap-1">
                             <SVGPolarChart
-                              bars={[
-                                { label: "Skills", score: Math.max(1, Math.round(realBreakdown.skills_pct / 10)), hex: MATCH_CHART_PALETTE[0] },
-                                { label: "Experience", score: Math.max(1, Math.round(realBreakdown.experience_pct / 10)), hex: MATCH_CHART_PALETTE[1] },
-                                { label: "Seniority", score: Math.max(1, Math.round(realBreakdown.seniority_pct / 10)), hex: MATCH_CHART_PALETTE[2] },
-                                { label: "Location", score: Math.max(1, Math.round(realBreakdown.location_pct / 10)), hex: MATCH_CHART_PALETTE[3] },
-                              ]}
+                              bars={
+                                dimensions && Object.keys(dimensions).length > 0
+                                  ? petalsFromDimensions(dimensions)
+                                  : [
+                                      { label: "Skills", score: Math.max(1, Math.round(realBreakdown.skills_pct / 10)), hex: MATCH_CHART_PALETTE[0] },
+                                      { label: "Experience", score: Math.max(1, Math.round(realBreakdown.experience_pct / 10)), hex: MATCH_CHART_PALETTE[1] },
+                                      { label: "Seniority", score: Math.max(1, Math.round(realBreakdown.seniority_pct / 10)), hex: MATCH_CHART_PALETTE[2] },
+                                      { label: "Location", score: Math.max(1, Math.round(realBreakdown.location_pct / 10)), hex: MATCH_CHART_PALETTE[3] },
+                                    ]
+                              }
                             />
                             <p className="text-foreground text-center text-xs font-medium">Score Breakdown</p>
                           </div>

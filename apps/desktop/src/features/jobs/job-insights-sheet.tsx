@@ -42,13 +42,28 @@ const STATIC_JOB: Job = {
   posted_raw: "2 days ago",
 };
 
+// Demo ofertas dimensions (1–5) so the polar petals show in preview; the real
+// ranking overrides this when the job has been ranked.
+const DEMO_DIMENSIONS = {
+  northStar: 5, cvMatch: 4, level: 4, comp: 3, growth: 4,
+  remote: 3, reputation: 4, techStack: 5, speed: 3, culture: 4,
+};
+
 export function JobInsightsSheet({
-  open, onOpenChange,
+  open, onOpenChange, ranking,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   job?: FeedJob | null;
   ranking?: JobRanking | null;
 }) {
-  return <PolarInsightsSheet open={open} onOpenChange={onOpenChange} job={open ? STATIC_JOB : null} />;
+  const dimensions = ranking?.dimensions ?? DEMO_DIMENSIONS;
+  return (
+    <PolarInsightsSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      job={open ? STATIC_JOB : null}
+      dimensions={dimensions}
+    />
+  );
 }
