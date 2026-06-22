@@ -5,6 +5,7 @@ import {
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
@@ -13,7 +14,7 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronsUpDown, Loader2, ListFilter, Settings2, X, Check } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, ChevronLeft, ChevronRight, Loader2, ListFilter, Settings2, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -311,6 +312,8 @@ export function JobsDataTable({
     getFilteredRowModel: getFilteredRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } },
   });
 
   const facet = (id: string) => {
@@ -433,6 +436,29 @@ export function JobsDataTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between gap-4 pt-1">
+        <span className="text-xs text-muted-foreground">
+          {table.getFilteredSelectedRowModel().rows.length > 0 && (
+            <>{table.getFilteredSelectedRowModel().rows.length} selected · </>
+          )}
+          {table.getFilteredRowModel().rows.length} job{table.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-muted-foreground">
+            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

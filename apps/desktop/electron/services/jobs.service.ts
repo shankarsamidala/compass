@@ -58,8 +58,10 @@ function toFeedJob(j: any): FeedJob {
  * (Scraping → POST /jobs/ingest lands in Phase B.)
  */
 export const jobsService = {
-  async list(): Promise<Result<{ jobs: FeedJob[] }>> {
-    const res = await authedFetch("/jobs", { method: "GET" });
+  async list(opts?: { limit?: number; offset?: number }): Promise<Result<{ jobs: FeedJob[] }>> {
+    const limit = opts?.limit ?? 100;
+    const offset = opts?.offset ?? 0;
+    const res = await authedFetch(`/jobs?limit=${limit}&offset=${offset}`, { method: "GET" });
     if (!res) return err("Could not reach the server", "NETWORK");
     const json = await res.json().catch(() => ({}));
     if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
