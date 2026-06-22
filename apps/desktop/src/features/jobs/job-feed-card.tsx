@@ -66,7 +66,10 @@ export function JobFeedCard({
   const blurb = plainText(job.jd);
 
   return (
-    <article className="group relative flex flex-col rounded-xl border-[1.5px] border-border bg-card transition-colors hover:border-brand">
+    <article
+      onClick={() => onClick?.()}
+      className="group relative flex cursor-pointer flex-col rounded-xl border-[1.5px] border-border bg-card transition-colors hover:border-brand"
+    >
       <div className="relative z-10 flex flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-3.5 px-5 pb-5 pt-4">
           {/* Logo + title + company + fit band */}

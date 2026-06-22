@@ -231,7 +231,7 @@ export function JobsDataTable({
         header: "Role",
         cell: ({ row }) =>
           row.original.jobUrl ? (
-            <a href={row.original.jobUrl} target="_blank" rel="noreferrer" className="text-foreground hover:text-brand hover:underline" title={row.original.role}>
+            <a href={row.original.jobUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-foreground hover:text-brand hover:underline" title={row.original.role}>
               {row.original.role}
             </a>
           ) : (
@@ -274,7 +274,7 @@ export function JobsDataTable({
             <button
               type="button"
               disabled={evaluatingId === r.id}
-              onClick={() => (r.evaluated ? onInsights(r.id) : onEvaluate(r.id))}
+              onClick={(e) => { e.stopPropagation(); r.evaluated ? onInsights(r.id) : onEvaluate(r.id); }}
               className={cn(
                 "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60",
                 r.evaluated ? "bg-brand text-white hover:bg-brand-hover" : "border border-brand/40 text-brand hover:bg-brand/10",
@@ -419,7 +419,12 @@ export function JobsDataTable({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} data-selected={row.getIsSelected()} className="border-b border-border/60 transition-colors hover:bg-accent/30 data-[selected=true]:bg-brand/5">
+              <tr
+                key={row.id}
+                data-selected={row.getIsSelected()}
+                onClick={() => onInsights(row.original.id)}
+                className="cursor-pointer border-b border-border/60 transition-colors hover:bg-accent/30 data-[selected=true]:bg-brand/5"
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className={cn("px-3 py-2", cell.column.id === "action" && "text-right")}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
