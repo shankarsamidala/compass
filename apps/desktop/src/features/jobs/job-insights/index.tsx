@@ -34,11 +34,13 @@ const DIM_META: { key: string; label: string; hex: string }[] = [
 ];
 
 function petalsFromDimensions(dimensions: Record<string, number>): { label: string; score: number; hex: string }[] {
-  return DIM_META.filter((d) => dimensions[d.key] != null).map((d) => ({
-    label: d.label,
-    score: Math.max(1, Math.min(10, Math.round(Number(dimensions[d.key]) * 2))),
-    hex: d.hex,
-  }));
+  return DIM_META.filter((d) => dimensions[d.key] != null)
+    .slice(0, 5) // top dimensions by weight — keeps the bars/chart balanced
+    .map((d) => ({
+      label: d.label,
+      score: Math.max(1, Math.min(10, Math.round(Number(dimensions[d.key]) * 2))),
+      hex: d.hex,
+    }));
 }
 
 // Scope the dashoard LIGHT theme tokens to the sheet only.
