@@ -168,6 +168,64 @@ export interface FeedJob {
   recommendation?: "Apply" | "Consider" | "Skip" | null;
 }
 
+// ── Canonical scraped job ────────────────────────────────────────────────────
+// The single portal-agnostic shape every scraper adapter (Naukri, Hirist,
+// Instahyre, …) maps its raw response into, before ingest into the global pool
+// (co_jobs). Every enrichment field is optional — each portal fills what it has:
+//   • salary band (ctc*) — Naukri/Hirist via AmbitionBox; Instahyre: none
+//   • applicants / postedAt — Naukri/Hirist; Instahyre: none
+//   • companyRating — Naukri/Hirist AmbitionBox; Instahyre Glassdoor
+// Scanning always runs on the user's machine (their IP); this is the payload
+// shipped to POST /jobs/user-ingest.
+export type JobSource = "naukri" | "hirist" | "instahyre" | (string & {});
+
+/** One parsed JD section — preserves heading + bullets instead of a flat blob. */
+export interface JdSection {
+  heading: string | null;
+  items: string[];
+}
+
+export interface CanonicalJob {
+  source: JobSource;
+  /** Portal's own job id (for dedupe/debug). */
+  externalId: string;
+  sourceUrl: string;
+  title: string;
+  company: string;
+  location: string | null;
+  logoUrl: string | null;
+  postedAt: string | null; // ISO date; null when the portal omits it (e.g. Instahyre)
+  // role / experience
+  expMin: number | null;
+  expMax: number | null;
+  workMode: string | null; // onsite | hybrid | remote
+  employmentType: string | null;
+  seniority: string | null;
+  // skills
+  skills: string[]; // flat list (drives deterministic match)
+  skillsMeta: Array<{ name: string; mandatory: boolean }> | null;
+  // description
+  jd: string | null; // full text/HTML
+  jdStructured: JdSection[] | null;
+  // compensation
+  salaryDisclosed: boolean | null;
+  salaryMin: number | null; // from the JD (LPA)
+  salaryMax: number | null;
+  ctcMin: number | null; // AmbitionBox/Glassdoor band (LPA)
+  ctcMax: number | null;
+  ctcAvg: number | null;
+  // demand
+  applicants: number | null;
+  // company enrichment
+  companyRating: number | null; // AmbitionBox or Glassdoor overall
+  companyReviewsCount: number | null;
+  companyType: string | null;
+  companySize: string | null;
+  industry: string | null;
+  aboutCompany: string | null;
+  benefits: string[] | null;
+}
+
 export interface ScanResult {
   scannedRoles: number;
   inserted: number;
@@ -275,8 +333,8 @@ export interface JobsApi {
   list(): Promise<Result<{ jobs: FeedJob[] }>>;
   /** A single pooled job for the detail page (GET /jobs/:id). */
   get(id: string): Promise<Result<{ job: FeedJob }>>;
-  /** Scrape Naukri for the user's target roles and ingest into the pool (POST /jobs/scan). */
-  scan(opts: { maxPerRole: number; jobAge: number }): Promise<Result<ScanResult>>;
+  /** Scrape the enabled portals (user-side) for the user's target roles and ingest into the pool. */
+  scan(opts: { maxPerRole: number; jobAge: number; sources: ScanSource[] }): Promise<Result<ScanResult>>;
   /** Fast triage pass for a pooled job (POST /jobs/:id/evaluate/quick). */
   evaluateQuick(id: string): Promise<Result<JobEvaluation>>;
   /** Decision-view eval for a pooled job — per-block B/C/D/G, web-grounded D/G (POST /jobs/:id/evaluate/blocks). */
@@ -292,7 +350,14 @@ export interface JobsApi {
 // ── Settings domain (app-local, non-secret) ──────────────────────────────────
 
 export type LlmProvider = "ollama";
-export type ScanSource = "naukri" | "linkedin" | "indeed" | "greenhouse" | "lever";
+export type ScanSource =
+  | "naukri"
+  | "hirist"
+  | "instahyre"
+  | "linkedin"
+  | "indeed"
+  | "greenhouse"
+  | "lever";
 
 export interface LlmSettings {
   provider: LlmProvider;
@@ -334,6 +399,8 @@ export interface ProfilePrefs {
   openToRelocate: boolean;
   employmentType: string | null;
   expectedCtc: number | null;
+  /** Instahyre job_function codes that drive the Instahyre portal adapter's facet. */
+  instahyreJobFunctions: number[];
   headline: string | null;
   bio: string | null;
   // Identity & contact
@@ -353,6 +420,7 @@ export interface ProfilePatch {
   preferredLocations?: string[];
   openToRemote?: boolean;
   openToRelocate?: boolean;
+  instahyreJobFunctions?: number[];
   headline?: string;
   bio?: string;
   // Identity & contact

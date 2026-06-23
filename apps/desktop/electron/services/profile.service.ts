@@ -15,6 +15,7 @@ function toPrefs(p: any): ProfilePrefs {
     openToRelocate: !!p?.openToRelocate,
     employmentType: p?.employmentType ?? null,
     expectedCtc: num(p?.expectedCtc),
+    instahyreJobFunctions: Array.isArray(p?.instahyreJobFunctions) ? p.instahyreJobFunctions : [],
     headline: p?.headline ?? null,
     bio: p?.narrative ?? null,
     fullName: p?.fullName ?? null,

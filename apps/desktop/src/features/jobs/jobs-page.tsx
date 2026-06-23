@@ -7,12 +7,25 @@ import { JobsDataTable } from "./jobs-data-table";
 import { JobInsightsSheet } from "./job-insights-sheet";
 import { useSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/button";
+import { MultiStepLoader } from "@/components/ui/multi-step-loader";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import type { EvaluationSummary, JobRanking, MatchFloor } from "@compass/ipc-contract";
 
 const MATCH_THRESHOLDS: Record<MatchFloor, number> = { all: 0, fair: 40, strong: 70 };
+
+// Full pipeline shown in the loader: scan phase (indices 0..SCAN_PHASE_MAX) then the
+// ranking phase. `step` is driven by the real scan/ranking state, not a blind timer.
+const PIPELINE_LOADING_STATES = [
+  { text: "Reaching out to job boards" },
+  { text: "Scanning Naukri, Hirist & Instahyre" },
+  { text: "Reading job descriptions" },
+  { text: "Removing duplicates & building your feed" },
+  { text: "Ranking your jobs with REINIT (ofertas)" },
+  { text: "Scoring & sorting your matches" },
+];
+const SCAN_PHASE_MAX = 3; // last index that belongs to the scan phase
 
 export function JobsPage() {
   const { data: jobs, isLoading, error } = useJobsFeed();
@@ -23,6 +36,10 @@ export function JobsPage() {
   // Ranking (ofertas) state — runs the agent after a scan.
   const [ranking, setRanking] = useState(false);
   const trustedRef = useRef(false);
+
+  // Unified scan→rank progress for the full-screen loader. The step reflects the real
+  // phase (scanning vs ranking); within a phase it eases forward on a timer.
+  const [step, setStep] = useState(0);
 
   const runRankScan = async () => {
     setRanking(true);
@@ -38,6 +55,7 @@ export function JobsPage() {
       const res = await api.jobs.scan({
         maxPerRole: settings?.scan.maxPerRole ?? 20,
         jobAge: settings?.scan.jobAge ?? 1,
+        sources: settings?.scan.sources ?? ["naukri"],
       });
       if (!res.ok) throw new Error(res.error);
       return res.data;
@@ -49,6 +67,28 @@ export function JobsPage() {
       else setPending({ type: "rank" });
     },
   });
+
+  // The loader is up for the whole pipeline (scan + ranking) so the list only appears
+  // once everything is done.
+  const busy = scan.isPending || ranking;
+
+  // Jump the step into the ranking phase the moment ranking starts.
+  useEffect(() => {
+    if (ranking) setStep(SCAN_PHASE_MAX + 1);
+  }, [ranking]);
+
+  // Ease the step forward within the current phase (scan caps at SCAN_PHASE_MAX,
+  // ranking caps at the last step) until the work actually completes.
+  useEffect(() => {
+    if (!busy) { setStep(0); return; }
+    const id = setInterval(() => {
+      setStep((s) => {
+        const max = ranking ? PIPELINE_LOADING_STATES.length - 1 : SCAN_PHASE_MAX;
+        return Math.min(s + 1, max);
+      });
+    }, 1200);
+    return () => clearInterval(id);
+  }, [busy, ranking]);
 
   // Run the reinit skill (claude -p) to evaluate one job → pushes to /evaluations.
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
@@ -166,11 +206,11 @@ export function JobsPage() {
           <Button
             size="sm"
             onClick={() => scan.mutate()}
-            disabled={scan.isPending}
+            disabled={busy}
             className="bg-brand text-white hover:bg-brand-hover"
           >
-            {scan.isPending ? (
-              <><Loader2 className="mr-2 size-4 animate-spin" />Scanning…</>
+            {busy ? (
+              <><Loader2 className="mr-2 size-4 animate-spin" />{ranking ? "Ranking…" : "Scanning…"}</>
             ) : "Scan Jobs"}
           </Button>
         </div>
@@ -185,26 +225,19 @@ export function JobsPage() {
           Evaluating with REINIT… this runs the skill in the background and can take a minute.
         </p>
       )}
-      {ranking && (
-        <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Ranking your jobs with REINIT (ofertas)… scores will appear when it finishes.
-        </p>
-      )}
-
-      {scan.isSuccess && (
+      {scan.isSuccess && !busy && (
         <p className="mb-4 text-sm text-muted-foreground">
           Scan complete — {scan.data.inserted} new role{scan.data.inserted !== 1 ? "s" : ""} added across {scan.data.scannedRoles} target role{scan.data.scannedRoles !== 1 ? "s" : ""}.
         </p>
       )}
 
 
-      {isLoading || scan.isPending ? (
+      <MultiStepLoader loadingStates={PIPELINE_LOADING_STATES} loading={busy} value={step} />
+
+      {isLoading ? (
         <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
           <Loader2 className="size-7 animate-spin text-brand" />
-          <p className="text-sm text-muted-foreground">
-            {scan.isPending ? "Scanning jobs for your roles…" : "Loading…"}
-          </p>
+          <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       ) : filtered.length > 0 ? (
         view === "table" ? (

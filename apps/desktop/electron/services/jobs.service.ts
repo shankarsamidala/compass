@@ -2,9 +2,34 @@ import { rm, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
 import { authedFetch } from "../core/http";
-import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation, type JobRanking } from "@compass/ipc-contract";
+import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation, type JobRanking, type ScanSource, type CanonicalJob } from "@compass/ipc-contract";
 import { searchJobsForRole } from "./naukri.service";
+import { searchJobsForRole as hiristSearch } from "./hirist.service";
+import { searchJobsForRole as instahyreSearch } from "./instahyre.service";
 import { cliService } from "./cli.service";
+
+/** Per-role search opts every portal adapter accepts (user-side scrape). */
+export interface AdapterSearchOpts {
+  keyword: string;
+  max: number;
+  jobAge: number;
+  experience: number | null;
+  location?: string;
+  pages: number;
+  /** User's skills — Instahyre queries by `skills=` (comma-separated), not free text. */
+  skills?: string[];
+  /** Instahyre job-function codes from the user's profile (e.g. 8 = DevOps/Cloud). */
+  jobFunctions?: number[];
+}
+
+// Portal registry — each entry is a user-side adapter that maps its raw response →
+// CanonicalJob[]. Add hirist/instahyre here once their adapters land; the scan()
+// fan-out below picks up any source listed here that the user has enabled.
+const ADAPTERS: Partial<Record<ScanSource, (opts: AdapterSearchOpts) => Promise<CanonicalJob[]>>> = {
+  naukri: searchJobsForRole,
+  hirist: hiristSearch,
+  instahyre: instahyreSearch,
+};
 
 /** Slice the first JSON array out of an agent's text reply (tolerates prose/fences). */
 function extractJsonArray(text: string): unknown[] | null {
@@ -80,7 +105,14 @@ export const jobsService = {
     return ok({ job: toFeedJob(json.job) });
   },
 
-  async scan(opts: { maxPerRole: number; jobAge: number }): Promise<Result<ScanResult>> {
+  async scan(opts: { maxPerRole: number; jobAge: number; sources: ScanSource[] }): Promise<Result<ScanResult>> {
+    // Resolve enabled sources → adapters we actually ship. Unknown / not-yet-built
+    // portals are silently dropped so the UI can list them as "coming soon".
+    const enabled = (opts.sources ?? [])
+      .filter((s, i, a) => a.indexOf(s) === i)
+      .filter((s): s is ScanSource => Boolean(ADAPTERS[s]));
+    if (enabled.length === 0) return err("No scrapeable job boards enabled — turn one on in Job Preferences.", "NO_SOURCES");
+
     // Step 1 — fetch the user's canonical target roles (with slugs needed for ingest).
     const rolesRes = await authedFetch("/jobs/target-roles", { method: "GET" });
     if (!rolesRes) return err("Could not reach the server", "NETWORK");
@@ -90,9 +122,11 @@ export const jobsService = {
     if (roles.length === 0) return err("No target roles set — add target roles in Job Preferences first.", "NO_ROLES");
 
     // Step 1b — read the user's experience + preferred cities to filter the search
-    // (mirror the website's `experience=` and `cityTypeGid=` params).
+    // (mirror the website's `experience=` and `cityTypeGid=` params), plus the
+    // Instahyre job-function codes the user picked in onboarding.
     let experience: number | null = null;
     let preferredLocations: string[] = [];
+    let jobFunctions: number[] = [];
     const profRes = await authedFetch("/profile", { method: "GET" }).catch(() => null);
     if (profRes?.ok) {
       const prof = await profRes.json().catch(() => ({}));
@@ -101,19 +135,63 @@ export const jobsService = {
       if (Array.isArray(prof?.preferredLocations)) {
         preferredLocations = prof.preferredLocations.filter((s: unknown) => typeof s === "string" && s.trim());
       }
+      if (Array.isArray(prof?.instahyreJobFunctions)) {
+        jobFunctions = prof.instahyreJobFunctions.map(Number).filter((n: number) => Number.isFinite(n));
+      }
     }
 
-    // Step 2 — USER-SIDE scrape (Naukri on the user's IP, never the server). One
-    // combined search across roles, jobAge=1, capped to 20, paginated, location-filtered.
+    // Step 1c — Instahyre searches by `skills=`, not free text. Pull the user's
+    // Primary skills from the full profile only when Instahyre is in the mix.
+    let skills: string[] = [];
+    if (enabled.includes("instahyre")) {
+      const fullRes = await authedFetch("/profile/full", { method: "GET" }).catch(() => null);
+      if (fullRes?.ok) {
+        const full = await fullRes.json().catch(() => ({}));
+        const rows: Array<{ skill?: string; section?: string }> = Array.isArray(full?.skills) ? full.skills : [];
+        skills = rows
+          .filter((r) => (r.section ?? "Primary") === "Primary" && r.skill)
+          .map((r) => String(r.skill));
+      }
+    }
+
+    // Step 2 — USER-SIDE scrape (every adapter runs on the user's IP, never the
+    // server). One combined search across roles, jobAge=1, capped to 20, paginated,
+    // location-filtered — fanned out across enabled portals, then merged + deduped.
     const combinedKeyword = roles.map((r) => r.name).join(", ");
-    const scraped = await searchJobsForRole({
+    const searchOpts: AdapterSearchOpts = {
       keyword: combinedKeyword,
       max: 20,
-      jobAge: 1,
+      jobAge: opts.jobAge > 0 ? opts.jobAge : 1,
       experience,
       location: preferredLocations.length > 0 ? preferredLocations.join(",") : undefined,
       pages: 10,
-    }).catch(() => []);
+      skills,
+      jobFunctions,
+    };
+    const results = await Promise.all(
+      enabled.map(async (s) => {
+        try {
+          const list = await ADAPTERS[s]!(searchOpts);
+          console.log(`[scan] ${s}: ${list.length} jobs`);
+          return list;
+        } catch (e) {
+          console.error(`[scan] ${s} FAILED:`, e);
+          return [] as CanonicalJob[];
+        }
+      }),
+    );
+    console.log(`[scan] searchOpts:`, { keyword: combinedKeyword, experience, location: searchOpts.location, skills: skills.length, jobFunctions });
+    // Dedupe across portals by source + externalId (same job can surface twice).
+    const seen = new Set<string>();
+    const scraped: CanonicalJob[] = [];
+    for (const list of results) {
+      for (const j of list) {
+        const key = `${j.source}:${j.externalId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        scraped.push(j);
+      }
+    }
 
     // Attribute each result to the best-matching canonical role (combined search loses
     // per-role attribution; the pool requires a canonical role per job).
@@ -126,36 +204,47 @@ export const jobsService = {
       return roles[0];
     };
 
+    // null → undefined (the ingest zod schema uses optional, not nullable).
+    const u = <T>(v: T | null | undefined): T | undefined => v ?? undefined;
     const counts = new Map<string, number>();
-    const allJobs: Array<{
-      source: string; canonicalRoleSlug: string; title: string; company: string;
-      location?: string; jobUrl?: string; externalId?: string; jobDescription?: string;
-      postedAt?: string; logoUrl?: string; skills?: string[];
-    }> = [];
+    const allJobs: Array<Record<string, unknown>> = [];
 
     for (const j of scraped) {
       const role = pickSlug(j.title);
       counts.set(role.name, (counts.get(role.name) ?? 0) + 1);
-      // Build a JD from the cleaned search fields (skills + experience + salary blocks).
-      const skillsBlock = j.skills?.length ? `\n\nKey Skills: ${j.skills.join(", ")}` : "";
-      const expBlock = j.experienceMin != null
-        ? `\n\nExperience: ${j.experienceMin}${j.experienceMax != null ? `–${j.experienceMax}` : "+"} years`
-        : "";
-      const salBlock = j.salaryRaw ? `\nSalary: ${j.salaryRaw}` : "";
-      const jd = (j.fullDescription || j.shortDescription) + skillsBlock + expBlock + salBlock;
-
       allJobs.push({
         source: j.source,
         canonicalRoleSlug: role.slug,
         title: j.title,
         company: j.company,
-        location: j.location || j.workMode || undefined,
-        jobUrl: j.sourceUrl || undefined,
-        externalId: j.sourceJobId,
-        jobDescription: jd || undefined,
-        postedAt: j.postedAt ?? undefined,
-        logoUrl: j.logoUrl ?? undefined,
+        location: u(j.location) ?? u(j.workMode),
+        jobUrl: u(j.sourceUrl),
+        externalId: u(j.externalId),
+        jobDescription: u(j.jd),
+        jdStructured: j.jdStructured ?? undefined,
+        postedAt: u(j.postedAt),
+        logoUrl: u(j.logoUrl),
         skills: j.skills.length ? j.skills : undefined,
+        skillsMeta: j.skillsMeta ?? undefined,
+        expMin: u(j.expMin),
+        expMax: u(j.expMax),
+        workMode: u(j.workMode),
+        employmentType: u(j.employmentType),
+        seniority: u(j.seniority),
+        salaryDisclosed: u(j.salaryDisclosed),
+        salaryMin: u(j.salaryMin),
+        salaryMax: u(j.salaryMax),
+        ctcMin: u(j.ctcMin),
+        ctcMax: u(j.ctcMax),
+        ctcAvg: u(j.ctcAvg),
+        applicants: u(j.applicants),
+        companyRating: u(j.companyRating),
+        companyReviewsCount: u(j.companyReviewsCount),
+        companyType: u(j.companyType),
+        companySize: u(j.companySize),
+        industry: u(j.industry),
+        aboutCompany: u(j.aboutCompany),
+        benefits: j.benefits ?? undefined,
       });
     }
 

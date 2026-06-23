@@ -10,6 +10,7 @@ import { useSettings, useUpdateSettings } from "../api";
 import { useProfilePrefs, useUpdateProfile } from "../profile-api";
 import { TargetRolesPicker } from "../components/target-roles-picker";
 import { PrefDivider, RadioCard, RadioPill, CheckChip } from "../components/pref-controls";
+import { JobFunctionMultiSelect } from "../components/job-function-multiselect";
 
 const MATCH_FLOORS: { value: MatchFloor; label: string }[] = [
   { value: "all", label: "Show all" },
@@ -18,6 +19,8 @@ const MATCH_FLOORS: { value: MatchFloor; label: string }[] = [
 ];
 const BOARDS: { id: ScanSource; name: string; desc: string; available: boolean }[] = [
   { id: "naukri", name: "Naukri", desc: "India's largest job board. Scraped from your own IP.", available: true },
+  { id: "hirist", name: "Hirist", desc: "India IT/dev roles. Scraped from your own IP.", available: true },
+  { id: "instahyre", name: "Instahyre", desc: "Curated tech roles. Uses your skills + job function. No salary/date.", available: true },
   { id: "linkedin", name: "LinkedIn", desc: "Roles from your network and beyond.", available: false },
   { id: "indeed", name: "Indeed", desc: "Broad aggregator across companies.", available: false },
   { id: "greenhouse", name: "Greenhouse", desc: "Direct from company Greenhouse boards.", available: false },
@@ -232,6 +235,35 @@ export function JobSearchPanel() {
           ))}
         </div>
       </div>
+
+      {/* Instahyre job functions — only relevant when Instahyre is an enabled board */}
+      {scan.sources.includes("instahyre") && (
+        <>
+          <PrefDivider />
+          <InstahyreJobFunctions
+            selected={prefs.instahyreJobFunctions}
+            onSave={(ids) => updateProfile.mutate({ instahyreJobFunctions: ids })}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Instahyre-specific picker: which job functions to search. Instahyre has no free-text
+ * keyword — it filters by skills (from your profile) plus these job_function codes.
+ * Persists to the profile so the user-side Instahyre adapter can read them at scan time.
+ */
+function InstahyreJobFunctions({ selected, onSave }: { selected: number[]; onSave: (ids: number[]) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-bold text-white">Instahyre job functions</p>
+      <p className="text-xs text-foreground">
+        Instahyre has no keyword search — it matches on your skills plus the job functions you pick here.
+        Leave empty to search across all functions.
+      </p>
+      <JobFunctionMultiSelect value={selected} onChange={onSave} />
     </div>
   );
 }

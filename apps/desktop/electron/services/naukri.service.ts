@@ -4,6 +4,15 @@
  */
 
 import { createPublicKey, publicEncrypt, constants } from "crypto";
+import type { CanonicalJob } from "@compass/ipc-contract";
+import { htmlToText, parseJdSections } from "./jd-parse";
+
+/** Parse a numeric-ish value (number or string) → number, or null. */
+const toNum = (v: unknown): number | null => {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
 
 const RSA_PUB_KEY =
   "MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBALrlQ+djR0RjJwBF1xuisHmdFv334MImK6Lg" +
@@ -61,8 +70,6 @@ async function getWithRetry(
   return null;
 }
 
-const stripHtml = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-
 const absUrl = (u?: string) =>
   !u ? "" : u.startsWith("http") ? u : `https://www.naukri.com${u}`;
 
@@ -78,69 +85,69 @@ function parseNaukriDate(v: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-export interface ScrapedJob {
-  source: "naukri";
-  sourceJobId: string;
-  sourceUrl: string;
-  title: string;
-  company: string;
-  location: string;
-  workMode: string;          // Office | Remote | Hybrid
-  salaryRaw: string;
-  experienceMin: number | null;
-  experienceMax: number | null;
-  shortDescription: string;
-  fullDescription: string;   // stripped full JD text from v4 detail
-  skills: string[];
-  employmentType: string | null;
-  postedAt: string | null;   // ISO date string
-  logoUrl: string | null;    // company logo (from search/detail)
-}
+// wfhType → canonical work mode.
+const WORK_MODE: Record<string, CanonicalJob["workMode"]> = { "0": "onsite", "2": "remote", "3": "hybrid" };
 
-/** Fetch full detail for a single Naukri job id. Returns null on failure. */
-async function fetchDetail(jobId: string): Promise<Partial<ScrapedJob> | null> {
+/**
+ * Fetch full v4 detail for a Naukri job id → canonical enrichment fields.
+ * Includes AmbitionBox (rating, CTC band, benefits) which Naukri bundles in v4.
+ */
+async function fetchDetail(jobId: string): Promise<Partial<CanonicalJob> | null> {
   const url = `https://www.naukri.com/jobapi/v4/job/${jobId}?src=qsbUsage&xp=1&px=1`;
   const data = await getWithRetry(url, jobId, DETAIL_HEADERS);
   if (!data || typeof data !== "object" || !("jobDetails" in data)) return null;
 
-  const jd = ((data as Record<string, unknown>).jobDetails ?? {}) as Record<string, unknown>;
+  const root = data as Record<string, unknown>;
+  const jd = (root.jobDetails ?? {}) as Record<string, unknown>;
   const cd = (jd.companyDetail ?? {}) as Record<string, unknown>;
   const sal = (jd.salaryDetail ?? {}) as Record<string, unknown>;
   const skillsRaw = (jd.keySkills ?? {}) as Record<string, unknown>;
+  const ab = (root.ambitionBoxDetails ?? {}) as Record<string, unknown>;
+  const abInfo = (ab.companyInfo ?? {}) as Record<string, unknown>;
+  const abSal = (ab.salaries ?? {}) as Record<string, unknown>;
+  const abBen = (ab.benefits ?? {}) as Record<string, unknown>;
 
   const labels = (arr: unknown): string[] =>
-    ((arr ?? []) as Array<Record<string, unknown>>)
-      .map((s) => String(s.label ?? ""))
-      .filter(Boolean);
+    ((arr ?? []) as Array<Record<string, unknown>>).map((s) => String(s.label ?? "")).filter(Boolean);
 
-  const locations = labels(jd.locations);
-  const wfhType = String(jd.wfhType ?? "");
-  const workModeMap: Record<string, string> = { "0": "Office", "2": "Remote", "3": "Hybrid" };
-  const workMode = workModeMap[wfhType] ?? "";
-  let location = locations.join(", ");
-  if (workMode && workMode !== "Office") location = location ? `${workMode} - ${location}` : workMode;
+  // Skills: preferred = mandatory, other = optional. Preferred wins on dup.
+  const meta = new Map<string, boolean>();
+  for (const l of labels(skillsRaw.other)) meta.set(l, false);
+  for (const l of labels(skillsRaw.preferred)) meta.set(l, true);
+  const skillsMeta = [...meta].map(([name, mandatory]) => ({ name, mandatory }));
 
-  const skills = [...new Set([...labels(skillsRaw.preferred), ...labels(skillsRaw.other)])];
-  const fullDescription = stripHtml(String(jd.description ?? ""));
-
-  const expMin = jd.minimumExperience != null ? Number(jd.minimumExperience) : null;
-  const expMax = jd.maximumExperience != null ? Number(jd.maximumExperience) : null;
-
-  // Company logo: detail's clientLogo / banner (v4) — falls back to the v3 search logo on merge.
-  const logoUrl = (jd.clientLogo as string) ?? (jd.banner as string) ?? (jd.socialBanner as string) ?? null;
+  const description = String(jd.description ?? "");
+  const disclosed = sal.hideSalary != null ? !sal.hideSalary : null;
+  const benefits = ((abBen.List ?? []) as Array<Record<string, unknown>>)
+    .filter((b) => String(b.Status) === "true")
+    .map((b) => String(b.BenefitName ?? ""))
+    .filter(Boolean);
 
   return {
-    company: String(cd.name ?? ""),
-    location,
-    workMode,
-    salaryRaw: String(sal.label ?? ""),
-    experienceMin: expMin,
-    experienceMax: expMax,
-    fullDescription,
-    skills,
+    company: String(cd.name ?? "") || undefined,
+    location: labels(jd.locations).join(", ") || undefined,
+    logoUrl: (jd.clientLogo as string) ?? (jd.banner as string) ?? (jd.socialBanner as string) ?? null,
+    workMode: WORK_MODE[String(jd.wfhType ?? "")] ?? null,
     employmentType: (jd.employmentType as string) ?? null,
+    expMin: toNum(jd.minimumExperience),
+    expMax: toNum(jd.maximumExperience),
     postedAt: parseNaukriDate(jd.createdDate),
-    logoUrl,
+    skills: [...meta.keys()],
+    skillsMeta,
+    jd: htmlToText(description),
+    jdStructured: parseJdSections(description),
+    salaryDisclosed: disclosed,
+    salaryMin: disclosed ? toNum(sal.minimumSalary) || null : null,
+    salaryMax: disclosed ? toNum(sal.maximumSalary) || null : null,
+    ctcMin: toNum(abSal.MinCtc),
+    ctcMax: toNum(abSal.MaxCtc),
+    ctcAvg: toNum(abSal.AverageCtc),
+    applicants: toNum(jd.applyCount),
+    companyRating: toNum(abInfo.AggregateRating),
+    companyReviewsCount: toNum(abInfo.ReviewsCount),
+    industry: (jd.industry as string) ?? null,
+    aboutCompany: htmlToText(String(cd.details ?? "")) || null,
+    benefits: benefits.length ? benefits : null,
   };
 }
 
@@ -186,38 +193,46 @@ function cityQuery(location?: string): string {
   return [...new Set(gids)].map((g) => `&cityTypeGid=${g}`).join("");
 }
 
-/** Parse one v3 search item into a minimal ScrapedJob (detail fetch enriches it). */
-function parseSearchItem(raw: unknown): ScrapedJob | null {
+// A search-only canonical job (detail fetch enriches it). All enrichment fields
+// default to null; the v4 detail fills them in.
+const EMPTY: Omit<CanonicalJob, "source" | "externalId" | "sourceUrl" | "title" | "company"> = {
+  location: null, logoUrl: null, postedAt: null,
+  expMin: null, expMax: null, workMode: null, employmentType: null, seniority: null,
+  skills: [], skillsMeta: null, jd: null, jdStructured: null,
+  salaryDisclosed: null, salaryMin: null, salaryMax: null, ctcMin: null, ctcMax: null, ctcAvg: null,
+  applicants: null, companyRating: null, companyReviewsCount: null,
+  companyType: null, companySize: null, industry: null, aboutCompany: null, benefits: null,
+};
+
+/** Parse one v3 search item into a partial CanonicalJob (detail fetch enriches it). */
+function parseSearchItem(raw: unknown): CanonicalJob | null {
   const item = raw as Record<string, unknown>;
   const jobId = String(item.jobId ?? "");
   if (!jobId) return null;
   const placeholders = (item.placeholders ?? []) as Array<{ type?: string; label?: string }>;
   const ph = (type: string) => placeholders.find((p) => p.type === type)?.label ?? "";
-  const sal = (item.salaryDetail ?? {}) as Record<string, unknown>;
   const jdUrl = (item.jdURL as string) ?? (item.staticUrl as string) ?? "";
   // Skills from `tagsAndSkills` (v3 search). Detail fetch unions richer v4 skills.
   const skills = String(item.tagsAndSkills || "").split(",").map((s) => s.trim()).filter(Boolean);
   // Work mode is the location-label prefix ("Hybrid - …" / "Remote - …").
   const locLabel = ph("location");
-  let workMode = "Office";
+  let workMode: CanonicalJob["workMode"] = "onsite";
   let location = locLabel;
   const m = locLabel.match(/^\s*(Hybrid|Remote)\s*-\s*(.*)$/i);
-  if (m) { workMode = m[1]; location = m[2].trim(); }
+  if (m) { workMode = m[1].toLowerCase() as CanonicalJob["workMode"]; location = m[2].trim(); }
   return {
+    ...EMPTY,
     source: "naukri",
-    sourceJobId: jobId,
+    externalId: jobId,
     sourceUrl: absUrl(jdUrl),
     title: String(item.title ?? ""),
     company: String(item.companyName ?? ""),
-    location,
+    location: location || null,
     workMode,
-    salaryRaw: ph("salary"),
-    experienceMin: item.minimumExperience != null ? Number(item.minimumExperience) : null,
-    experienceMax: item.maximumExperience != null ? Number(item.maximumExperience) : null,
-    shortDescription: stripHtml(String(item.jobDescription ?? "")),
-    fullDescription: "",
+    expMin: toNum(item.minimumExperience),
+    expMax: toNum(item.maximumExperience),
     skills,
-    employmentType: null,
+    jd: htmlToText(String(item.jobDescription ?? "")) || null, // fallback if detail fails
     postedAt: parseNaukriDate(item.createdDate),
     logoUrl: (item.logoPathV3 as string) ?? (item.logoPath as string) ?? null,
   };
@@ -236,7 +251,7 @@ export interface SearchOpts {
  * Search Naukri (user's IP) → freshness-filter → cap to `max` → fetch full v4
  * details for the capped set (concurrency 5). Paginated; deduped by jobId.
  */
-export async function searchJobsForRole(opts: SearchOpts): Promise<ScrapedJob[]> {
+export async function searchJobsForRole(opts: SearchOpts): Promise<CanonicalJob[]> {
   const max = opts.max ?? 20;
   const pages = Math.min(Math.max(opts.pages ?? 1, 1), 10);
   const limit = 50;
@@ -244,7 +259,7 @@ export async function searchJobsForRole(opts: SearchOpts): Promise<ScrapedJob[]>
   const exp = opts.experience != null && opts.experience >= 0 ? `&experience=${Math.round(opts.experience)}` : "";
   const qs = `&keyword=${encodeURIComponent(opts.keyword)}${age}${exp}${cityQuery(opts.location)}`;
 
-  const byId = new Map<string, ScrapedJob>();
+  const byId = new Map<string, CanonicalJob>();
   for (let p = 1; p <= pages; p++) {
     const url =
       `https://www.naukri.com/jobapi/v3/search?noOfResults=${limit}` +
@@ -255,7 +270,7 @@ export async function searchJobsForRole(opts: SearchOpts): Promise<ScrapedJob[]>
     if (items.length === 0) break;
     for (const raw of items) {
       const sj = parseSearchItem(raw);
-      if (sj && !byId.has(sj.sourceJobId)) byId.set(sj.sourceJobId, sj);
+      if (sj && !byId.has(sj.externalId)) byId.set(sj.externalId, sj);
     }
     if (items.length < limit) break;
   }
@@ -271,24 +286,17 @@ export async function searchJobsForRole(opts: SearchOpts): Promise<ScrapedJob[]>
   jobs = jobs.slice(0, max);
   if (jobs.length === 0) return [];
 
-  const detailTasks = jobs.map((job) => async () => {
-    const detail = await fetchDetail(job.sourceJobId).catch(() => null);
-    if (!detail) return job;
-    return {
-      ...job,
-      company: detail.company || job.company,
-      location: detail.location || job.location,
-      workMode: detail.workMode || job.workMode,
-      salaryRaw: detail.salaryRaw || job.salaryRaw,
-      experienceMin: detail.experienceMin ?? job.experienceMin,
-      experienceMax: detail.experienceMax ?? job.experienceMax,
-      fullDescription: detail.fullDescription || "",
-      // Union v3 (keySkills) + v4 (preferred/other) so we keep the richest skill set.
-      skills: [...new Set([...(job.skills ?? []), ...(detail.skills ?? [])])],
-      employmentType: detail.employmentType ?? null,
-      postedAt: detail.postedAt ?? job.postedAt ?? null,
-      logoUrl: detail.logoUrl || job.logoUrl,
-    };
+  const detailTasks = jobs.map((job) => async (): Promise<CanonicalJob> => {
+    const d = await fetchDetail(job.externalId).catch(() => null);
+    if (!d) return job;
+    // Prefer detail values; union skills so we keep the richest set.
+    const skills = [...new Set([...(job.skills ?? []), ...(d.skills ?? [])])];
+    const merged = { ...job } as CanonicalJob;
+    for (const [k, v] of Object.entries(d)) {
+      if (v != null) (merged as Record<string, unknown>)[k] = v;
+    }
+    merged.skills = skills;
+    return merged;
   });
 
   return withConcurrency(detailTasks, 5);

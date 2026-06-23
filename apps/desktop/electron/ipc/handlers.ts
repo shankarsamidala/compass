@@ -1,3 +1,4 @@
+import type { ScanSource } from "@compass/ipc-contract";
 import { safeHandle } from "../core/ipc";
 import { authService } from "../services/auth.service";
 import { cliService } from "../services/cli.service";
@@ -67,7 +68,7 @@ export function registerIpcHandlers(): void {
   // ── Jobs (feed + detail + scan) ──
   safeHandle("jobs:list", () => jobsService.list());
   safeHandle("jobs:get", (id: string) => jobsService.get(id));
-  safeHandle("jobs:scan", (opts: { maxPerRole: number; jobAge: number }) => jobsService.scan(opts));
+  safeHandle("jobs:scan", (opts: { maxPerRole: number; jobAge: number; sources: ScanSource[] }) => jobsService.scan(opts));
   safeHandle("jobs:evaluate-quick", (id: string) => jobsService.evaluateQuick(id));
   safeHandle("jobs:evaluate", (id: string) => jobsService.evaluate(id));
   safeHandle("jobs:evaluate-agent", (id: string) => jobsService.evaluateViaAgent(id));
