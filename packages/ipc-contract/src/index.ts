@@ -343,6 +343,17 @@ export interface JobsApi {
   evaluateAgent(id: string): Promise<Result<{ result: string }>>;
   /** Run ofertas (claude -p) on the freshly-scanned pool → save per-user rankings. */
   rankScan(): Promise<Result<{ saved: number }>>;
+  /** Write JD files for the given job IDs (max 25) and run ofertas on just those. */
+  rankSelected(jobIds: string[]): Promise<Result<{ saved: number }>>;
+  /** Tailor a resume for one job (reinit `pdf` mode tailoring, claude -p) → store it as
+   *  PremiumResumeData JSON (POST /tailored-cv). PDF rendering is held; returns the
+   *  ATS keyword-coverage %. */
+  tailorResume(id: string): Promise<Result<{ saved: boolean; keywordCoverage: number | null }>>;
+  /** Draft a cover letter for one job (reinit `cover` mode, claude -p). Returns the letter text. */
+  coverLetter(id: string): Promise<Result<{ letter: string }>>;
+  /** Live progress lines emitted while rankScan runs (agent stdout summaries).
+   *  Returns an unsubscribe fn. Used to show which job is being read in the loader. */
+  onRankProgress(cb: (line: string) => void): () => void;
   /** The caller's stored ofertas rankings, to merge into the table. */
   rankings(): Promise<Result<{ rankings: JobRanking[] }>>;
 }
@@ -374,9 +385,16 @@ export interface ScanSettings {
   /** Minimum match band to show in the feed. */
   minMatch: MatchFloor;
 }
+/** How boldly the resume tailor reframes real experience. The profile is always the
+ *  ceiling — higher intensity surfaces more real-but-unlisted skills, never invents. */
+export type TailoringIntensity = "conservative" | "balanced" | "aggressive";
+export interface TailoringSettings {
+  intensity: TailoringIntensity;
+}
 export interface AppSettings {
   llm: LlmSettings;
   scan: ScanSettings;
+  tailoring: TailoringSettings;
 }
 
 export interface SettingsApi {
@@ -769,11 +787,17 @@ export interface EvaluationsApi {
   get(id: string): Promise<Result<{ evaluation: EvaluationDetail }>>;
 }
 
+/** Open locally-generated files (e.g. a tailored resume PDF) in the OS default app. */
+export interface ArtifactApi {
+  open(path: string): Promise<Result<Record<string, never>>>;
+}
+
 export interface CompassApi {
   version: string;
   auth: AuthApi;
   cli: CliApi;
   evaluations: EvaluationsApi;
+  artifact: ArtifactApi;
   onboarding: OnboardingApi;
   suggest: SuggestApi;
   llm: LlmApi;

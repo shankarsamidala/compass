@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/ipc";
-import type { ScanSource, MatchFloor } from "@compass/ipc-contract";
+import type { ScanSource, MatchFloor, TailoringIntensity } from "@compass/ipc-contract";
 import { useSettings, useUpdateSettings } from "../api";
 import { useProfilePrefs, useUpdateProfile } from "../profile-api";
 import { TargetRolesPicker } from "../components/target-roles-picker";
@@ -52,6 +52,9 @@ export function JobSearchPanel() {
   }
 
   const scan = settings.scan;
+  const tailoring = settings.tailoring;
+  const setIntensity = (intensity: TailoringIntensity) =>
+    updateSettings.mutate({ tailoring: { ...tailoring, intensity } });
   const toggleBoard = (id: ScanSource, on: boolean) =>
     updateSettings.mutate({ scan: { ...scan, sources: on ? [...new Set([...scan.sources, id])] : scan.sources.filter((s) => s !== id) } });
 
@@ -61,8 +64,8 @@ export function JobSearchPanel() {
       {/* Career mode */}
       <span className="flex flex-row gap-4">
         <div className="flex flex-1 flex-col gap-1">
-          <p className="text-base text-white font-bold">Career mode <span className="text-foreground text-xs font-normal">(beta)</span></p>
-          <p className="text-xs leading-relaxed text-foreground">
+          <p className="text-base text-foreground font-semibold">Career mode <span className="text-foreground text-xs font-normal">(beta)</span></p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             When this is on, Compass works as your trusted talent agent, introducing you to real roles for your approval. Nothing is shared without your say-so. We'll only reach out when a role is worth your time. No spam. No pressure. Your career, your terms.
           </p>
         </div>
@@ -92,16 +95,16 @@ export function JobSearchPanel() {
       {/* Supercharge */}
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <p className="text-base font-bold text-white">Supercharge your match quality</p>
-          <p className="text-xs leading-relaxed text-foreground">
+          <p className="text-base font-semibold text-foreground">Supercharge your match quality</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             The more we understand your background and current terms, the better we can filter out noise and surface only roles that are truly worth your attention.
           </p>
         </div>
         <div className="flex flex-row gap-6">
           <CvUpload />
           <div className="flex flex-1 flex-col gap-2">
-            <p className="text-sm font-medium text-white">Upload Employment Agreement</p>
-            <p className="text-xs leading-relaxed text-foreground">
+            <p className="text-sm font-medium text-foreground">Upload Employment Agreement</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Sharing your current agreement lets us guarantee that any role we surface will exceed your existing terms. 100% confidential — only used to protect your time and negotiating power.
             </p>
             <Button size="sm" variant="outline" disabled className="mr-auto mb-4 font-normal">Upload PDF</Button>
@@ -113,11 +116,11 @@ export function JobSearchPanel() {
 
       {/* Must-haves */}
       <div className="flex flex-col gap-6">
-        <p className="text-base font-bold text-white">Your must-haves</p>
+        <p className="text-base font-semibold text-foreground">Your must-haves</p>
 
         {/* Target role text + role type */}
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-bold text-white">What kind of role are you looking for?</p>
+          <p className="text-sm font-semibold text-foreground">What kind of role are you looking for?</p>
           <TargetRolesPicker />
           <div className="mt-1 flex flex-row flex-wrap items-center gap-1">
             <RadioPill label="Auto (Recommended)" checked={techStack === "auto"} onSelect={() => setTechStack("auto")} />
@@ -128,8 +131,8 @@ export function JobSearchPanel() {
 
         {/* Employment type */}
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-bold text-white">Employment type</p>
-          <p className="text-xs text-foreground">Select all that apply to the roles you'd consider.</p>
+          <p className="text-sm font-semibold text-foreground">Employment type</p>
+          <p className="text-sm text-muted-foreground">Select all that apply to the roles you'd consider.</p>
           <div className="flex flex-wrap">
             <CheckChip label="Full-time" checked={empTypes.fulltime} onChange={(v) => setEmpTypes((p) => ({ ...p, fulltime: v }))} />
             <CheckChip label="Part-time" checked={empTypes.parttime} onChange={(v) => setEmpTypes((p) => ({ ...p, parttime: v }))} />
@@ -140,8 +143,8 @@ export function JobSearchPanel() {
 
         {/* Salary */}
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-bold text-white">Salary expectations</p>
-          <p className="text-xs text-foreground">Give a minimum so we only surface roles that meet your requirements.</p>
+          <p className="text-sm font-semibold text-foreground">Salary expectations</p>
+          <p className="text-sm text-muted-foreground">Give a minimum so we only surface roles that meet your requirements.</p>
           <div className="flex flex-row items-center gap-3">
             <SalaryField initial={prefs.expectedCtc} onSave={(v) => updateProfile.mutate({ expectedCtc: v })} />
             <Select defaultValue="annually">
@@ -158,10 +161,10 @@ export function JobSearchPanel() {
 
         {/* Location */}
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-bold text-white">Location preferences</p>
-          <p className="text-xs text-foreground">Tell us where you want to work from.</p>
+          <p className="text-sm font-semibold text-foreground">Location preferences</p>
+          <p className="text-sm text-muted-foreground">Tell us where you want to work from.</p>
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-semibold text-white">Location</p>
+            <p className="text-xs font-semibold text-foreground">Location</p>
             <LocationField initial={prefs.location} onSave={(v) => updateProfile.mutate({ location: v })} />
           </div>
           <div className="flex flex-wrap">
@@ -180,8 +183,8 @@ export function JobSearchPanel() {
 
         {/* Preferred tech stack */}
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-bold text-white">Preferred tech stack</p>
-          <p className="text-xs text-foreground">Define the tools, technologies, and languages you want in your next role.</p>
+          <p className="text-sm font-semibold text-foreground">Preferred tech stack</p>
+          <p className="text-sm text-muted-foreground">Define the tools, technologies, and languages you want in your next role.</p>
           <div className="flex flex-row flex-wrap items-center gap-1 mt-1">
             <RadioPill label="Copy from my profile (Recommended)" checked={techStack === "auto"} onSelect={() => setTechStack("auto")} />
             <RadioPill label="Select manually" checked={techStack === "manual"} onSelect={() => setTechStack("manual")} />
@@ -193,8 +196,8 @@ export function JobSearchPanel() {
 
       {/* Minimum match */}
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-bold text-white">Minimum match</p>
-        <p className="text-xs text-foreground">Filter your feed by how well a role fits you.</p>
+        <p className="text-sm font-semibold text-foreground">Minimum match</p>
+        <p className="text-sm text-muted-foreground">Filter your feed by how well a role fits you.</p>
         <Select
           value={scan.minMatch}
           onValueChange={(v) => updateSettings.mutate({ scan: { ...scan, minMatch: v as MatchFloor } })}
@@ -212,23 +215,59 @@ export function JobSearchPanel() {
 
       <PrefDivider />
 
+      {/* Resume tailoring intensity */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-semibold text-foreground">Resume tailoring</p>
+          <p className="text-sm text-muted-foreground">
+            How boldly we reframe your real experience to match each role. Your profile is always the
+            ceiling — higher intensity surfaces more real-but-unlisted skills, it never invents.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3">
+          <RadioCard
+            icon={File01Icon}
+            title="Conservative"
+            description="Light reword. Only skills worded exactly as in your profile. Safest, lowest keyword coverage."
+            checked={tailoring.intensity === "conservative"}
+            onSelect={() => setIntensity("conservative")}
+          />
+          <RadioCard
+            icon={File01Icon}
+            title="Balanced (Recommended)"
+            description="Reframe bullets in the role's language, build the competency grid, reorder by relevance."
+            checked={tailoring.intensity === "balanced"}
+            onSelect={() => setIntensity("balanced")}
+          />
+          <RadioCard
+            icon={RocketIcon}
+            title="Aggressive"
+            description="Lead every bullet in the JD's language, surface adjacent real skills implied by your work, max keyword density. Still never invents."
+            checked={tailoring.intensity === "aggressive"}
+            onSelect={() => setIntensity("aggressive")}
+          />
+        </div>
+      </div>
+
+      <PrefDivider />
+
       {/* Job boards */}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-bold text-white">Job boards</p>
-          <p className="text-xs text-foreground">Where Compass scans for roles. Scraping runs locally, from your machine.</p>
+          <p className="text-sm font-semibold text-foreground">Job boards</p>
+          <p className="text-sm text-muted-foreground">Where Compass scans for roles. Scraping runs locally, from your machine.</p>
         </div>
         <div className="divide-y divide-border">
           {BOARDS.map((b) => (
             <div key={b.id} className="flex items-center justify-between gap-4 py-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-white">{b.name}</span>
+                  <span className="text-sm font-medium text-foreground">{b.name}</span>
                   {!b.available && (
                     <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Soon</span>
                   )}
                 </div>
-                <div className="mt-0.5 text-xs text-foreground">{b.desc}</div>
+                <div className="mt-0.5 text-sm text-muted-foreground">{b.desc}</div>
               </div>
               <Switch checked={scan.sources.includes(b.id)} disabled={!b.available} onCheckedChange={(v) => toggleBoard(b.id, v)} />
             </div>
@@ -258,8 +297,8 @@ export function JobSearchPanel() {
 function InstahyreJobFunctions({ selected, onSave }: { selected: number[]; onSave: (ids: number[]) => void }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-bold text-white">Instahyre job functions</p>
-      <p className="text-xs text-foreground">
+      <p className="text-sm font-semibold text-foreground">Instahyre job functions</p>
+      <p className="text-sm text-muted-foreground">
         Instahyre has no keyword search — it matches on your skills plus the job functions you pick here.
         Leave empty to search across all functions.
       </p>
@@ -322,12 +361,12 @@ function CvUpload() {
 
   return (
     <div className="flex flex-1 flex-col gap-2">
-      <p className="text-sm font-medium text-white">Upload CV</p>
-      <p className="text-xs leading-relaxed text-foreground">
+      <p className="text-sm font-medium text-foreground">Upload CV</p>
+      <p className="text-sm leading-relaxed text-muted-foreground">
         Your CV helps us understand your skills, experience, and career path so we can match you to jobs that actually make sense. Never shared unless you explicitly say yes to a role.
       </p>
       {name && (
-        <p className="flex items-center gap-1 text-xs text-foreground">
+        <p className="flex items-center gap-1 text-sm text-muted-foreground">
           <HugeiconsIcon icon={File01Icon} size={18} />
           {name}
           <button

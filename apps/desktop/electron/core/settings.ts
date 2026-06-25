@@ -22,6 +22,9 @@ function defaults(): AppSettings {
       jobAge: 1,
       minMatch: "all",
     },
+    tailoring: {
+      intensity: "balanced",
+    },
   };
 }
 
@@ -46,6 +49,7 @@ class Settings {
     this.cache = {
       llm: { ...d.llm, ...(loaded.llm ?? {}) },
       scan: { ...d.scan, ...(loaded.scan ?? {}) },
+      tailoring: { ...d.tailoring, ...(loaded.tailoring ?? {}) },
     };
     return this.cache;
   }
@@ -55,6 +59,7 @@ class Settings {
     const next: AppSettings = {
       llm: { ...cur.llm, ...(patch.llm ?? {}) },
       scan: { ...cur.scan, ...(patch.scan ?? {}) },
+      tailoring: { ...cur.tailoring, ...(patch.tailoring ?? {}) },
     };
     this.cache = next;
     try {
