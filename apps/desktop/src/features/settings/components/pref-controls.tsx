@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 export function PrefSection({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-base font-bold text-white">{title}</p>
-      {description && <p className="text-xs leading-relaxed text-foreground">{description}</p>}
+      <p className="text-base font-semibold text-foreground">{title}</p>
+      {description && <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>}
       <div className="mt-1">{children}</div>
     </div>
   );
@@ -26,7 +26,7 @@ export function RadioPill({ label, checked, onSelect }: { label: string; checked
       onClick={onSelect}
       className={cn(
         "inline-flex select-none items-center gap-2 rounded-[10px] px-2 py-1 text-xs font-medium transition-colors",
-        checked ? "text-white" : "text-foreground hover:text-white",
+        checked ? "text-foreground" : "text-muted-foreground hover:text-foreground",
       )}
     >
       <span
@@ -77,8 +77,8 @@ export function RadioCard({
         <HugeiconsIcon icon={icon} size={28} className={checked ? "text-brand" : undefined} />
       </span>
       <span className="flex flex-1 flex-col">
-        <span className="text-sm font-bold text-white">{title}</span>
-        <span className="text-xs text-foreground">{description}</span>
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <span className="text-sm text-muted-foreground">{description}</span>
       </span>
     </button>
   );

@@ -37,12 +37,15 @@ export type LoadingState = { text: string };
 const LoaderCore = ({
   loadingStates,
   value = 0,
+  subLabel,
 }: {
   loadingStates: LoadingState[];
   value?: number;
+  /** Live detail shown nested under the active step (e.g. the job being ranked). */
+  subLabel?: string;
 }) => {
   return (
-    <div className="relative mx-auto mt-40 flex max-w-xl flex-col justify-start">
+    <div className="relative mx-auto mt-40 flex w-72 flex-col justify-start">
       {loadingStates.map((loadingState, index) => {
         const distance = Math.abs(index - value);
         const opacity = Math.max(1 - distance * 0.2, 0);
@@ -51,24 +54,42 @@ const LoaderCore = ({
         return (
           <motion.div
             key={index}
-            className="mb-4 flex items-center gap-2 text-left"
+            className="mb-4 flex flex-col gap-1 text-left"
             initial={{ opacity: 0, y: -(value * 40) }}
             animate={{ opacity, y: -(value * 40) }}
             transition={{ duration: 0.5 }}
           >
-            <div>
-              {isDone && <CheckFilled className="text-black dark:text-lime-500" />}
-              {isActive && <Loader2 className="h-6 w-6 animate-spin text-black dark:text-lime-500" />}
-              {index > value && <CheckIcon className="text-black dark:text-white" />}
+            <div className="flex items-center gap-2">
+              <div>
+                {isDone && <CheckFilled className="text-brand dark:text-green" />}
+                {isActive && <Loader2 className="h-6 w-6 animate-spin text-brand dark:text-green" />}
+                {index > value && <CheckIcon className="text-muted-foreground" />}
+              </div>
+              <span
+                className={cn(
+                  "text-foreground",
+                  isActive && "text-foreground opacity-100",
+                )}
+              >
+                {loadingState.text}
+              </span>
             </div>
-            <span
-              className={cn(
-                "text-black dark:text-white",
-                isActive && "text-black opacity-100 dark:text-lime-500",
+            {/* Nested live detail under the active step only. */}
+            <AnimatePresence mode="wait">
+              {isActive && subLabel && (
+                <motion.div
+                  key={subLabel}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25 }}
+                  className="ml-8 flex items-center gap-1.5 text-sm text-neutral-500 dark:text-neutral-400"
+                >
+                  <span className="text-neutral-400 dark:text-neutral-600">↳</span>
+                  <span className="break-words">{subLabel}</span>
+                </motion.div>
               )}
-            >
-              {loadingState.text}
-            </span>
+            </AnimatePresence>
           </motion.div>
         );
       })}
@@ -82,6 +103,7 @@ export const MultiStepLoader = ({
   duration = 2000,
   loop = true,
   value,
+  subLabel,
 }: {
   loadingStates: LoadingState[];
   loading?: boolean;
@@ -90,6 +112,8 @@ export const MultiStepLoader = ({
   /** Controlled active step. When provided, the internal timer is disabled and the
    *  caller drives progress (e.g. to reflect real scan → ranking phases). */
   value?: number;
+  /** Live detail nested under the active step (e.g. the job currently being ranked). */
+  subLabel?: string;
 }) => {
   const controlled = value !== undefined;
   const [currentState, setCurrentState] = useState(0);
@@ -124,10 +148,10 @@ export const MultiStepLoader = ({
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex h-full w-full items-center justify-center backdrop-blur-2xl"
         >
-          <div className="relative h-96">
-            <LoaderCore value={active} loadingStates={loadingStates} />
+          <div className="relative h-96 w-full overflow-hidden">
+            <LoaderCore value={active} loadingStates={loadingStates} subLabel={subLabel} />
           </div>
-          <div className="absolute inset-x-0 bottom-0 z-20 h-full bg-white bg-gradient-to-t [mask-image:radial-gradient(900px_at_center,transparent_30%,white)] dark:bg-black" />
+          <div className="absolute inset-x-0 bottom-0 z-20 h-full bg-gradient-to-t from-background [mask-image:radial-gradient(900px_at_center,transparent_30%,var(--background))]" />
         </motion.div>
       )}
     </AnimatePresence>

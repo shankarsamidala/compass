@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import logo from "@/assets/logo.svg";
 
-const DOTS = "radial-gradient(circle, var(--border) 1.5px, transparent 1.5px)";
-
 export const openExternal = (url: string) => {
   try {
     window.open(url, "_blank", "noopener,noreferrer");
@@ -12,9 +10,8 @@ export const openExternal = (url: string) => {
 };
 
 /**
- * Shared auth/onboarding shell — single full-screen dark surface with the content
- * centered (no two-column split). Tokenized + radix-nova. Parametrized so auth and
- * onboarding reuse it (width, brand copy, a top-right slot, optional footer).
+ * Shared auth/onboarding shell — single full-screen centered layout. Parametrized so
+ * auth and onboarding reuse it (width, brand copy, a top-right slot, optional footer).
  */
 export function AuthLayout({
   children,
@@ -26,12 +23,9 @@ export function AuthLayout({
   topRight?: ReactNode;
 }) {
   return (
-    <div className="dark relative flex h-svh flex-col overflow-hidden bg-background text-foreground">
+    <div className="relative flex h-svh flex-col overflow-hidden bg-background text-foreground">
       {/* dotted texture + soft center vignette */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{ backgroundImage: DOTS, backgroundSize: "28px 28px" }}
-      />
+      <div className="pointer-events-none absolute inset-0 bg-dotted opacity-60" />
       <div
         className="pointer-events-none absolute inset-0"
         style={{ background: "radial-gradient(ellipse at center, transparent 45%, var(--background) 100%)" }}

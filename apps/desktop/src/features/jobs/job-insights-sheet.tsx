@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FeedJob, JobRanking } from "@compass/ipc-contract";
 import { api } from "@/lib/ipc";
+import { toAbsoluteJobUrl } from "@/lib/utils";
 import { JobInsightsSheet as PolarInsightsSheet } from "./job-insights";
 import type { Job } from "./job-insights/job-types";
 
@@ -69,6 +71,54 @@ export function JobInsightsSheet({
   });
   const realJd = full?.jd ?? job?.jd ?? null;
 
+  // ── Resume / CV actions (warm agent → pdf / cover modes) ──────────────────
+  const [resumePending, setResumePending] = useState(false);
+  const [cvPending, setCvPending] = useState(false);
+  const [coverLetter, setCoverLetter] = useState<string | null>(null);
+  const [resumeNote, setResumeNote] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Reset per-job artifacts when the sheet switches jobs or closes.
+  useEffect(() => {
+    setCoverLetter(null);
+    setResumeNote(null);
+    setActionError(null);
+  }, [job?.id]);
+
+  // Tailor the resume → store as PremiumResumeData JSON (PDF rendering is held for now,
+  // so we surface a saved confirmation + ATS keyword coverage rather than opening a file).
+  const handleResume = async () => {
+    if (!job?.id || resumePending) return;
+    setResumePending(true);
+    setActionError(null);
+    setResumeNote(null);
+    try {
+      const r = await api.jobs.tailorResume(job.id);
+      if (!r.ok) setActionError(r.error);
+      else
+        setResumeNote(
+          r.data.keywordCoverage != null
+            ? `Resume tailored & saved — ${r.data.keywordCoverage}% JD keyword match`
+            : "Resume tailored & saved",
+        );
+    } finally {
+      setResumePending(false);
+    }
+  };
+
+  const handleCv = async () => {
+    if (!job?.id || cvPending) return;
+    setCvPending(true);
+    setActionError(null);
+    try {
+      const r = await api.jobs.coverLetter(job.id);
+      if (r.ok) setCoverLetter(r.data.letter);
+      else setActionError(r.error);
+    } finally {
+      setCvPending(false);
+    }
+  };
+
   // Real header fields (title / company / location / logo / apply link) + real
   // JD for About; the rest is still demo for now.
   const sheetJob: Job = {
@@ -77,7 +127,7 @@ export function JobInsightsSheet({
     company_name: job?.company ?? STATIC_JOB.company_name,
     location_cities: job?.location ? [job.location] : STATIC_JOB.location_cities,
     logo_url: job?.logoUrl ?? STATIC_JOB.logo_url,
-    source_url: job?.jobUrl ?? STATIC_JOB.source_url,
+    source_url: toAbsoluteJobUrl(job?.jobUrl, job?.source) ?? STATIC_JOB.source_url,
     description_summary: realJd ?? STATIC_JOB.description_summary,
     responsibilities: realJd ? undefined : STATIC_JOB.responsibilities,
     requirements: realJd ? undefined : STATIC_JOB.requirements,
@@ -96,6 +146,13 @@ export function JobInsightsSheet({
       recommendation={ranking?.recommendation ?? "Apply"}
       reasoning={ranking?.reasoning ?? DEMO_REASONING}
       legitimacy={ranking?.legitimacy ?? "High Confidence"}
+      onResume={() => void handleResume()}
+      onCv={() => void handleCv()}
+      resumePending={resumePending}
+      cvPending={cvPending}
+      coverLetter={coverLetter}
+      resumeNote={resumeNote}
+      actionError={actionError}
     />
   );
 }

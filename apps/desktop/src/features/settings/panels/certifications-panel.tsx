@@ -198,8 +198,8 @@ function CertListItem({
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <span className="text-[13px] font-bold text-white capitalize">{item.name}</span>
-            {item.issuer && <p className="text-xs text-white capitalize">{item.issuer}</p>}
+            <span className="text-[13px] font-semibold text-foreground capitalize">{item.name}</span>
+            {item.issuer && <p className="text-sm text-muted-foreground capitalize">{item.issuer}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button type="button" aria-label="Edit" onClick={() => onEdit(item)}
@@ -214,15 +214,15 @@ function CertListItem({
         </div>
 
         {credentialLine(item) && (
-          <p className="mt-1.5 text-xs text-foreground">{credentialLine(item)}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{credentialLine(item)}</p>
         )}
         {item.credentialId && (
-          <p className="mt-0.5 text-xs text-foreground">Credential ID: {item.credentialId}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Credential ID: {item.credentialId}</p>
         )}
 
         {description && (
           <div className="mt-2">
-            <p className="text-xs leading-relaxed text-foreground">{expanded ? description : trimmed}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{expanded ? description : trimmed}</p>
             {description.length > 200 && (
               <button type="button" className="mt-0.5 text-[13px] font-medium text-blue hover:underline"
                 onClick={() => setExpanded((p) => !p)}>
@@ -268,7 +268,7 @@ function CertFormView({
 
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border h-fit">
-      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-bold text-base text-white">
+      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-semibold text-base text-foreground">
         <button
           type="button"
           aria-label="Back"
@@ -307,10 +307,10 @@ function CertFormView({
         {/* No expiry */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-white">This credential does not expire</p>
+            <p className="text-sm font-semibold text-foreground">This credential does not expire</p>
             <Switch checked={form.noExpiry} onCheckedChange={(v) => set("noExpiry", v)} />
           </div>
-          <p className="text-xs text-foreground">Turn on if there's no expiration date</p>
+          <p className="text-sm text-muted-foreground">Turn on if there's no expiration date</p>
         </div>
 
         {/* Issue date */}
@@ -458,7 +458,7 @@ export function CertificationsPanel() {
   return (
     <main className="flex min-w-0 flex-1 self-start flex-col overflow-hidden rounded-xl border border-border">
       <div className="flex h-14 shrink-0 items-center border-b border-border bg-background px-6">
-        <h2 className="flex-1 text-base font-bold text-white">Certifications</h2>
+        <h2 className="flex-1 text-base font-semibold text-foreground">Certifications</h2>
         <Button size="sm" variant="outline" onClick={openAdd}>
           <HugeiconsIcon icon={Add01Icon} size={16} className="mr-1.5" />
           Add

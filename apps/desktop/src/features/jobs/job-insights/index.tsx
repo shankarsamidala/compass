@@ -2,7 +2,8 @@ import { useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle, MapPin, Briefcase, TrendingUp,
-  ExternalLink, Bookmark, IndianRupee, Shield, X, FileText, MessageSquare, ClipboardList,
+  ExternalLink, Bookmark, IndianRupee, Shield, X, ClipboardList,
+  FileText, Mail, Loader2,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
@@ -17,11 +18,11 @@ import { LegitimacyBadgeSection, legitimacyToTier } from "./legitimacy-badge-sec
 import { OpportunityScoringSection } from "./opportunity-scoring-section";
 import { SVGPolarChart } from "./svg-polar-chart";
 
-const MATCH_CHART_PALETTE = ["#D97757", "#3B82F6", "#10B981", "#8B5CF6"] as const;
+const MATCH_CHART_PALETTE = ["#E86235", "#3B82F6", "#10B981", "#8B5CF6"] as const;
 
 // ofertas dimensions → polar petals (score 1–5 → 2–10 for the chart radius).
 const DIM_META: { key: string; label: string; hex: string }[] = [
-  { key: "northStar", label: "North Star", hex: "#D97757" },
+  { key: "northStar", label: "North Star", hex: "#E86235" },
   { key: "cvMatch", label: "CV Match", hex: "#3B82F6" },
   { key: "level", label: "Level", hex: "#10B981" },
   { key: "comp", label: "Comp", hex: "#8B5CF6" },
@@ -43,22 +44,11 @@ function petalsFromDimensions(dimensions: Record<string, number>): { label: stri
     }));
 }
 
-// Scope the dashoard LIGHT theme tokens to the sheet only.
-const LIGHT_TOKENS = {
-  "--background": "#FFFFFF",
-  "--foreground": "#1A1A1A",
-  "--card": "#FFFFFF",
-  "--card-foreground": "#1A1A1A",
-  "--popover": "#FFFFFF",
-  "--popover-foreground": "#1A1A1A",
-  "--primary": "#D97757",
-  "--primary-foreground": "#FFFFFF",
+// Sheet-local token overrides — tighten muted/accent/border inside the panel.
+const SHEET_TOKENS = {
   "--muted": "rgba(0,0,0,0.06)",
-  "--muted-foreground": "#484844",
   "--accent": "rgba(0,0,0,0.06)",
-  "--accent-foreground": "#1A1A1A",
   "--border": "rgba(0,0,0,0.13)",
-  "--destructive": "#ef4444",
 } as CSSProperties;
 
 interface JobInsightsSheetProps {
@@ -71,6 +61,16 @@ interface JobInsightsSheetProps {
   recommendation?: string | null; // Apply | Consider | Skip
   reasoning?: string | null;
   legitimacy?: string | null; // High Confidence | Proceed with Caution | Suspicious
+  // Footer actions — tailor an ATS resume / cover letter for this job (warm agent).
+  onResume?: (job: Job) => void;
+  onCv?: (job: Job) => void;
+  resumePending?: boolean;
+  cvPending?: boolean;
+  // Drafted cover letter text → rendered as a section below Opportunity Score.
+  coverLetter?: string | null;
+  // Saved-resume confirmation (e.g. "Resume tailored & saved — 87% JD keyword match").
+  resumeNote?: string | null;
+  actionError?: string | null;
 }
 
 // ofertas dimension key → dashoard Opportunity dimension name.
@@ -84,7 +84,7 @@ const OPP_MAP: [string, string][] = [
   ["culture", "cultural_signals"],
 ];
 
-export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, recommendation, reasoning, legitimacy }: JobInsightsSheetProps) {
+export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, recommendation, reasoning, legitimacy, onResume, onCv, resumePending, cvPending, coverLetter, resumeNote, actionError }: JobInsightsSheetProps) {
   const [imgError, setImgError] = useState(false);
 
   const realBreakdown = job?.match_breakdown ?? null;
@@ -124,7 +124,7 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
           <motion.div
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            style={LIGHT_TOKENS}
+            style={SHEET_TOKENS}
             className="bg-background fixed right-0 top-0 z-[201] flex h-full w-full flex-col gap-0 border-l border-border sm:max-w-lg"
           >
             {/* Sticky Header */}
@@ -290,10 +290,31 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                 {legitTier && <AnimatedSection delay={140}><LegitimacyBadgeSection job={job} tier={legitTier} /></AnimatedSection>}
                 {opportunityData && <AnimatedSection delay={155}><OpportunityScoringSection job={job} data={opportunityData} /></AnimatedSection>}
 
+                {/* Cover Letter — drafted on demand by the CV button (reinit `cover` mode) */}
+                {coverLetter && (
+                  <AnimatedSection delay={160}>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-foreground/75 text-[13px] font-semibold tracking-wider uppercase">Cover Letter</h4>
+                        <button
+                          type="button"
+                          onClick={() => void navigator.clipboard.writeText(coverLetter)}
+                          className="text-brand text-xs font-medium hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div className="border-surface-border bg-surface-raised rounded-xl border p-4">
+                        <p className="text-foreground/80 text-[13px] leading-[1.7] whitespace-pre-wrap">{coverLetter}</p>
+                      </div>
+                    </div>
+                  </AnimatedSection>
+                )}
+
                 {/* About the Role — hidden for now (JD not structured yet) */}
                 {false && (job.description_summary || job.tech_stack?.length || job.key_skills?.length || job.preferred_skills?.length || job.responsibilities?.length || job.requirements?.length) && (
                   <AnimatedSection delay={340}>
-                    <CollapsibleSection icon={ClipboardList} title="About the Role" defaultOpen={true} iconClassName="text-white" iconBgClassName="bg-foreground">
+                    <CollapsibleSection icon={ClipboardList} title="About the Role" defaultOpen={true} iconClassName="text-bg-elevated" iconBgClassName="bg-foreground">
                       <div className="space-y-5 pt-2">
                         {job.description_summary && <p className="text-foreground/70 text-[13px] leading-[1.75]">{job.description_summary}</p>}
                         {(() => {
@@ -352,7 +373,7 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
                 {/* Compensation — hidden for now (demo data) */}
                 {false && (job.salary_disclosed || job.salary_min != null || job.salary_max != null) && (
                   <AnimatedSection delay={520}>
-                    <CollapsibleSection icon={IndianRupee} title="Compensation" defaultOpen={false} iconClassName="text-white" iconBgClassName="bg-foreground">
+                    <CollapsibleSection icon={IndianRupee} title="Compensation" defaultOpen={false} iconClassName="text-bg-elevated" iconBgClassName="bg-foreground">
                       <div className="bg-background border-surface-border mt-1 space-y-3 rounded-lg border p-3 pt-3">
                         {job.salary_disclosed && job.salary_min != null && job.salary_max != null ? (
                           <div className="flex items-center justify-between text-sm">
@@ -372,17 +393,32 @@ export function JobInsightsSheet({ open, onOpenChange, job, dimensions, score, r
               </div>
             </div>
 
-            {/* Sticky Footer */}
-            <div className="border-surface-border bg-background sticky bottom-0 flex flex-col gap-2 border-t px-5 py-3">
-              <div className="flex gap-2.5">
-                <button className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-black text-sm font-medium text-white transition-opacity hover:opacity-90">
-                  <FileText className="h-4 w-4" /> Build Kit
-                </button>
-                <button className="bg-background text-foreground/75 hover:bg-surface-hover border-surface-border flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors">
-                  <MessageSquare className="h-4 w-4" /> Ask Sage
-                </button>
+            {/* Sticky action footer — tailor Resume / CV for this role */}
+            <div className="border-surface-border bg-background sticky bottom-0 z-10 border-t px-5 py-3">
+              {actionError && <p className="text-destructive mb-2 text-xs">{actionError}</p>}
+              {!actionError && resumeNote && <p className="text-brand mb-2 text-xs font-medium">{resumeNote}</p>}
+              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onResume?.(job)}
+                disabled={resumePending || cvPending}
+                className="border-brand/40 text-brand hover:bg-brand/10 inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {resumePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                {resumePending ? "Tailoring…" : "Resume"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onCv?.(job)}
+                disabled={resumePending || cvPending}
+                className="border-brand/40 text-brand hover:bg-brand/10 inline-flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {cvPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                {cvPending ? "Drafting…" : "CV"}
+              </button>
               </div>
             </div>
+
           </motion.div>
         </>
       )}

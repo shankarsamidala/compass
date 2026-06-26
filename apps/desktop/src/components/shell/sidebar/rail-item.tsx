@@ -21,8 +21,8 @@ export function RailItem({ collapsed, icon, label, right, active, onClick }: Rai
         "ml-2 mr-1 flex h-8 items-center overflow-hidden rounded-lg text-sm transition-colors",
         collapsed ? "w-auto justify-center" : "w-[calc(100%-0.75rem)]",
         active
-          ? "bg-sidebar-accent text-primary"
-          : "text-foreground hover:bg-sidebar-accent hover:text-primary",
+          ? "bg-sidebar-accent text-foreground"
+          : "text-foreground hover:bg-sidebar-accent",
       )}
     >
       <span className="flex size-7 shrink-0 items-center justify-center">
@@ -30,7 +30,7 @@ export function RailItem({ collapsed, icon, label, right, active, onClick }: Rai
       </span>
       {!collapsed && (
         <>
-          <span className="flex-1 truncate text-left">{label}</span>
+          <span className="flex-1 truncate text-left font-medium">{label}</span>
           {right ? <span className="pr-3">{right}</span> : <span className="pr-3" />}
         </>
       )}

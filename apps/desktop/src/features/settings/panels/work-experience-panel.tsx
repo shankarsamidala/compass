@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { Sparkles } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/ipc";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Add01Icon, Edit01Icon, Delete01Icon } from "@hugeicons/core-free-icons";
@@ -277,7 +278,7 @@ function ExperienceListItem({
           <img src={logo} alt={item.company} className="h-8 w-8 object-contain"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
         ) : (
-          <span className="text-xs font-bold text-foreground">{item.company.slice(0, 2).toUpperCase()}</span>
+          <span className="text-xs font-semibold text-foreground">{item.company.slice(0, 2).toUpperCase()}</span>
         )}
       </div>
 
@@ -285,12 +286,12 @@ function ExperienceListItem({
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[13px] font-bold text-white capitalize">{item.title}</span>
+              <span className="text-[13px] font-semibold text-foreground capitalize">{item.title}</span>
               {item.isCurrent && (
                 <span className="inline-flex items-center rounded border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Current</span>
               )}
             </div>
-            <p className="text-xs text-white capitalize">{item.company}</p>
+            <p className="text-sm text-muted-foreground capitalize">{item.company}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button type="button" aria-label="Edit" onClick={() => onEdit(item)}
@@ -305,7 +306,7 @@ function ExperienceListItem({
         </div>
 
         {(item.startDate || item.location) && (
-          <p className="mt-1.5 text-xs text-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             {[dateRange(item), item.location].filter(Boolean).join(" · ")}
           </p>
         )}
@@ -313,7 +314,7 @@ function ExperienceListItem({
 
         {description && (
           <div className="mt-2">
-            <p className="text-xs leading-relaxed text-foreground">{expanded ? description : trimmed}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{expanded ? description : trimmed}</p>
             {description.length > 200 && (
               <button type="button" className="mt-0.5 text-[13px] font-medium text-blue hover:underline"
                 onClick={() => setExpanded((p) => !p)}>
@@ -326,10 +327,10 @@ function ExperienceListItem({
         {item.skills && item.skills.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {item.skills.slice(0, 6).map((s) => (
-              <span key={s} className="rounded-lg border border-border px-2 py-1 text-xs text-foreground">{s}</span>
+              <span key={s} className="rounded-lg border border-border px-2 py-1 text-sm text-muted-foreground">{s}</span>
             ))}
             {item.skills.length > 6 && (
-              <span className="rounded-lg border border-border px-2 py-1 text-xs text-foreground">+{item.skills.length - 6}</span>
+              <span className="rounded-lg border border-border px-2 py-1 text-sm text-muted-foreground">+{item.skills.length - 6}</span>
             )}
           </div>
         )}
@@ -382,7 +383,7 @@ function ExperienceForm({
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border h-fit">
       {/* Sticky header */}
-      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-bold text-base text-white">
+      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-semibold text-base text-foreground">
         <button
           type="button"
           aria-label="Back"
@@ -444,10 +445,10 @@ function ExperienceForm({
         {/* Current position */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-white">Current position</p>
+            <p className="text-sm font-semibold text-foreground">Current position</p>
             <Switch checked={form.isCurrent} onCheckedChange={(v) => set("isCurrent", v)} />
           </div>
-          <p className="text-xs text-foreground">Check if this is your current role</p>
+          <p className="text-sm text-muted-foreground">Check if this is your current role</p>
         </div>
 
         {/* Start date */}
@@ -498,8 +499,7 @@ function ExperienceForm({
           <div className="flex flex-row flex-wrap items-center gap-1">
             {(["remote", "hybrid", "onsite"] as const).map((t) => (
               <label key={t} className={cn(
-                "inline-flex cursor-pointer select-none items-center gap-2 rounded-[10px] px-2 py-1 text-xs font-medium transition-colors",
-                form.locationType === t ? "text-white" : "text-foreground hover:text-white",
+                "inline-flex cursor-pointer select-none items-center gap-2 rounded-[10px] px-2 py-1 text-xs font-medium text-foreground transition-colors",
               )}>
                 <span className={cn(
                   "flex size-5 items-center justify-center rounded-full border-2 transition-colors",
@@ -525,7 +525,7 @@ function ExperienceForm({
               disabled={descBusy || (!form.company.trim() && !form.title.trim())}
               className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 px-2.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/10 disabled:opacity-50"
             >
-              <Sparkles className="size-3.5" />
+              {descBusy ? <Spinner className="size-3.5" /> : <Sparkles className="size-3.5" />}
               {descBusy ? "Writing…" : "From résumé"}
             </button>
           </div>
@@ -553,7 +553,7 @@ function ExperienceForm({
             onAdd={addSkill}
             onRemove={removeSkill}
           />
-          <p className="flex items-center gap-1 text-xs text-foreground">
+          <p className="flex items-center gap-1 text-sm text-muted-foreground">
             Tap a suggestion to add it, or type and press Enter. Use commas for multiple.
           </p>
         </div>
@@ -643,7 +643,7 @@ export function WorkExperiencePanel() {
   return (
     <main className="flex min-w-0 flex-1 self-start flex-col overflow-hidden rounded-xl border border-border">
       <div className="flex h-14 shrink-0 items-center border-b border-border bg-background px-6">
-        <h2 className="flex-1 text-base font-bold text-white">Work Experience</h2>
+        <h2 className="flex-1 text-base font-semibold text-foreground">Work Experience</h2>
         <Button size="sm" variant="outline" onClick={openAdd}>
           <HugeiconsIcon icon={Add01Icon} size={16} className="mr-1.5" />
           Add

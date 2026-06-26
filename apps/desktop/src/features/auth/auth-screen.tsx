@@ -209,7 +209,7 @@ export function AuthScreen() {
                   Continue with Google
                 </Button>
                 <Button variant="outline" type="button" disabled={busy} onClick={() => setError(SOON)} className="h-10">
-                  <img src={githubIcon} alt="" className="size-4 shrink-0 dark:invert" />
+                  <img src={githubIcon} alt="" className="size-4 shrink-0" />
                   Continue with Github
                 </Button>
               </Field>

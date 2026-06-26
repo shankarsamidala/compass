@@ -53,7 +53,7 @@ export function AiPanel() {
 function ProviderLogo({ src, alt }: { src: string; alt: string }) {
   // Most brand marks are monochrome black; a light tile keeps them visible on dark.
   return (
-    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-white">
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-bg-elevated">
       <img src={src} alt={`${alt} logo`} className="size-6 object-contain" draggable={false} />
     </div>
   );

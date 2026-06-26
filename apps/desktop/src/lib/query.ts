@@ -10,6 +10,7 @@ export const queryClient = new QueryClient({
 /** Centralized query keys. */
 export const qk = {
   session: ["auth", "session"] as const,
-  jobs: ["jobs"] as const,
+  jobs: ["jobs"] as const, // prefix — invalidates every windowed feed below
+  jobsFeed: (days: number) => ["jobs", { days }] as const,
   job: (id: string) => ["jobs", id] as const,
 };

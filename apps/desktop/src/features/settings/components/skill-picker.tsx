@@ -117,7 +117,7 @@ export function SkillPicker({
                 key={s}
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); onAdd(s); }}
-                className="flex h-8 items-center gap-1 rounded-[10px] border border-border bg-card pl-3 pr-1.5 text-xs font-medium text-foreground transition-colors hover:text-white"
+                className="flex h-8 items-center gap-1 rounded-[10px] border border-border bg-card pl-3 pr-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
                 <span className="min-w-0 truncate">{s}</span>
                 <HugeiconsIcon icon={Add01Icon} size={16} className="shrink-0" />

@@ -8,10 +8,6 @@ import { setAnalyticsUser, clearAnalyticsUser } from "@/lib/analytics";
 /**
  * Auth gate (REIN-305). Reads the session via Query and routes: loading spinner →
  * authed app vs the auth flow. Session is restored on launch by `auth:session`.
- *
- * Theme: auth, setup, and onboarding render dark via their own AuthLayout wrapper;
- * we additionally toggle `dark` on <html> once inside the app so the full shell is
- * dark (loading stays dark by default → no flash).
  */
 export function AuthGate() {
   const { data, isPending } = useSession();
@@ -19,10 +15,7 @@ export function AuthGate() {
   const onboarded = data?.ok ? Boolean(data.data.user.onboardingCompleted) : false;
 
   useLayoutEffect(() => {
-    if (isPending) return; // keep the default dark during the session check
-    // The whole app is dark (auth, setup, onboarding, app). Keep `dark` on <html>
-    // so portaled UI (combobox/popover dropdowns render at <body>) inherits it too.
-    document.documentElement.classList.add("dark");
+    if (isPending) return;
     if (authed && data?.data?.user) {
       setAnalyticsUser(data.data.user.id, data.data.user.email);
     } else if (!authed) {

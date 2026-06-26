@@ -2,6 +2,7 @@ import { rm, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
 import { authedFetch } from "../core/http";
+import { dismissed } from "../core/dismissed";
 import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation, type JobRanking, type ScanSource, type CanonicalJob } from "@compass/ipc-contract";
 import { searchJobsForRole } from "./naukri.service";
 import { searchJobsForRole as hiristSearch } from "./hirist.service";
@@ -133,16 +134,30 @@ function toFeedJob(j: any): FeedJob {
  * (Scraping → POST /jobs/ingest lands in Phase B.)
  */
 export const jobsService = {
-  async list(opts?: { limit?: number; offset?: number }): Promise<Result<{ jobs: FeedJob[] }>> {
+  async list(opts?: { limit?: number; offset?: number; days?: number }): Promise<Result<{ jobs: FeedJob[] }>> {
     const limit = opts?.limit ?? 100;
     const offset = opts?.offset ?? 0;
-    const res = await authedFetch(`/jobs?limit=${limit}&offset=${offset}`, { method: "GET" });
+    // Feed window: the page can pass an explicit `days` (the user's freshness picker,
+    // 1–90); otherwise fall back to the scan freshness (jobAge, default 1 = today).
+    // freshBy=scraped filters on when WE scraped the posting (firstSeen), not the
+    // portal's posted date — so "today" means "scraped today" and a job posted days
+    // ago but freshly scraped still shows.
+    const days = Math.min(90, Math.max(1, opts?.days ?? settings.get().scan.jobAge ?? 1));
+    const res = await authedFetch(`/jobs?limit=${limit}&offset=${offset}&days=${days}&freshBy=scraped`, { method: "GET" });
     if (!res) return err("Could not reach the server", "NETWORK");
     const json = await res.json().catch(() => ({}));
     if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
     if (!res.ok) return err(json?.error || "Could not load jobs", json?.code);
-    const jobs = Array.isArray(json?.jobs) ? json.jobs.map(toFeedJob) : [];
+    const all: FeedJob[] = Array.isArray(json?.jobs) ? json.jobs.map(toFeedJob) : [];
+    // Hide jobs the user marked "not interested".
+    const jobs = all.filter((j) => !dismissed.has(j.id));
     return ok({ jobs });
+  },
+
+  /** Mark jobs "not interested" — hides them from the feed. Returns how many were newly dismissed. */
+  async notInterested(jobIds: string[]): Promise<Result<{ dismissed: number }>> {
+    const added = dismissed.add(jobIds.filter(Boolean));
+    return ok({ dismissed: added });
   },
 
   async get(id: string): Promise<Result<{ job: FeedJob }>> {

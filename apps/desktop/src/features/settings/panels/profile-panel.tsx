@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldTitle } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { SuggestCombobox } from "@/features/onboarding/components/suggest-combobox";
 import { useProfilePrefs, useUpdateProfile } from "../profile-api";
 
@@ -147,11 +148,11 @@ export function ProfilePanel() {
   return (
     <main className="relative flex min-w-0 flex-1 self-start flex-col rounded-2xl border border-border h-fit">
       {/* Sticky header */}
-      <h1 className="sticky top-0 z-10 flex h-14 w-full flex-row items-center border-b border-border bg-background px-6 text-base font-bold text-white">
+      <h1 className="sticky top-0 z-10 flex h-14 w-full flex-row items-center border-b border-border bg-background px-6 text-base font-semibold text-foreground">
         Profile
         <span className="ml-auto">
           <Button size="sm" onClick={handleSave} disabled={update.isPending}
-            className="bg-white text-black hover:bg-white/90">
+            className="bg-brand text-brand-foreground hover:bg-brand-hover">
             {update.isPending ? "Saving…" : "Save"}
           </Button>
         </span>
@@ -213,10 +214,10 @@ export function ProfilePanel() {
         {/* Hide work history */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-white">Hide work history</p>
+            <p className="text-sm font-semibold text-foreground">Hide work history</p>
             <Switch checked={form.hideExperience} onCheckedChange={(v) => set("hideExperience", v)} />
           </div>
-          <p className="text-xs text-foreground">Your work experience and education won't be visible on your public profile.</p>
+          <p className="text-sm text-muted-foreground">Your work experience and education won't be visible on your public profile.</p>
         </div>
 
         <div className="border-t border-border/50" />
@@ -240,10 +241,7 @@ export function ProfilePanel() {
               className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground transition-colors hover:bg-brand-hover disabled:opacity-60"
             >
               {aiLoading ? (
-                <svg className="size-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                </svg>
+                <Spinner className="size-3.5" />
               ) : (
                 <HugeiconsIcon icon={SparklesIcon} size={14} />
               )}
@@ -266,7 +264,7 @@ export function ProfilePanel() {
         {/* Links */}
         <Field>
           <FieldTitle>Links</FieldTitle>
-          <p className="-mt-1 text-xs text-foreground">Paste any URL and we'll auto-detect the platform.</p>
+          <p className="-mt-1 text-sm text-muted-foreground">Paste any URL and we'll auto-detect the platform.</p>
           <div className="flex items-center gap-2">
             <Input
               type="url"
@@ -281,8 +279,8 @@ export function ProfilePanel() {
             <div className="mt-1 flex flex-col gap-2">
               {links.map((l) => (
                 <div key={l.key} className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5">
-                  <span className="w-16 shrink-0 text-xs font-bold text-white">{l.label}</span>
-                  <span className="min-w-0 flex-1 truncate text-xs text-foreground">{l.url}</span>
+                  <span className="w-16 shrink-0 text-xs font-semibold text-foreground">{l.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{l.url}</span>
                   <button type="button" aria-label={`Remove ${l.label}`} onClick={() => set(l.key, "")}
                     className="shrink-0 text-muted-foreground hover:text-destructive">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">

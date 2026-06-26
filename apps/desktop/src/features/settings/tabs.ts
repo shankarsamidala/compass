@@ -103,7 +103,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
       { id: "account-security", label: "Account & Security", icon: LockIcon },
       { id: "notifications", label: "Notifications", icon: Notification01Icon },
       { id: "job-search", label: "Job preferences", icon: Target02Icon },
-      { id: "appearance", label: "Appearance", icon: PaintBrush01Icon },
       { id: "posting", label: "Posting", icon: Edit01Icon },
       { id: "invite-friends", label: "Invite Friends", icon: UserAdd01Icon },
       { id: "reinit-api", label: "Reinit API", icon: ComputerIcon, brand: true },

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { toAbsoluteJobUrl } from "@/lib/utils";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, MapPinpointIcon, Link01Icon, Building06Icon } from "@hugeicons/core-free-icons";
 import { Loader2 } from "lucide-react";
@@ -65,9 +66,9 @@ export function JobDetail({ jobId, onClose }: { jobId: string | null; onClose: (
                 </div>
               </div>
 
-              {job.jobUrl && (
+              {toAbsoluteJobUrl(job.jobUrl, job.source) && (
                 <a
-                  href={job.jobUrl}
+                  href={toAbsoluteJobUrl(job.jobUrl, job.source)!}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"

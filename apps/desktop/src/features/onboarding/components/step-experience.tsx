@@ -16,7 +16,7 @@ export function StepExperience({ form }: { form: UseFormReturn<OnboardingValues>
   return (
     <div className="flex flex-col gap-5">
       {/* 1 — fresher toggle */}
-      <div className="flex items-center justify-between rounded-lg border border-input bg-transparent dark:bg-input/30 px-4 py-3">
+      <div className="flex items-center justify-between rounded-lg border border-input bg-transparent px-4 py-3">
         <div>
           <Label htmlFor="fresher">I'm a fresher</Label>
           <p className="text-xs text-muted-foreground">No prior full-time experience</p>

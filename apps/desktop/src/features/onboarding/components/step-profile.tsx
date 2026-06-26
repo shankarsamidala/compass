@@ -34,7 +34,7 @@ export function StepProfile({ form }: { form: UseFormReturn<OnboardingValues> })
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="phone">Phone</Label>
-        <div className="flex h-10 items-center rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
+        <div className="flex h-10 items-center rounded-lg border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
           <span className="pl-2.5 pr-2 text-sm text-muted-foreground">+91</span>
           <input
             id="phone"

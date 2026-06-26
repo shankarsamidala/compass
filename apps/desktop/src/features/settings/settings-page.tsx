@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import logo from "@/assets/logo.svg";
 import { cn } from "@/lib/utils";
-import { SETTINGS_SECTIONS, LOGOUT_TAB, SETTINGS_TABS, type SettingsTabId } from "./tabs";
+import { SETTINGS_SECTIONS, SETTINGS_TABS, type SettingsTabId } from "./tabs";
 import { GeneralPanel } from "./panels/general-panel";
 import { AiPanel } from "./panels/ai-panel";
 import { JobSearchPanel } from "./panels/job-search-panel";
@@ -37,10 +37,10 @@ function NavItem({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-8 w-full cursor-pointer items-center gap-2 rounded-xl px-1 text-left text-sm transition-colors",
+        "flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-1 text-left text-sm transition-colors",
         active
-          ? "bg-accent text-primary font-medium"
-          : "text-foreground hover:bg-accent/60 hover:text-primary",
+          ? "bg-accent text-foreground font-medium"
+          : "text-foreground hover:bg-accent/60",
       )}
     >
       {tab.brand ? (
@@ -74,11 +74,11 @@ export function SettingsPage({ defaultTab }: { defaultTab?: SettingsTabId }) {
               type="button"
               className="flex items-center gap-2 rounded-xl px-1 py-1 hover:bg-accent/60 transition-colors"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-xs font-bold text-brand">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-xs font-semibold text-brand">
                 S
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-                <p className="truncate text-sm font-semibold leading-none text-white">ShankR</p>
+                <p className="truncate text-sm font-semibold leading-none text-foreground">ShankR</p>
                 <p className="truncate text-xs leading-none text-foreground">@sami2911</p>
               </div>
               <ExternalIcon />
@@ -91,7 +91,7 @@ export function SettingsPage({ defaultTab }: { defaultTab?: SettingsTabId }) {
               {SETTINGS_SECTIONS.map((section, si) => (
                 <div key={si} className="flex flex-col gap-0.5">
                   {section.label && (
-                    <p className="px-1 pb-0.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                    <p className="px-1 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                       {section.label}
                     </p>
                   )}
@@ -109,15 +109,6 @@ export function SettingsPage({ defaultTab }: { defaultTab?: SettingsTabId }) {
                 </div>
               ))}
 
-              {/* Log out */}
-              <div className="border-t border-border/50" />
-              <button
-                type="button"
-                className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-xl px-1 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-              >
-                <HugeiconsIcon icon={LOGOUT_TAB.icon} size={18} className="shrink-0 pointer-events-none" />
-                <span>{LOGOUT_TAB.label}</span>
-              </button>
             </nav>
           </div>
         </aside>
@@ -137,7 +128,7 @@ export function SettingsPage({ defaultTab }: { defaultTab?: SettingsTabId }) {
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border">
             {/* Title bar */}
             <div className="flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-6">
-              <h2 className="text-base font-bold text-white">
+              <h2 className="text-base font-semibold text-foreground">
                 {SETTINGS_TABS.find((t) => t.id === tab)?.label ?? tab}
               </h2>
             </div>

@@ -17,6 +17,9 @@ function toSummary(e: any): EvaluationSummary {
     legitimacyTier: e.legitimacyTier ?? null,
     status: e.status ?? "complete",
     createdAt: e.createdAt,
+    jobDescription: e.jobDescription ?? null,
+    logoUrl: e.logoUrl ?? null,
+    location: e.location ?? null,
   };
 }
 
@@ -45,7 +48,6 @@ export const evaluationsService = {
     return ok({
       evaluation: {
         ...toSummary(e),
-        jobDescription: e.jobDescription ?? null,
         rawReport: e.rawReport ?? null,
         machineSummary: e.machineSummary ?? null,
       },

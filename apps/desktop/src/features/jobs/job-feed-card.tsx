@@ -14,8 +14,8 @@ import type { FeedJob } from "@compass/ipc-contract";
 
 /** Qualitative relevance band from the embedding score (not a number). */
 function fitBand(score: number): { label: string; className: string } {
-  if (score >= 70) return { label: "Strong match", className: "bg-emerald-500/15 text-emerald-400" };
-  if (score >= 40) return { label: "Fair match", className: "bg-amber-500/15 text-amber-400" };
+  if (score >= 70) return { label: "Strong match", className: "bg-emerald-50 text-emerald-700" };
+  if (score >= 40) return { label: "Fair match", className: "bg-amber-50 text-amber-700" };
   return { label: "Weak match", className: "bg-muted text-muted-foreground" };
 }
 
@@ -87,7 +87,7 @@ export function JobFeedCard({
               )}
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <p className="truncate text-lg font-semibold leading-snug text-white">{job.title}</p>
+              <p className="truncate text-lg font-semibold leading-snug text-foreground">{job.title}</p>
               <p className="text-xs leading-normal text-foreground">
                 {job.company}
                 {posted ? <span> · {posted}</span> : null}
@@ -146,7 +146,7 @@ function CardAction({ icon, label }: { icon: IconSvgElement; label: string }) {
       aria-label={label}
       title={label}
       onClick={(e) => e.stopPropagation()}
-      className="flex size-8 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-accent hover:text-white"
+      className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
     >
       <HugeiconsIcon icon={icon} size={18} />
     </button>

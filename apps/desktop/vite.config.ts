@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
             build: {
               rollupOptions: {
                 // pdf-parse / mammoth are CJS with assets; dd-trace has native binaries — keep all external.
-                external: ["pdf-parse", "mammoth", "dd-trace"],
+                external: ["pdf-parse", "mammoth", "dd-trace", "node-pty"],
               },
             },
           },

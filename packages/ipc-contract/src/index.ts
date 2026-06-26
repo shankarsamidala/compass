@@ -329,8 +329,9 @@ export interface JobRanking {
 }
 
 export interface JobsApi {
-  /** The user's ranked feed (career-ops GET /jobs). */
-  list(): Promise<Result<{ jobs: FeedJob[] }>>;
+  /** The user's ranked feed (career-ops GET /jobs). `days` (1–90) is the freshness
+   *  window the user picks; omitted → falls back to the scan jobAge setting. */
+  list(opts?: { limit?: number; offset?: number; days?: number }): Promise<Result<{ jobs: FeedJob[] }>>;
   /** A single pooled job for the detail page (GET /jobs/:id). */
   get(id: string): Promise<Result<{ job: FeedJob }>>;
   /** Scrape the enabled portals (user-side) for the user's target roles and ingest into the pool. */
@@ -356,6 +357,8 @@ export interface JobsApi {
   onRankProgress(cb: (line: string) => void): () => void;
   /** The caller's stored ofertas rankings, to merge into the table. */
   rankings(): Promise<Result<{ rankings: JobRanking[] }>>;
+  /** Mark one or more jobs "not interested" — hides them from the feed. Returns how many were newly dismissed. */
+  notInterested(jobIds: string[]): Promise<Result<{ dismissed: number }>>;
 }
 
 // ── Settings domain (app-local, non-secret) ──────────────────────────────────
@@ -770,10 +773,14 @@ export interface EvaluationSummary {
   legitimacyTier: string | null;
   status: string;
   createdAt: string;
+  /** Short JD blurb for the card (list) / full JD (detail). */
+  jobDescription: string | null;
+  /** From the linked pooled job (co_jobs) when job_id is set, else null. */
+  logoUrl: string | null;
+  location: string | null;
 }
 /** Full evaluation incl. the report body (detail view). */
 export interface EvaluationDetail extends EvaluationSummary {
-  jobDescription: string | null;
   rawReport: string | null;
   machineSummary: unknown;
 }

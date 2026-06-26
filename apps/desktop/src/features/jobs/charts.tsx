@@ -5,10 +5,10 @@
  */
 
 function scoreColor(pct: number): string {
-  if (pct >= 0.8) return "#22c55e"; // green
-  if (pct >= 0.6) return "#84cc16"; // lime
-  if (pct >= 0.4) return "#eab308"; // amber
-  return "#f97316"; // orange
+  if (pct >= 0.8) return "var(--color-green)";
+  if (pct >= 0.6) return "var(--color-chart-3)";
+  if (pct >= 0.4) return "var(--color-chart-5)";
+  return "var(--color-chart-1)";
 }
 
 export function ScoreRing({
@@ -44,7 +44,7 @@ export function ScoreRing({
         />
       </svg>
       <div className="absolute flex flex-col items-center leading-none">
-        <span className="text-lg font-bold text-white">{value.toFixed(1)}</span>
+        <span className="text-lg font-bold text-foreground">{value.toFixed(1)}</span>
         <span className="text-[9px] text-muted-foreground">/ {max}</span>
       </div>
     </div>
@@ -68,7 +68,7 @@ export function ScorePie({ value, max = 5, size = 104, stroke = 14 }: { value: n
         />
       </svg>
       <div className="absolute flex flex-col items-center leading-none">
-        <span className="text-2xl font-bold text-white">{value.toFixed(1)}</span>
+        <span className="text-2xl font-bold text-foreground">{value.toFixed(1)}</span>
         <span className="text-[10px] text-muted-foreground">of {max}</span>
       </div>
     </div>
@@ -163,7 +163,7 @@ export function Donut({
           <li key={d.label} className="flex items-center gap-2">
             <span className="inline-block size-2.5 rounded-sm" style={{ backgroundColor: d.color }} />
             <span className="text-foreground/80">{d.label}</span>
-            <span className="font-semibold tabular-nums text-white">{d.value}</span>
+            <span className="font-semibold tabular-nums text-foreground">{d.value}</span>
           </li>
         ))}
       </ul>

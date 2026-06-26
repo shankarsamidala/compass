@@ -77,7 +77,7 @@ export interface OpportunityData {
 export function OpportunityScoringSection({ job: _job, data: override }: { job: Job; data?: OpportunityData | null }) {
   const data = override ?? DEMO;
   return (
-    <CollapsibleSection icon={Zap} title="Opportunity Score" iconClassName="text-white" iconBgClassName="bg-foreground">
+    <CollapsibleSection icon={Zap} title="Opportunity Score" iconClassName="text-bg-elevated" iconBgClassName="bg-foreground">
       <div className="pt-1">
         <div className="space-y-4">
           <OverallBadge score={data.overall_score} />

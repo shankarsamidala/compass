@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { Loader2, LayoutGrid, Table2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, LayoutGrid, Table2, RefreshCw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useJobsFeed } from "./api";
 import { JobFeedCard } from "./job-feed-card";
@@ -8,6 +8,7 @@ import { JobInsightsSheet } from "./job-insights-sheet";
 import { useSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/button";
 import { MultiStepLoader } from "@/components/ui/multi-step-loader";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
@@ -15,40 +16,37 @@ import type { EvaluationSummary, JobRanking, MatchFloor } from "@compass/ipc-con
 
 const MATCH_THRESHOLDS: Record<MatchFloor, number> = { all: 0, fair: 40, strong: 70 };
 
-// Full pipeline shown in the loader: scan phase (indices 0..SCAN_PHASE_MAX) then the
-// ranking phase. `step` is driven by the real scan/ranking state, not a blind timer.
 const PIPELINE_LOADING_STATES = [
-  { text: "Reaching out to job boards" },
-  { text: "Scanning Naukri, Hirist & Instahyre" },
-  { text: "Reading job descriptions" },
-  { text: "Removing duplicates & building your feed" },
-  { text: "Ranking your jobs with REINIT (ofertas)" },
-  { text: "Scoring & sorting your matches" },
+  { text: "Connecting to job boards" },
+  { text: "Scanning job boards" },
+  { text: "Filtering duplicates" },
+  { text: "Saving to feed" },
 ];
-const SCAN_PHASE_MAX = 3; // last index that belongs to the scan phase
+
+const WINDOW_KEY = "jobs.windowDays";
+const WINDOW_OPTIONS: { label: string; days: number }[] = [
+  { label: "Today", days: 1 },
+  { label: "3 days", days: 3 },
+  { label: "7 days", days: 7 },
+  { label: "14 days", days: 14 },
+  { label: "30 days", days: 30 },
+  { label: "90 days", days: 90 },
+];
 
 export function JobsPage() {
-  const { data: jobs, isLoading, error } = useJobsFeed();
+  // Freshness window the user picks (scraped-within N days, 1–90). Persisted locally.
+  const [windowDays, setWindowDays] = useState<number>(() => {
+    const v = Number(localStorage.getItem(WINDOW_KEY));
+    return v >= 1 && v <= 90 ? v : 1;
+  });
+  useEffect(() => { localStorage.setItem(WINDOW_KEY, String(windowDays)); }, [windowDays]);
+
+  const { data: jobs, isLoading, error, refetch: refetchJobs } = useJobsFeed(windowDays);
   const { data: settings } = useSettings();
   const [openId, setOpenId] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  // Ranking (ofertas) state — runs the agent after a scan.
-  const [ranking, setRanking] = useState(false);
-  const trustedRef = useRef(false);
-
-  // Unified scan→rank progress for the full-screen loader. The step reflects the real
-  // phase (scanning vs ranking); within a phase it eases forward on a timer.
   const [step, setStep] = useState(0);
-
-  const runRankScan = async () => {
-    setRanking(true);
-    setEvalError(null);
-    const r = await api.jobs.rankScan();
-    setRanking(false);
-    if (r.ok) qc.invalidateQueries({ queryKey: ["rankings"] });
-    else setEvalError(`Ranking failed: ${r.error}`);
-  };
 
   const scan = useMutation({
     mutationFn: async () => {
@@ -62,33 +60,18 @@ export function JobsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.jobs });
-      // Scan → rank the fresh pool (ofertas). Gated by the one-time agent consent.
-      if (trustedRef.current) void runRankScan();
-      else setPending({ type: "rank" });
     },
   });
 
-  // The loader is up for the whole pipeline (scan + ranking) so the list only appears
-  // once everything is done.
-  const busy = scan.isPending || ranking;
+  const busy = scan.isPending;
 
-  // Jump the step into the ranking phase the moment ranking starts.
-  useEffect(() => {
-    if (ranking) setStep(SCAN_PHASE_MAX + 1);
-  }, [ranking]);
-
-  // Ease the step forward within the current phase (scan caps at SCAN_PHASE_MAX,
-  // ranking caps at the last step) until the work actually completes.
   useEffect(() => {
     if (!busy) { setStep(0); return; }
     const id = setInterval(() => {
-      setStep((s) => {
-        const max = ranking ? PIPELINE_LOADING_STATES.length - 1 : SCAN_PHASE_MAX;
-        return Math.min(s + 1, max);
-      });
-    }, 1200);
+      setStep((s) => Math.min(s + 1, PIPELINE_LOADING_STATES.length - 1));
+    }, 1800);
     return () => clearInterval(id);
-  }, [busy, ranking]);
+  }, [busy]);
 
   // Run the reinit skill (claude -p) to evaluate one job → pushes to /evaluations.
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
@@ -103,9 +86,11 @@ export function JobsPage() {
       return r.ok ? r.data.trusted : false;
     },
   });
-  useEffect(() => { trustedRef.current = !!trusted; }, [trusted]);
   const [pending, setPending] = useState<
-    { type: "single"; id: string } | { type: "many"; ids: string[] } | { type: "rank" } | null
+    | { type: "single"; id: string }
+    | { type: "many"; ids: string[] }
+    | { type: "rank"; ids: string[] }
+    | null
   >(null);
 
   // Per-user ofertas rankings → drives the table's Rank/Score/Legit/Recommend.
@@ -132,7 +117,23 @@ export function JobsPage() {
     qc.invalidateQueries({ queryKey: ["evaluations"] });
   };
 
-  // Gate behind one-time consent (single or bulk).
+  // Rank selected jobs via ofertas (claude -p) → saves to /rankings → table re-sorts.
+  const [rankingMany, setRankingMany] = useState(false);
+  const [rankingIds, setRankingIds] = useState<Set<string>>(new Set());
+  const [rankError, setRankError] = useState<string | null>(null);
+  const runRankSelected = async (ids: string[]) => {
+    if (!ids.length) return;
+    setRankError(null);
+    setRankingMany(true);
+    setRankingIds(new Set(ids)); // so each row in flight shows a spinner
+    const res = await api.jobs.rankSelected(ids);
+    setRankingMany(false);
+    setRankingIds(new Set());
+    if (!res.ok) { setRankError(res.error); return; }
+    qc.invalidateQueries({ queryKey: ["rankings"] });
+  };
+
+  // Gate behind one-time consent (single, bulk evaluate, or rank).
   const handleEvaluate = (jobId: string) => {
     if (trusted) void runEvaluations([jobId]);
     else setPending({ type: "single", id: jobId });
@@ -142,13 +143,24 @@ export function JobsPage() {
     if (trusted) void runEvaluations(ids);
     else setPending({ type: "many", ids });
   };
+  const handleRankMany = (ids: string[]) => {
+    if (!ids.length) return;
+    if (trusted) void runRankSelected(ids);
+    else setPending({ type: "rank", ids });
+  };
+  // "Not interested" — hide from the feed. Optimistically drops the row, then persists.
+  const handleNotInterested = async (jobId: string) => {
+    qc.setQueryData<typeof jobs>(qk.jobsFeed(windowDays), (cur) => cur?.filter((j) => j.id !== jobId));
+    const res = await api.jobs.notInterested([jobId]);
+    if (!res.ok) qc.invalidateQueries({ queryKey: qk.jobs }); // restore on failure
+  };
   const grantAndEvaluate = async () => {
     const p = pending;
     setPending(null);
     await api.cli.trustAgent();
     await refetchTrust();
     if (!p) return;
-    if (p.type === "rank") void runRankScan();
+    if (p.type === "rank") void runRankSelected(p.ids);
     else void runEvaluations(p.type === "single" ? [p.id] : p.ids);
   };
 
@@ -181,16 +193,26 @@ export function JobsPage() {
     <div className="relative w-full px-6 pb-16 pt-6">
       <header className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Jobs</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Jobs</h1>
           <p className="text-sm text-foreground">Roles matched to your target profile.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center rounded-lg border border-border p-0.5">
+          <Select value={String(windowDays)} onValueChange={(v) => setWindowDays(Number(v))}>
+            <SelectTrigger aria-label="Freshness window" className="h-9 w-[110px] rounded-lg">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {WINDOW_OPTIONS.map((o) => (
+                <SelectItem key={o.days} value={String(o.days)}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex h-9 items-center rounded-lg border border-border px-0.5">
             <button
               type="button"
               aria-label="Card view"
               onClick={() => setViewPersist("cards")}
-              className={cn("rounded-md p-1.5", view === "cards" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground")}
+              className={cn("flex h-7 w-7 items-center justify-center rounded-md", view === "cards" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
             >
               <LayoutGrid className="size-4" />
             </button>
@@ -198,19 +220,27 @@ export function JobsPage() {
               type="button"
               aria-label="Table view"
               onClick={() => setViewPersist("table")}
-              className={cn("rounded-md p-1.5", view === "table" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground")}
+              className={cn("flex h-7 w-7 items-center justify-center rounded-md", view === "table" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
             >
               <Table2 className="size-4" />
             </button>
           </div>
+          <button
+            type="button"
+            aria-label="Refresh jobs"
+            onClick={() => void refetchJobs()}
+            disabled={busy || isLoading}
+            className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+          >
+            <RefreshCw className="size-4" />
+          </button>
           <Button
-            size="sm"
             onClick={() => scan.mutate()}
             disabled={busy}
-            className="bg-brand text-white hover:bg-brand-hover"
+            className="h-9 rounded-lg bg-brand text-brand-foreground hover:bg-brand-hover"
           >
             {busy ? (
-              <><Loader2 className="mr-2 size-4 animate-spin" />{ranking ? "Ranking…" : "Scanning…"}</>
+              <><Loader2 className="mr-2 size-4 animate-spin" />Scanning…</>
             ) : "Scan Jobs"}
           </Button>
         </div>
@@ -220,6 +250,12 @@ export function JobsPage() {
         <p className="mb-4 text-sm text-destructive">{(scan.error as Error).message}</p>
       )}
       {evalError && <p className="mb-4 text-sm text-destructive">Evaluation failed: {evalError}</p>}
+      {rankError && <p className="mb-4 text-sm text-destructive">Ranking failed: {rankError}</p>}
+      {rankingMany && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Ranking selected jobs with REINIT… the agent is scoring them against your profile.
+        </p>
+      )}
       {evaluatingId && (
         <p className="mb-4 text-sm text-muted-foreground">
           Evaluating with REINIT… this runs the skill in the background and can take a minute.
@@ -232,7 +268,12 @@ export function JobsPage() {
       )}
 
 
-      <MultiStepLoader loadingStates={PIPELINE_LOADING_STATES} loading={busy} value={step} />
+      <MultiStepLoader
+        loadingStates={PIPELINE_LOADING_STATES}
+        loading={busy}
+        value={step}
+        subLabel={undefined}
+      />
 
       {isLoading ? (
         <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
@@ -249,6 +290,10 @@ export function JobsPage() {
             onEvaluate={handleEvaluate}
             onInsights={setOpenId}
             onEvaluateMany={handleEvaluateMany}
+            onRankMany={handleRankMany}
+            onNotInterested={handleNotInterested}
+            ranking={rankingMany}
+            busyIds={rankingIds}
           />
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1920px]:grid-cols-5">
@@ -284,7 +329,7 @@ export function JobsPage() {
       {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-white">Allow REINIT to evaluate jobs?</h2>
+            <h2 className="text-lg font-bold text-foreground">Allow REINIT to evaluate jobs?</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Evaluation runs the REINIT agent (Claude) on your machine — it reads your profile,
               researches the role on the web, scores the fit (A–G), and saves the report to your
@@ -299,7 +344,7 @@ export function JobsPage() {
               </Button>
               <Button
                 size="sm"
-                className="bg-brand text-white hover:bg-brand-hover"
+                className="bg-brand text-brand-foreground hover:bg-brand-hover"
                 onClick={grantAndEvaluate}
               >
                 Allow &amp; evaluate

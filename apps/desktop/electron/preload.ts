@@ -40,14 +40,23 @@ const api: CompassApi = {
     deleteUpload: (id) => ipcRenderer.invoke("cv:delete-upload", id),
   },
   jobs: {
-    list: () => ipcRenderer.invoke("jobs:list"),
+    list: (opts?: { limit?: number; offset?: number; days?: number }) => ipcRenderer.invoke("jobs:list", opts),
     get: (id) => ipcRenderer.invoke("jobs:get", id),
     scan: (opts) => ipcRenderer.invoke("jobs:scan", opts),
     evaluateQuick: (id) => ipcRenderer.invoke("jobs:evaluate-quick", id),
     evaluate: (id) => ipcRenderer.invoke("jobs:evaluate", id),
     evaluateAgent: (id) => ipcRenderer.invoke("jobs:evaluate-agent", id),
     rankScan: () => ipcRenderer.invoke("jobs:rank-scan"),
+    rankSelected: (jobIds: string[]) => ipcRenderer.invoke("jobs:rank-selected", jobIds),
+    tailorResume: (id: string) => ipcRenderer.invoke("jobs:tailor-resume", id),
+    coverLetter: (id: string) => ipcRenderer.invoke("jobs:cover-letter", id),
+    onRankProgress: (cb) => {
+      const listener = (_e: unknown, line: string) => cb(line);
+      ipcRenderer.on("jobs:rank-progress", listener);
+      return () => ipcRenderer.removeListener("jobs:rank-progress", listener);
+    },
     rankings: () => ipcRenderer.invoke("jobs:rankings"),
+    notInterested: (jobIds: string[]) => ipcRenderer.invoke("jobs:not-interested", jobIds),
   },
   cli: {
     configure: () => ipcRenderer.invoke("cli:configure"),
@@ -61,6 +70,9 @@ const api: CompassApi = {
   evaluations: {
     list: () => ipcRenderer.invoke("evaluations:list"),
     get: (id) => ipcRenderer.invoke("evaluations:get", id),
+  },
+  artifact: {
+    open: (path: string) => ipcRenderer.invoke("artifact:open", path),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
@@ -112,3 +124,23 @@ const api: CompassApi = {
 };
 
 contextBridge.exposeInMainWorld("compass", api);
+
+// PTY bridge — used by the Agent Terminal panel
+contextBridge.exposeInMainWorld("pty", {
+  detect: () => ipcRenderer.invoke("pty:detect"),
+  spawn: (agentId: string, cols: number, rows: number) =>
+    ipcRenderer.send("pty:spawn", agentId, cols, rows),
+  write: (data: string) => ipcRenderer.send("pty:write", data),
+  resize: (cols: number, rows: number) => ipcRenderer.send("pty:resize", cols, rows),
+  kill: () => ipcRenderer.send("pty:kill"),
+  onData: (cb: (data: string) => void) => {
+    const listener = (_e: unknown, data: string) => cb(data);
+    ipcRenderer.on("pty:data", listener);
+    return () => ipcRenderer.removeListener("pty:data", listener);
+  },
+  onExit: (cb: (code: number) => void) => {
+    const listener = (_e: unknown, code: number) => cb(code);
+    ipcRenderer.on("pty:exit", listener);
+    return () => ipcRenderer.removeListener("pty:exit", listener);
+  },
+});

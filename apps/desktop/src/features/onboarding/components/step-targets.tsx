@@ -49,7 +49,7 @@ export function StepTargets({ form }: { form: UseFormReturn<OnboardingValues> })
           {errors.employmentType && <p className="text-xs text-destructive">{String(errors.employmentType.message)}</p>}
         </div>
 
-        <div className="flex h-10 items-center justify-between gap-2 self-end rounded-lg border border-input bg-transparent dark:bg-input/30 px-4">
+        <div className="flex h-10 items-center justify-between gap-2 self-end rounded-lg border border-input bg-transparent px-4">
           <Label htmlFor="remote">Open to remote</Label>
           <Controller control={control} name="openToRemote" render={({ field }) => (
             <Switch id="remote" checked={field.value} onCheckedChange={field.onChange} />
@@ -57,7 +57,7 @@ export function StepTargets({ form }: { form: UseFormReturn<OnboardingValues> })
         </div>
       </div>
 
-      <div className="flex h-10 items-center justify-between rounded-lg border border-input bg-transparent dark:bg-input/30 px-4">
+      <div className="flex h-10 items-center justify-between rounded-lg border border-input bg-transparent px-4">
         <Label htmlFor="relocate">Open to relocation</Label>
         <Controller control={control} name="openToRelocation" render={({ field }) => (
           <Switch id="relocate" checked={field.value} onCheckedChange={field.onChange} />

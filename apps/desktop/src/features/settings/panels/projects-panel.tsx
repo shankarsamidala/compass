@@ -213,13 +213,13 @@ function ProjectListItem({
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[13px] font-bold text-white capitalize">{item.title}</span>
+              <span className="text-[13px] font-semibold text-foreground capitalize">{item.title}</span>
               {item.featured && (
                 <span className="inline-flex items-center rounded border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Featured</span>
               )}
             </div>
             {(item.publisher || item.role) && (
-              <p className="text-xs text-white capitalize">
+              <p className="text-sm text-muted-foreground capitalize">
                 {[item.publisher, item.role].filter(Boolean).join(" · ")}
               </p>
             )}
@@ -237,12 +237,12 @@ function ProjectListItem({
         </div>
 
         {dateRange(item) && (
-          <p className="mt-1.5 text-xs text-foreground">{dateRange(item)}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{dateRange(item)}</p>
         )}
 
         {description && (
           <div className="mt-2">
-            <p className="text-xs leading-relaxed text-foreground">{expanded ? description : trimmed}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{expanded ? description : trimmed}</p>
             {description.length > 200 && (
               <button type="button" className="mt-0.5 text-[13px] font-medium text-blue hover:underline"
                 onClick={() => setExpanded((p) => !p)}>
@@ -274,10 +274,10 @@ function ProjectListItem({
         {techStack.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {techStack.slice(0, 6).map((s) => (
-              <span key={s} className="rounded-lg border border-border px-2 py-1 text-xs text-foreground">{s}</span>
+              <span key={s} className="rounded-lg border border-border px-2 py-1 text-sm text-muted-foreground">{s}</span>
             ))}
             {techStack.length > 6 && (
-              <span className="rounded-lg border border-border px-2 py-1 text-xs text-foreground">+{techStack.length - 6}</span>
+              <span className="rounded-lg border border-border px-2 py-1 text-sm text-muted-foreground">+{techStack.length - 6}</span>
             )}
           </div>
         )}
@@ -317,7 +317,7 @@ function ProjectFormView({
 
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border h-fit">
-      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-bold text-base text-white">
+      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-semibold text-base text-foreground">
         <button
           type="button"
           aria-label="Back"
@@ -367,19 +367,19 @@ function ProjectFormView({
         {/* Ongoing */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-white">Ongoing project / publication</p>
+            <p className="text-sm font-semibold text-foreground">Ongoing project / publication</p>
             <Switch checked={form.isCurrent} onCheckedChange={(v) => set("isCurrent", v)} />
           </div>
-          <p className="text-xs text-foreground">Check if this is currently active or ongoing.</p>
+          <p className="text-sm text-muted-foreground">Check if this is currently active or ongoing.</p>
         </div>
 
         {/* Featured */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-white">Feature this</p>
+            <p className="text-sm font-semibold text-foreground">Feature this</p>
             <Switch checked={form.featured} onCheckedChange={(v) => set("featured", v)} />
           </div>
-          <p className="text-xs text-foreground">Surface this as a highlighted proof point.</p>
+          <p className="text-sm text-muted-foreground">Surface this as a highlighted proof point.</p>
         </div>
 
         {/* Start date */}
@@ -546,7 +546,7 @@ export function ProjectsPanel() {
   return (
     <main className="flex min-w-0 flex-1 self-start flex-col overflow-hidden rounded-xl border border-border">
       <div className="flex h-14 shrink-0 items-center border-b border-border bg-background px-6">
-        <h2 className="flex-1 text-base font-bold text-white">Projects & Publications</h2>
+        <h2 className="flex-1 text-base font-semibold text-foreground">Projects & Publications</h2>
         <Button size="sm" variant="outline" onClick={openAdd}>
           <HugeiconsIcon icon={Add01Icon} size={16} className="mr-1.5" />
           Add

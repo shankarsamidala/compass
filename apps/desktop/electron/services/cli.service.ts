@@ -5,6 +5,7 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { authedFetch } from "../core/http";
 import { config } from "../core/config";
+import { claudeWarmAgent } from "./agent-session.service";
 import { ok, err, type Result, type CliDetection, type CliInstallResult } from "@compass/ipc-contract";
 
 const pexec = promisify(execFile);
@@ -267,6 +268,21 @@ export const cliService = {
     opts: { timeoutMs?: number; onProgress?: (line: string) => void } = {},
   ): Promise<Result<{ result: string }>> {
     if (!(await hasBin("claude"))) return err("Claude Code not found — install it to run REINIT.", "NO_AGENT");
+
+    // Fast path: reuse the warm session if it's up (MCP already booted → instant).
+    // Falls through to the cold spawn below if the warm agent isn't ready or errors.
+    if (claudeWarmAgent.isReady()) {
+      try {
+        const result = await claudeWarmAgent.sendTurn(prompt, {
+          onProgress: opts.onProgress,
+          timeoutMs: opts.timeoutMs,
+        });
+        return ok({ result: result.trim() });
+      } catch (e) {
+        console.warn("[reinit] warm session failed, falling back to cold run:", e);
+        // fall through to cold path
+      }
+    }
     // Bounded allowlist: the skill reads/writes ~/.reinit, runs its scripts, and
     // web-grounds D/G. MCP tools from the reinit plugin are namespaced mcp__reinit__*.
     // Once the user grants permanent permission, run fully unattended (matches an

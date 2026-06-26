@@ -93,7 +93,7 @@ function classifyTier(signals: SignalResult[]): Tier {
 
 const tierConfig = {
   high_confidence: { label: "Active Posting", description: "Signals suggest this is a real, active opening.", icon: ShieldCheck, color: "text-brand", bg: "border-surface-border bg-background", iconColor: "text-brand" },
-  caution: { label: "Check Before Applying", description: "Mixed signals - verify the posting is still active.", icon: ShieldAlert, color: "text-amber-600 dark:text-amber-400", bg: "border-surface-border bg-background", iconColor: "text-amber-500" },
+  caution: { label: "Check Before Applying", description: "Mixed signals - verify the posting is still active.", icon: ShieldAlert, color: "text-amber-700", bg: "border-surface-border bg-background", iconColor: "text-amber-600" },
   suspicious: { label: "Possible Ghost Job", description: "Multiple signals point to an inactive or ghost posting.", icon: ShieldX, color: "text-destructive", bg: "border-surface-border bg-background", iconColor: "text-destructive" },
 } as const;
 
@@ -120,7 +120,7 @@ export function LegitimacyBadgeSection({ job, tier: tierOverride }: { job: Job; 
   const Icon = config.icon;
 
   return (
-    <CollapsibleSection icon={Shield} title="Posting Legitimacy" iconClassName="text-white" iconBgClassName="bg-foreground" defaultOpen={tier !== "high_confidence"}>
+    <CollapsibleSection icon={Shield} title="Posting Legitimacy" iconClassName="text-bg-elevated" iconBgClassName="bg-foreground" defaultOpen={tier !== "high_confidence"}>
       <div className="space-y-3 pt-1">
         <div className={cn("flex items-start gap-2.5 rounded-xl border p-3", config.bg)}>
           <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", config.iconColor)} />

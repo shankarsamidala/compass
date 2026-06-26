@@ -1,126 +1,222 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/oxanium";
+@import "@fontsource-variable/inter";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.875rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --font-sans: "Oxanium Variable", sans-serif;
-  /* Brand accent (reinit coral) — fixed across light/dark */
-  --brand: #d97757;
-  --brand-hover: #c4603e;
-  --brand-foreground: #ffffff;
+/* ================================================================
+ * COMPASS DESIGN SYSTEM
+ * Brand: Coral #E86235 | Ink #141413 | Surface #F2F1EC
+ * Mirrors the REINIT website token system — single source of truth.
+ * ================================================================ */
 
-  /* Tag/chip palette (daily.dev style) — 12 colors. Assigned per label; see chip-input.tsx. */
-  --chip-1-fg: #2a533c;  --chip-1-bg: rgba(0, 96, 38, 0.157);
-  --chip-2-fg: #264a72;  --chip-2-bg: rgba(0, 118, 217, 0.204);
-  --chip-3-fg: #5a2a72;  --chip-3-bg: rgba(124, 0, 217, 0.16);
-  --chip-4-fg: #72532a;  --chip-4-bg: rgba(217, 128, 0, 0.16);
-  --chip-5-fg: #722a3c;  --chip-5-bg: rgba(217, 0, 76, 0.14);
-  --chip-6-fg: #1f5450;  --chip-6-bg: rgba(0, 150, 136, 0.16);
-  --chip-7-fg: #2d3470;  --chip-7-bg: rgba(40, 53, 217, 0.16);
-  --chip-8-fg: #743a1f;  --chip-8-bg: rgba(230, 90, 0, 0.15);
-  --chip-9-fg: #1c4f5e;  --chip-9-bg: rgba(0, 160, 200, 0.16);
-  --chip-10-fg: #6a2060; --chip-10-bg: rgba(200, 0, 160, 0.15);
-  --chip-11-fg: #41551f; --chip-11-bg: rgba(120, 170, 0, 0.16);
-  --chip-12-fg: #43337a; --chip-12-bg: rgba(90, 60, 220, 0.16);
+/* ── Light tokens (default) ─────────────────────────────────────── */
+:root {
+  /* Brand */
+  --brand:              #E86235;
+  --brand-hover:        #C5532D;
+  --brand-foreground:   #ffffff;
+  --brand-soft:         #FAE0D7;  /* brand @ ~20% on white */
+
+  /* Page surfaces */
+  --bg-page:            #F2F1EC;
+  --bg-elevated:        #F2F1EC;
+  --bg-subtle:          #ECEAE4;
+  --bg-muted:           rgba(0, 0, 0, 0.05);
+
+  /* Text hierarchy */
+  --text-primary:       #141413;
+  --text-secondary:     #484844;
+  --text-muted:         #6A6A66;
+  --text-disabled:      #9A9A96;
+
+  /* Borders */
+  --border-default:     rgba(0, 0, 0, 0.10);
+  --border-strong:      rgba(0, 0, 0, 0.20);
+
+  /* Dot pattern (auth bg) */
+  --dot-color:          #C8C6BE;
+
+  /* Motion */
+  --duration-fast:    150ms;
+  --duration-normal:  300ms;
+  --duration-slow:    500ms;
+  --ease-out-expo:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart:   cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Shadows */
+  --shadow-sm:  0px 1px 2px 0px rgba(26, 26, 24, 0.06);
+  --shadow-md:  0px 4px 8px -2px rgba(26, 26, 24, 0.08), 0px 2px 4px -2px rgba(26, 26, 24, 0.05);
+  --shadow-lg:  0px 12px 20px 0px rgba(26, 26, 24, 0.08), 0px 4px 8px 0px rgba(26, 26, 24, 0.05);
+  --shadow-xl:  0px 24px 48px -12px rgba(26, 26, 24, 0.14);
+  --shadow-glow-brand: 0 0 8px rgba(232, 98, 53, 0.25), 0 0 24px rgba(232, 98, 53, 0.10);
+
+  /* Accent palette — muted for light surfaces */
+  --yellow:             #FAA72A;
+  --yellow-foreground:  #ffffff;
+  --yellow-soft:        #FEEDD4;  /* yellow @ ~20% on white */
+  --pink:               #E04343;
+  --pink-foreground:    #ffffff;
+  --red:                #E04343;
+  --red-foreground:     #ffffff;
+  --red-soft:           #F9D9D9;  /* red @ ~20% on white */
+  --blue-soft:          #CDE2FB;  /* blue @ ~20% on white */
+  --purple:             #7C3AED;
+  --purple-foreground:  #ffffff;
+  --blue:               #2563EB;
+  --blue-foreground:    #ffffff;
+  --green:              #16A34A;
+  --green-foreground:   #ffffff;
+
+  /* Interactive surface states */
+  --surface-raised:     #ECEAE4;
+  --surface-hover:      #E4E2DB;
+  --surface-border:     rgba(0, 0, 0, 0.10);
+
+  /* ── ShadCN compatibility aliases ──────────────────────────── */
+  --background:               var(--bg-page);
+  --foreground:               var(--text-primary);
+  --card:                     var(--bg-elevated);
+  --card-foreground:          var(--text-primary);
+  --popover:                  var(--bg-elevated);
+  --popover-foreground:       var(--text-primary);
+  --primary:                  var(--brand);
+  --primary-foreground:       var(--brand-foreground);
+  --secondary:                var(--bg-subtle);
+  --secondary-foreground:     var(--text-primary);
+  --muted:                    var(--bg-muted);
+  --muted-foreground:         var(--text-muted);
+  --accent:                   var(--bg-subtle);
+  --accent-foreground:        var(--text-primary);
+  --destructive:              var(--red);
+  --destructive-soft:         var(--red-soft);
+  --border:                   var(--border-default);
+  --input:                    var(--border-default);
+  --ring:                     var(--brand);
+
+  /* ── Sidebar ────────────────────────────────────────────────── */
+  --sidebar:                  var(--bg-elevated);
+  --sidebar-foreground:       var(--text-primary);
+  --sidebar-primary:          var(--brand);
+  --sidebar-primary-foreground: var(--brand-foreground);
+  --sidebar-accent:           var(--bg-muted);
+  --sidebar-accent-foreground: var(--text-secondary);
+  --sidebar-border:           var(--border-default);
+  --sidebar-ring:             var(--brand);
+
+  /* ── Chart colors ───────────────────────────────────────────── */
+  --chart-1: #E86235;
+  --chart-2: #3B82F6;
+  --chart-3: #10B981;
+  --chart-4: #8B5CF6;
+  --chart-5: #F59E0B;
+
+  /* ── Status palette — light (readable text + soft fill, new palette) ── */
+  --positive:       #3f7a4e;  --positive-soft: rgba(63, 122, 78, 0.12);
+  --caution:        #184F95;  --caution-soft:  #CDE2FB;  /* deep blue text on soft blue */
+  --negative:       #D13B3B;  --negative-soft: #F9D9D9;  /* near #E04343 */
+
+  /* ── Radius ─────────────────────────────────────────────────── */
+  --radius: 0.625rem;
 }
 
-/* Dark theme — natively's near-black, cool-tinted palette (not neutral grey).
-   Hierarchy: chrome (sidebar/header) darkest → content → raised cards. */
+/* ── Dark tokens ─────────────────────────────────────────────────── */
 .dark {
-  /* ── Backgrounds ──────────────────────────────────────────────────── */
-  --background: oklch(0.145 0 0);
-  --card: oklch(0.205 0 0);
-  --popover: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --muted: oklch(0.269 0 0);
+  /* Brand — fixed across modes */
+  --brand:              #E86235;
+  --brand-hover:        #F0764B;
+  --brand-foreground:   #ffffff;
+  --brand-soft:         rgba(232, 98, 53, 0.26);  /* brand @ 26% on dark */
 
-  /* ── Text hierarchy ───────────────────────────────────────────────── */
-  --foreground: oklch(0.985 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  /* Page surfaces */
+  --bg-page:            oklch(0.145 0 0);
+  --bg-elevated:        oklch(0.205 0 0);
+  --bg-subtle:          oklch(0.185 0 0);
+  --bg-muted:           oklch(0.269 0 0);
 
-  /* ── Interactive surfaces ─────────────────────────────────────────── */
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  /* Text hierarchy */
+  --text-primary:       oklch(0.985 0 0);
+  --text-secondary:     oklch(0.87 0 0);
+  --text-muted:         oklch(0.708 0 0);
+  --text-disabled:      oklch(0.556 0 0);
 
-  /* ── Semantic / status ────────────────────────────────────────────── */
-  --destructive: oklch(0.704 0.191 22.216);
+  /* Borders */
+  --border-default:     oklch(1 0 0 / 10%);
+  --border-strong:      oklch(1 0 0 / 20%);
 
-  /* ── Sidebar ──────────────────────────────────────────────────────── */
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Dot pattern */
+  --dot-color:          oklch(0.3 0 0);
 
-  /* ── Accent palette (from daily.dev visible CSS) ──────────────────── */
-  --pink: #fc538d;
-  --pink-foreground: #ffffff;
-  --purple: #ce3df3;
-  --purple-foreground: #ffffff;
-  --blue: #5c9bfa;
-  --blue-foreground: #ffffff;
-  --yellow: #ffe923;
-  --yellow-foreground: #0e1217;
+  /* Shadows — darker base for dark surfaces */
+  --shadow-sm:  0px 1px 2px 0px rgba(0, 0, 0, 0.20);
+  --shadow-md:  0px 4px 8px -2px rgba(0, 0, 0, 0.28), 0px 2px 4px -2px rgba(0, 0, 0, 0.18);
+  --shadow-lg:  0px 12px 20px 0px rgba(0, 0, 0, 0.30), 0px 4px 8px 0px rgba(0, 0, 0, 0.20);
+  --shadow-xl:  0px 24px 48px -12px rgba(0, 0, 0, 0.40);
+  --shadow-glow-brand: 0 0 8px rgba(232, 98, 53, 0.35), 0 0 24px rgba(232, 98, 53, 0.18);
 
-  /* ── Brand (Reinit coral — product identity, not daily.dev) ───────── */
-  --brand: #d97757;
-  --brand-hover: #c4603e;
-  --brand-foreground: #ffffff;
+  /* Accent palette — vivid for dark surfaces */
+  --yellow:             #FDB94D;
+  --yellow-foreground:  #0e1217;
+  --yellow-soft:        rgba(250, 167, 42, 0.24);  /* yellow @ 24% on dark */
+  --pink:               #F06464;
+  --pink-foreground:    #ffffff;
+  --red:                #F06464;
+  --red-foreground:     #ffffff;
+  --red-soft:           rgba(224, 67, 67, 0.24);   /* red @ 24% on dark */
+  --purple:             #ce3df3;
+  --purple-foreground:  #ffffff;
+  --blue:               #5c9bfa;
+  --blue-foreground:    #ffffff;
+  --blue-soft:          rgba(92, 155, 250, 0.26);  /* blue @ 26% on dark */
+  --green:              #4ade80;
+  --green-foreground:   #0e1217;
 
-  /* ── Charts ───────────────────────────────────────────────────────── */
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Interactive surface states */
+  --surface-raised:     oklch(0.269 0 0);
+  --surface-hover:      oklch(0.32 0 0);
+  --surface-border:     oklch(1 0 0 / 12%);
 
-  /* Tag/chip palette — brighter text on stronger translucent bg for dark mode (12). */
+  /* ── ShadCN aliases ─────────────────────────────────────────── */
+  --background:               var(--bg-page);
+  --foreground:               var(--text-primary);
+  --card:                     var(--bg-elevated);
+  --card-foreground:          var(--text-primary);
+  --popover:                  var(--bg-elevated);
+  --popover-foreground:       var(--text-primary);
+  --primary:                  oklch(0.922 0 0);
+  --primary-foreground:       oklch(0.205 0 0);
+  --secondary:                var(--bg-subtle);
+  --secondary-foreground:     var(--text-primary);
+  --muted:                    var(--bg-muted);
+  --muted-foreground:         var(--text-muted);
+  --accent:                   var(--bg-muted);
+  --accent-foreground:        var(--text-primary);
+  --destructive:              var(--red);
+  --destructive-soft:         var(--red-soft);
+  --border:                   var(--border-default);
+  --input:                    var(--border-default);
+  --ring:                     oklch(0.556 0 0);
+
+  /* ── Sidebar ────────────────────────────────────────────────── */
+  --sidebar:                  var(--bg-elevated);
+  --sidebar-foreground:       var(--text-primary);
+  --sidebar-primary:          var(--brand);
+  --sidebar-primary-foreground: var(--brand-foreground);
+  --sidebar-accent:           var(--bg-muted);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border:           var(--border-default);
+  --sidebar-ring:             oklch(0.556 0 0);
+
+  /* ── Chart colors ───────────────────────────────────────────── */
+  --chart-1: #E86235;
+  --chart-2: #5c9bfa;
+  --chart-3: #4ade80;
+  --chart-4: #c084fc;
+  --chart-5: #fbbf24;
+
+  /* ── Tag/chip palette — dark (brighter text, stronger bg) ───── */
   --chip-1-fg: #7fd8a8;  --chip-1-bg: rgba(0, 96, 38, 0.28);
   --chip-2-fg: #8fc4ff;  --chip-2-bg: rgba(0, 118, 217, 0.28);
   --chip-3-fg: #c9a0ff;  --chip-3-bg: rgba(124, 0, 217, 0.28);
@@ -133,97 +229,213 @@
   --chip-10-fg: #f0a0e0; --chip-10-bg: rgba(200, 0, 160, 0.26);
   --chip-11-fg: #c2e07a; --chip-11-bg: rgba(120, 170, 0, 0.26);
   --chip-12-fg: #b4a0ff; --chip-12-bg: rgba(90, 60, 220, 0.28);
+
+  /* ── Status palette — dark (brighter text + stronger fill, new palette) ── */
+  --positive:       #7fd8a8;  --positive-soft: rgba(63, 122, 78, 0.26);
+  --caution:        #5c9bfa;  --caution-soft:  rgba(92, 155, 250, 0.26);  /* blue, brighter for dark */
+  --negative:       #F06464;  --negative-soft: rgba(224, 67, 67, 0.24);
 }
 
+/* ================================================================
+ * TAILWIND THEME MAPPING
+ * Maps all CSS vars → Tailwind utility classes.
+ * Use `bg-brand`, `text-ink-900`, `border-border-strong`, etc.
+ * ================================================================ */
 @theme inline {
-  /* ── Core semantic ────────────────────────────────────────────────── */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
+  /* ── Core semantic tokens ───────────────────────────────────── */
+  --color-background:           var(--background);
+  --color-foreground:           var(--foreground);
+  --color-card:                 var(--card);
+  --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
+  --color-primary:              var(--primary);
+  --color-primary-foreground:   var(--primary-foreground);
+  --color-secondary:            var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-accent:               var(--accent);
+  --color-accent-foreground:    var(--accent-foreground);
+  --color-destructive:          var(--destructive);
+  --color-destructive-soft:     var(--destructive-soft);
+  --color-border:               var(--border);
+  --color-input:                var(--input);
+  --color-ring:                 var(--ring);
 
-  /* ── Brand ────────────────────────────────────────────────────────── */
-  --color-brand: var(--brand);
-  --color-brand-hover: var(--brand-hover);
-  --color-brand-foreground: var(--brand-foreground);
+  /* ── Brand ──────────────────────────────────────────────────── */
+  --color-brand:                var(--brand);
+  --color-brand-hover:          var(--brand-hover);
+  --color-brand-foreground:     var(--brand-foreground);
+  --color-brand-soft:           var(--brand-soft);
 
-  /* ── Job-insights sheet palette (ported from dashoard, additive) ────── */
-  --color-coral-50: #FEF6F2;
+  /* ── Surface tokens (theme-aware) ───────────────────────────── */
+  --color-bg-page:              var(--bg-page);
+  --color-bg-elevated:          var(--bg-elevated);
+  --color-bg-subtle:            var(--bg-subtle);
+  --color-bg-muted:             var(--bg-muted);
+
+  --color-surface-raised:       var(--surface-raised);
+  --color-surface-hover:        var(--surface-hover);
+  --color-surface-border:       var(--surface-border);
+
+  /* ── Text tokens (theme-aware) ──────────────────────────────── */
+  --color-text-primary:         var(--text-primary);
+  --color-text-secondary:       var(--text-secondary);
+  --color-text-muted:           var(--text-muted);
+  --color-text-disabled:        var(--text-disabled);
+
+  /* ── Border tokens ──────────────────────────────────────────── */
+  --color-border-default:       var(--border-default);
+  --color-border-strong:        var(--border-strong);
+
+  /* ── Accent palette ─────────────────────────────────────────── */
+  --color-yellow:               var(--yellow);
+  --color-yellow-foreground:    var(--yellow-foreground);
+  --color-yellow-soft:          var(--yellow-soft);
+  --color-pink:                 var(--pink);
+  --color-pink-foreground:      var(--pink-foreground);
+  --color-red:                  var(--red);
+  --color-red-foreground:       var(--red-foreground);
+  --color-red-soft:             var(--red-soft);
+  --color-purple:               var(--purple);
+  --color-purple-foreground:    var(--purple-foreground);
+  --color-blue:                 var(--blue);
+  --color-blue-foreground:      var(--blue-foreground);
+  --color-blue-soft:            var(--blue-soft);
+  --color-green:                var(--green);
+  --color-green-foreground:     var(--green-foreground);
+
+  /* ── Status palette (theme-aware) ───────────────────────────── */
+  --color-positive:             var(--positive);
+  --color-positive-soft:        var(--positive-soft);
+  --color-caution:              var(--caution);
+  --color-caution-soft:         var(--caution-soft);
+  --color-negative:             var(--negative);
+  --color-negative-soft:        var(--negative-soft);
+
+  /* ── Charts ─────────────────────────────────────────────────── */
+  --color-chart-1:              var(--chart-1);
+  --color-chart-2:              var(--chart-2);
+  --color-chart-3:              var(--chart-3);
+  --color-chart-4:              var(--chart-4);
+  --color-chart-5:              var(--chart-5);
+
+  /* ── Sidebar ────────────────────────────────────────────────── */
+  --color-sidebar:              var(--sidebar);
+  --color-sidebar-foreground:   var(--sidebar-foreground);
+  --color-sidebar-primary:      var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:       var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:       var(--sidebar-border);
+  --color-sidebar-ring:         var(--sidebar-ring);
+
+  /* ── Dot pattern ────────────────────────────────────────────── */
+  --color-dot:                  var(--dot-color);
+
+  /* ── Motion ─────────────────────────────────────────────────── */
+  --duration-fast:      var(--duration-fast);
+  --duration-normal:    var(--duration-normal);
+  --duration-slow:      var(--duration-slow);
+  --ease-out-expo:      var(--ease-out-expo);
+  --ease-out-quart:     var(--ease-out-quart);
+  --ease-spring:        var(--ease-spring);
+
+  /* ── Shadows ────────────────────────────────────────────────── */
+  --shadow-sm:          var(--shadow-sm);
+  --shadow-md:          var(--shadow-md);
+  --shadow-lg:          var(--shadow-lg);
+  --shadow-xl:          var(--shadow-xl);
+  --shadow-glow-brand:  var(--shadow-glow-brand);
+
+  /* ── Ink scale (warm near-black → near-white) ───────────────── */
+  --color-ink-50:   #F5F5F4;
+  --color-ink-100:  #E8E8E6;
+  --color-ink-200:  #C8C8C4;
+  --color-ink-300:  #9A9A96;
+  --color-ink-400:  #6A6A66;
+  --color-ink-500:  #484844;
+  --color-ink-600:  #2E2E2C;
+  --color-ink-700:  #242422;
+  --color-ink-800:  #1E1E1C;
+  --color-ink-900:  #141413;
+
+  /* ── Coral scale (brand family) ─────────────────────────────── */
+  --color-coral-50:  #FEF6F2;
   --color-coral-100: #FDE8DF;
   --color-coral-200: #FAC9B4;
+  --color-coral-300: #F5A482;
+  --color-coral-400: #EE8462;
+  --color-coral-500: #E86235;
+  --color-coral-600: #C5532D;
+  --color-coral-700: #A04B2F;
   --color-coral-800: #7B3820;
-  --color-ink-200: #C8C8C4;
-  --color-surface-raised: #EBEBEB;
-  --color-surface-hover: #E0E0E0;
-  --color-surface-border: #D8D8D8;
 
-  /* ── Accent palette ───────────────────────────────────────────────── */
-  --color-pink: var(--pink);
-  --color-pink-foreground: var(--pink-foreground);
-  --color-purple: var(--purple);
-  --color-purple-foreground: var(--purple-foreground);
-  --color-blue: var(--blue);
-  --color-blue-foreground: var(--blue-foreground);
-  --color-yellow: var(--yellow);
-  --color-yellow-foreground: var(--yellow-foreground);
+  /* ── Neutral scale (warm grays — borders, subtle fills) ─────── */
+  --color-neutral-50:  #FAF8F5;
+  --color-neutral-100: #F4EDE8;
+  --color-neutral-200: #E8DDD6;
+  --color-neutral-300: #D4C4BA;
+  --color-neutral-400: #B8A89E;
+  --color-neutral-500: #9A8880;
+  --color-neutral-600: #7A6860;
+  --color-neutral-700: #5A4840;
 
-  /* ── Charts ───────────────────────────────────────────────────────── */
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  /* ── Tag/chip palette (12 colors — Tailwind-accessible) ─────── */
+  --color-chip-1-fg:  var(--chip-1-fg);   --color-chip-1-bg:  var(--chip-1-bg);
+  --color-chip-2-fg:  var(--chip-2-fg);   --color-chip-2-bg:  var(--chip-2-bg);
+  --color-chip-3-fg:  var(--chip-3-fg);   --color-chip-3-bg:  var(--chip-3-bg);
+  --color-chip-4-fg:  var(--chip-4-fg);   --color-chip-4-bg:  var(--chip-4-bg);
+  --color-chip-5-fg:  var(--chip-5-fg);   --color-chip-5-bg:  var(--chip-5-bg);
+  --color-chip-6-fg:  var(--chip-6-fg);   --color-chip-6-bg:  var(--chip-6-bg);
+  --color-chip-7-fg:  var(--chip-7-fg);   --color-chip-7-bg:  var(--chip-7-bg);
+  --color-chip-8-fg:  var(--chip-8-fg);   --color-chip-8-bg:  var(--chip-8-bg);
+  --color-chip-9-fg:  var(--chip-9-fg);   --color-chip-9-bg:  var(--chip-9-bg);
+  --color-chip-10-fg: var(--chip-10-fg);  --color-chip-10-bg: var(--chip-10-bg);
+  --color-chip-11-fg: var(--chip-11-fg);  --color-chip-11-bg: var(--chip-11-bg);
+  --color-chip-12-fg: var(--chip-12-fg);  --color-chip-12-bg: var(--chip-12-bg);
 
-  /* ── Sidebar ──────────────────────────────────────────────────────── */
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-sans:    'Inter Variable', sans-serif;
+  --font-heading: 'Inter Variable', sans-serif;
+  --font-mono:    ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
 
-  /* ── Radius & typography ──────────────────────────────────────────── */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: 'Oxanium Variable', sans-serif;
-  --font-heading: var(--font-sans);
+  /* ── Radius scale ───────────────────────────────────────────── */
+  --radius-sm:  calc(var(--radius) - 4px);
+  --radius-md:  calc(var(--radius) - 2px);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-full: 9999px;
 }
 
+/* ================================================================
+ * BASE LAYER
+ * ================================================================ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply font-sans bg-background text-foreground;
+    @apply bg-background text-foreground font-sans font-medium;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  html,
-  body,
-  #root {
+
+  html, body, #root {
     height: 100%;
     margin: 0;
   }
-  /* Pointer (hand) cursor on every clickable element, app-wide. */
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+
+  /* Pointer cursor on all interactive elements */
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   a[href],
@@ -232,32 +444,72 @@
   summary {
     cursor: pointer;
   }
+
   button:disabled,
   [aria-disabled="true"] {
     cursor: not-allowed;
   }
-  /* Hide scrollbars app-wide while keeping scroll behavior. */
+
+  /* Hide scrollbars app-wide */
   * {
-    scrollbar-width: none;          /* Firefox */
-    -ms-overflow-style: none;       /* legacy Edge/IE */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
   *::-webkit-scrollbar {
     width: 0;
     height: 0;
-    display: none;                  /* Chromium/WebKit (Electron) */
-  }
-  button:not(:disabled), [role="button"]:not(:disabled) {
-    cursor: pointer;
-  }
-  html {
-    @apply font-sans;
+    display: none;
   }
 }
 
-/* Electron window drag regions (custom title bar). */
-.drag-region {
-  -webkit-app-region: drag;
+/* ================================================================
+ * UTILITIES
+ * ================================================================ */
+@layer utilities {
+  /* ── Typography scale ───────────────────────────────────────── */
+  /* Oxanium reads best in the 500–600 weight range.             */
+  /* Bold (700) is too heavy; Normal (400) is too thin.          */
+  .heading-1 {
+    font-family: var(--font-heading);
+    @apply text-4xl font-semibold leading-tight tracking-tight text-ink-900;
+  }
+  .heading-2 {
+    font-family: var(--font-heading);
+    @apply text-3xl font-semibold leading-tight tracking-tight text-ink-900;
+  }
+  .heading-3 {
+    font-family: var(--font-heading);
+    @apply text-xl font-medium leading-snug text-ink-800;
+  }
+  .heading-4 {
+    font-family: var(--font-heading);
+    @apply text-base font-medium leading-snug text-ink-700;
+  }
+  .body-lg   { @apply text-lg font-medium text-ink-600; }
+  .body-md   { @apply text-base font-medium text-ink-600; }
+  .body-sm   { @apply text-sm font-medium text-ink-500; }
+  .label     { @apply text-xs font-semibold uppercase tracking-wider text-ink-500; }
+  .caption   { @apply text-xs font-medium text-ink-400; }
+
+  /* ── Page container ─────────────────────────────────────────── */
+  .page-container {
+    @apply mx-auto w-full max-w-6xl px-6;
+  }
+
+  /* ── Dot pattern background — auth page, section accents ────── */
+  .bg-dotted {
+    background-image: radial-gradient(circle, var(--dot-color) 1.5px, transparent 1.5px);
+    background-size: 28px 28px;
+  }
+
+  /* Flex shorthands */
+  .flex-center  { @apply flex items-center justify-center; }
+  .flex-between { @apply flex items-center justify-between; }
+  .flex-start   { @apply flex items-center justify-start; }
 }
-.no-drag {
-  -webkit-app-region: no-drag;
-}
+
+/* ================================================================
+ * ELECTRON — window regions
+ * ================================================================ */
+.drag-region { -webkit-app-region: drag; }
+.no-drag     { -webkit-app-region: no-drag; }

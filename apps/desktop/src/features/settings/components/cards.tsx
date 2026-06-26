@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 export function SettingHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-1">
-      <h3 className="text-lg font-bold text-white">{title}</h3>
-      {subtitle && <p className="mt-0.5 text-xs text-foreground">{subtitle}</p>}
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
     </div>
   );
 }
@@ -36,9 +36,9 @@ export function HeroCard({
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={icon} size={18} className={active ? "text-brand" : "text-foreground"} />
-          <h3 className="text-lg font-bold text-white">{title}</h3>
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
         </div>
-        <p className="text-xs leading-relaxed text-foreground">{description}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
       <div className="shrink-0">{action}</div>
     </div>
@@ -76,8 +76,8 @@ export function SettingListRow({
           <HugeiconsIcon icon={icon} size={20} />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-bold text-white">{title}</h3>
-          {description && <p className="mt-0.5 text-xs leading-normal text-foreground">{description}</p>}
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description && <p className="mt-0.5 text-sm leading-normal text-muted-foreground">{description}</p>}
         </div>
       </div>
       <div className="shrink-0 self-center">{action}</div>

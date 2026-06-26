@@ -10,7 +10,7 @@ export interface LevelData {
 
 export function LevelStrategySection({ job: _job, data }: { job: Job; data: LevelData }) {
   return (
-    <CollapsibleSection icon={TrendingUp} title="Level Fit" iconClassName="text-white" iconBgClassName="bg-foreground">
+    <CollapsibleSection icon={TrendingUp} title="Level Fit" iconClassName="text-bg-elevated" iconBgClassName="bg-foreground">
       <div className="pt-1">
         {data.strategy && <p className="text-foreground/70 text-[13px] leading-[1.75]">{data.strategy}</p>}
       </div>

@@ -120,14 +120,14 @@ function EducationListItem({
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[13px] font-bold text-white capitalize">{item.institution}</span>
+              <span className="text-[13px] font-semibold text-foreground capitalize">{item.institution}</span>
               {item.isCurrent && (
                 <span className="inline-flex items-center rounded border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Current</span>
               )}
             </div>
-            {item.field && <p className="text-xs text-white capitalize">{item.field}</p>}
+            {item.field && <p className="text-sm text-muted-foreground capitalize">{item.field}</p>}
             {(item.degree || gradeLabel(item)) && (
-              <p className="mt-1 text-xs text-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 <span className="capitalize">{item.degree}</span>
                 {item.degree && gradeLabel(item) && " · "}
                 {gradeLabel(item)}
@@ -147,7 +147,7 @@ function EducationListItem({
         </div>
 
         {dateRange(item) && (
-          <p className="mt-1 text-xs text-foreground">{dateRange(item)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{dateRange(item)}</p>
         )}
       </div>
     </li>
@@ -179,7 +179,7 @@ function EducationFormView({
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border h-fit">
       {/* Sticky header */}
-      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-bold text-base text-white">
+      <h2 className="sticky top-0 z-10 flex h-14 w-full shrink-0 items-center border-b border-border bg-background px-4 font-semibold text-base text-foreground">
         <button
           type="button"
           aria-label="Back"
@@ -224,10 +224,10 @@ function EducationFormView({
         {/* Currently studying */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-white">Currently studying here</p>
+            <p className="text-sm font-semibold text-foreground">Currently studying here</p>
             <Switch checked={form.isCurrent} onCheckedChange={(v) => set("isCurrent", v)} />
           </div>
-          <p className="text-xs text-foreground">Check if you're still enrolled</p>
+          <p className="text-sm text-muted-foreground">Check if you're still enrolled</p>
         </div>
 
         {/* Start date */}
@@ -383,7 +383,7 @@ export function EducationPanel() {
   return (
     <main className="flex min-w-0 flex-1 self-start flex-col overflow-hidden rounded-xl border border-border">
       <div className="flex h-14 shrink-0 items-center border-b border-border bg-background px-6">
-        <h2 className="flex-1 text-base font-bold text-white">Education</h2>
+        <h2 className="flex-1 text-base font-semibold text-foreground">Education</h2>
         <Button size="sm" variant="outline" onClick={openAdd}>
           <HugeiconsIcon icon={Add01Icon} size={16} className="mr-1.5" />
           Add

@@ -3,12 +3,13 @@ import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import { trackAction } from "@/lib/analytics";
 
-/** The user's ranked job feed (career-ops GET /jobs via IPC). */
-export function useJobsFeed() {
+/** The user's ranked job feed (career-ops GET /jobs via IPC), within a freshness
+ *  window of `days` (1–90). Each window is cached separately; qk.jobs invalidates all. */
+export function useJobsFeed(days: number) {
   return useQuery({
-    queryKey: qk.jobs,
+    queryKey: qk.jobsFeed(days),
     queryFn: async () => {
-      const res = await api.jobs.list();
+      const res = await api.jobs.list({ days });
       if (!res.ok) throw new Error(res.error);
       return res.data.jobs;
     },

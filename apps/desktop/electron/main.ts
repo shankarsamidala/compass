@@ -1,7 +1,9 @@
 import "@datadog/electron-sdk/instrument"; // must be before electron
-import { app, BrowserWindow, nativeImage, session } from "electron";
+import { app, BrowserWindow, nativeImage, session, shell } from "electron";
 import path from "node:path";
 import { registerIpcHandlers } from "./ipc/handlers";
+import { cliService } from "./services/cli.service";
+import { claudeWarmAgent } from "./services/agent-session.service";
 import { init as initDatadog } from "@datadog/electron-sdk";
 
 // Lean Electron shell for Compass. No mic/screen/accessibility permissions —
@@ -22,7 +24,7 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: "#0e1217",
+    backgroundColor: "#ffffff",
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     icon: icon.isEmpty() ? undefined : icon,
     webPreferences: {
@@ -32,11 +34,31 @@ function createWindow() {
     },
   });
 
+  // All target="_blank" links and window.open() calls open in the system browser.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
+
+  // Warm the Claude session in the background once the UI is up — so the first
+  // scan/rank/evaluate is instant instead of paying MCP cold-start. Best-effort:
+  // if claude isn't installed it just no-ops.
+  win.webContents.once("did-finish-load", () => {
+    void cliService
+      .detect()
+      .then((res) => {
+        if (res.ok && res.data.claude) {
+          claudeWarmAgent.start().catch((e) => console.warn("[warm-agent] start failed:", e?.message ?? e));
+        }
+      })
+      .catch(() => {/* non-fatal */});
+  });
 }
 
 app.whenReady().then(async () => {
@@ -71,6 +93,10 @@ app.whenReady().then(async () => {
 
   registerIpcHandlers();
   createWindow();
+});
+
+app.on("before-quit", () => {
+  claudeWarmAgent.kill();
 });
 
 app.on("window-all-closed", () => {
