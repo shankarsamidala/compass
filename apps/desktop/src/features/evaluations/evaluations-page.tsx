@@ -1,10 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, ExternalLink, Loader2 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Bookmark03Icon, GitCompareArrowsIcon, Delete03Icon, CalendarDaysIcon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/ipc";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { EvaluationSummary } from "@compass/ipc-contract";
 
 // Score tier → tonal text color (matches the jobs table chips/tokens).
@@ -91,10 +101,12 @@ function ReportCard({
   e,
   active,
   onClick,
+  onDelete,
 }: {
   e: EvaluationSummary;
   active: boolean;
   onClick: () => void;
+  onDelete: () => void;
 }) {
   const secondary = locationText(e.location);
   return (
@@ -144,20 +156,33 @@ function ReportCard({
         <div className="flex items-center gap-2">
           <CardAction icon={Bookmark03Icon} label="Save" />
           <CardAction icon={GitCompareArrowsIcon} label="Compare" />
-          <CardAction icon={Delete03Icon} label="Delete" danger />
+          <CardAction icon={Delete03Icon} label="Delete" danger onAction={onDelete} />
         </div>
       </footer>
     </article>
   );
 }
 
-function CardAction({ icon, label, danger = false }: { icon: typeof Bookmark03Icon; label: string; danger?: boolean }) {
+function CardAction({
+  icon,
+  label,
+  danger = false,
+  onAction,
+}: {
+  icon: typeof Bookmark03Icon;
+  label: string;
+  danger?: boolean;
+  onAction?: () => void;
+}) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onAction?.();
+      }}
       className={cn(
         "flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors",
         danger ? "hover:bg-negative-soft hover:text-negative" : "hover:bg-accent hover:text-foreground",
@@ -169,7 +194,22 @@ function CardAction({ icon, label, danger = false }: { icon: typeof Bookmark03Ic
 }
 
 export function EvaluationsPage() {
+  const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<EvaluationSummary | null>(null);
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await api.evaluations.remove(id);
+      if (!r.ok) throw new Error(r.error);
+      return id;
+    },
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ["evaluations"] });
+      if (selectedId === id) setSelectedId(null);
+      setPendingDelete(null);
+    },
+  });
 
   const {
     data: rows = [],
@@ -222,13 +262,19 @@ export function EvaluationsPage() {
             </div>
           ) : (
             rows.map((e) => (
-              <ReportCard key={e.id} e={e} active={selectedId === e.id} onClick={() => setSelectedId(e.id)} />
+              <ReportCard
+                key={e.id}
+                e={e}
+                active={selectedId === e.id}
+                onClick={() => setSelectedId(e.id)}
+                onDelete={() => setPendingDelete(e)}
+              />
             ))
           )}
         </div>
 
         {/* Detail */}
-        <div className="min-w-0 flex-1 overflow-y-auto border-l border-border p-6">
+        <div className="min-w-0 flex-1 overflow-y-auto p-6">
           {selected ? (
             <div className="space-y-4">
               <div>
@@ -275,6 +321,39 @@ export function EvaluationsPage() {
           )}
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingDelete != null}
+        onOpenChange={(open) => {
+          if (!open && !del.isPending) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this report?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete
+                ? `“${pendingDelete.roleTitle ?? "Untitled"}${
+                    pendingDelete.companyName ? ` at ${pendingDelete.companyName}` : ""
+                  }” will be permanently removed. This can’t be undone.`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={del.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={del.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (pendingDelete) del.mutate(pendingDelete.id);
+              }}
+              className="bg-negative text-white hover:bg-negative/90"
+            >
+              {del.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

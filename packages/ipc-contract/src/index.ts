@@ -792,6 +792,7 @@ export interface EvaluationDetail extends EvaluationSummary {
 export interface EvaluationsApi {
   list(): Promise<Result<{ evaluations: EvaluationSummary[] }>>;
   get(id: string): Promise<Result<{ evaluation: EvaluationDetail }>>;
+  remove(id: string): Promise<Result<void>>;
 }
 
 /** Open locally-generated files (e.g. a tailored resume PDF) in the OS default app. */

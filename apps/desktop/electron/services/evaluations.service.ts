@@ -53,4 +53,16 @@ export const evaluationsService = {
       },
     });
   },
+
+  async remove(id: string): Promise<Result<void>> {
+    const res = await authedFetch(`/evaluations/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res) return err("Could not reach the server", "NETWORK");
+    if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
+    if (res.status === 404) return err("Evaluation not found", "NOT_FOUND");
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      return err(json?.error || "Could not delete evaluation", json?.code);
+    }
+    return ok(undefined);
+  },
 };

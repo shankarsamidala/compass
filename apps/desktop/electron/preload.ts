@@ -70,6 +70,7 @@ const api: CompassApi = {
   evaluations: {
     list: () => ipcRenderer.invoke("evaluations:list"),
     get: (id) => ipcRenderer.invoke("evaluations:get", id),
+    remove: (id) => ipcRenderer.invoke("evaluations:remove", id),
   },
   artifact: {
     open: (path: string) => ipcRenderer.invoke("artifact:open", path),

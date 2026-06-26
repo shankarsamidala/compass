@@ -118,6 +118,7 @@ export function registerIpcHandlers(): void {
   // ── Evaluations dashboard (REIN-320) ──
   safeHandle("evaluations:list", () => evaluationsService.list());
   safeHandle("evaluations:get", (id: string) => evaluationsService.get(id));
+  safeHandle("evaluations:remove", (id: string) => evaluationsService.remove(id));
 
   safeHandle("settings:get", () => settingsService.get());
   safeHandle("settings:update", (patch) => settingsService.update(patch));
