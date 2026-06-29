@@ -135,9 +135,9 @@ function toFeedJob(j: any): FeedJob {
  */
 export const jobsService = {
   async list(opts?: { limit?: number; offset?: number; days?: number }): Promise<Result<{ jobs: FeedJob[] }>> {
-    // We scrape & ingest everything into the shared pool, but each user's feed only
-    // shows the top 25 (role-scoped + freshest). Callers can still override `limit`.
-    const limit = opts?.limit ?? 25;
+    // The per-user feed cap is enforced SERVER-SIDE (co-atlas FEED_MAX_PER_USER), so
+    // the client just requests a page; the server clamps it down to the policy cap.
+    const limit = opts?.limit ?? 100;
     const offset = opts?.offset ?? 0;
     // Feed window: the page can pass an explicit `days` (the user's freshness picker,
     // 1–90); otherwise fall back to the scan freshness (jobAge, default 1 = today).
