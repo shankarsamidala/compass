@@ -47,11 +47,21 @@ export function useResetPassword() {
   });
 }
 
-/** Logout — clears the session, then refetches to drop back to the auth flow. */
+/**
+ * Logout — the main process clears credentials, then we hard-reload the window.
+ * A reload is the only way to reliably reset the app: the renderer-lifetime
+ * QueryClient otherwise keeps cached session/profile data that races the auth
+ * gate (leaving you stuck on an empty, locked Profile until a manual refresh).
+ * On the fresh boot, `getSession` returns NO_SESSION → the login screen, and the
+ * next account starts with a clean cache. Runs on settle so a failed network
+ * revoke still logs the user out locally.
+ */
 export function useLogout() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: () => auth.logout(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.session }),
+    onSettled: () => {
+      localStorage.removeItem("compass:active-view");
+      window.location.reload();
+    },
   });
 }

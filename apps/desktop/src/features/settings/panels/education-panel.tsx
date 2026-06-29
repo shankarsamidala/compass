@@ -23,6 +23,25 @@ const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 50 }, (_, i) => String(currentYear + 5 - i));
 
+// Education level — same set as the onboarding "highest qualification" dropdown.
+const EDUCATION_LEVELS = ["10th", "12th / Intermediate", "Diploma", "Bachelor's", "Master's", "PhD"] as const;
+
+// School levels have no specialization (no degree / field of study).
+const SCHOOL_LEVELS = new Set<string>(["10th", "12th / Intermediate"]);
+const isSchoolLevel = (level: string) => SCHOOL_LEVELS.has(level);
+
+// Onboarding writes level as a backend code; settings writes the display label.
+// Normalize legacy codes back to a label so dedup recognizes onboarding rows too.
+const LEVEL_CODE_TO_LABEL: Record<string, string> = {
+  ssc_x: "10th",
+  twelfth: "12th / Intermediate",
+  bachelor_diploma: "Bachelor's",
+  masters: "Master's",
+  phd: "PhD",
+};
+const normalizeLevel = (level: string | null | undefined): string =>
+  level ? LEVEL_CODE_TO_LABEL[level] ?? level : "";
+
 function fmtDate(year: number | null, month: number | null): string {
   if (!year) return "";
   const mon = month ? MONTHS_SHORT[month - 1] : null;
@@ -47,6 +66,7 @@ const GRADE_TYPES: { value: Exclude<GradeType, "">; label: string }[] = [
 ];
 
 interface FormState {
+  level: string;
   institution: string;
   degree: string;
   field: string;
@@ -61,7 +81,7 @@ interface FormState {
 
 function blankForm(): FormState {
   return {
-    institution: "", degree: "", field: "", isCurrent: false,
+    level: "", institution: "", degree: "", field: "", isCurrent: false,
     startMonth: "", startYear: "", endMonth: "", endYear: "",
     gradeType: "", gradeValue: "",
   };
@@ -75,6 +95,7 @@ function itemToForm(item: EducationItem): FormState {
     gradeType === "percentage" ? (item.percentage ?? "") :
     gradeType === "grade" ? (item.grade ?? "") : "";
   return {
+    level: normalizeLevel(item.level),
     institution: item.institution,
     degree: item.degree ?? "",
     field: item.field ?? "",
@@ -121,6 +142,9 @@ function EducationListItem({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[13px] font-semibold text-foreground capitalize">{item.institution}</span>
+              {normalizeLevel(item.level) && (
+                <span className="inline-flex items-center rounded border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{normalizeLevel(item.level)}</span>
+              )}
               {item.isCurrent && (
                 <span className="inline-flex items-center rounded border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Current</span>
               )}
@@ -160,6 +184,7 @@ function EducationFormView({
   editId,
   form,
   setForm,
+  levelOptions = [],
   saving,
   onSave,
   onClose,
@@ -168,6 +193,8 @@ function EducationFormView({
   editId: string | null;
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  /** Levels still available to pick (taken ones removed, current selection kept). */
+  levelOptions: string[];
   saving: boolean;
   onSave: () => void;
   onClose: () => void;
@@ -175,6 +202,8 @@ function EducationFormView({
 }) {
   const set = <K extends keyof FormState>(key: K, val: FormState[K]) =>
     setForm((p) => ({ ...p, [key]: val }));
+
+  const schoolLevel = isSchoolLevel(form.level);
 
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border h-fit">
@@ -192,7 +221,7 @@ function EducationFormView({
         </button>
         {editId ? "Edit Education" : "Add Education"}
         <span className="ml-auto">
-          <Button size="sm" onClick={onSave} disabled={saving || !form.institution}>
+          <Button size="sm" onClick={onSave} disabled={saving || !form.level || !form.institution}>
             {saving ? "Saving…" : "Save"}
           </Button>
         </span>
@@ -201,23 +230,47 @@ function EducationFormView({
       {/* Body */}
       <section className="flex flex-col gap-6 overflow-x-hidden p-6 w-full">
 
+        {/* Level */}
+        <Field>
+          <FieldTitle>Level<span className="text-destructive">*</span></FieldTitle>
+          <Select
+            value={form.level || ""}
+            onValueChange={(v) =>
+              // Switching to a school level drops specialization fields it doesn't use.
+              setForm((p) => ({
+                ...p,
+                level: v,
+                ...(isSchoolLevel(v) ? { degree: "", field: "" } : {}),
+              }))
+            }
+          >
+            <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
+            <SelectContent>
+              {levelOptions.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+
         {/* Institution */}
         <Field>
           <FieldTitle>School or institution<span className="text-destructive">*</span></FieldTitle>
           <Input placeholder="Ex: Stanford University" value={form.institution} onChange={(e) => set("institution", e.target.value)} />
         </Field>
 
-        {/* Degree */}
-        <Field>
-          <FieldTitle>Degree</FieldTitle>
-          <Input placeholder="Ex: Bachelor of Science" value={form.degree} onChange={(e) => set("degree", e.target.value)} />
-        </Field>
+        {/* Degree + Field of study — specializations don't apply to 10th / 12th. */}
+        {!schoolLevel && (
+          <>
+            <Field>
+              <FieldTitle>Degree</FieldTitle>
+              <Input placeholder="Ex: Bachelor of Science" value={form.degree} onChange={(e) => set("degree", e.target.value)} />
+            </Field>
 
-        {/* Field of study */}
-        <Field>
-          <FieldTitle>Field of study</FieldTitle>
-          <Input placeholder="Ex: Computer Science" value={form.field} onChange={(e) => set("field", e.target.value)} />
-        </Field>
+            <Field>
+              <FieldTitle>Field of study</FieldTitle>
+              <Input placeholder="Ex: Computer Science" value={form.field} onChange={(e) => set("field", e.target.value)} />
+            </Field>
+          </>
+        )}
 
         <div className="border-t border-border/50" />
 
@@ -235,13 +288,13 @@ function EducationFormView({
           <FieldTitle>Start date</FieldTitle>
           <div className="flex gap-6">
             <Select value={form.startMonth || ""} onValueChange={(v) => set("startMonth", v)}>
-              <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Month" /></SelectTrigger>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Month" /></SelectTrigger>
               <SelectContent>
                 {MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={form.startYear || ""} onValueChange={(v) => set("startYear", v)}>
-              <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Year" /></SelectTrigger>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Year" /></SelectTrigger>
               <SelectContent>
                 {YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
               </SelectContent>
@@ -254,13 +307,13 @@ function EducationFormView({
             <FieldTitle>End date (or expected)</FieldTitle>
             <div className="flex gap-6">
               <Select value={form.endMonth || ""} onValueChange={(v) => set("endMonth", v)}>
-                <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Month" /></SelectTrigger>
                 <SelectContent>
                   {MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={form.endYear || ""} onValueChange={(v) => set("endYear", v)}>
-                <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Year" /></SelectTrigger>
                 <SelectContent>
                   {YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 </SelectContent>
@@ -279,7 +332,7 @@ function EducationFormView({
               value={form.gradeType || ""}
               onValueChange={(v) => setForm((p) => ({ ...p, gradeType: v as GradeType, gradeValue: "" }))}
             >
-              <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Type" /></SelectTrigger>
               <SelectContent>
                 {GRADE_TYPES.map((g) => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
               </SelectContent>
@@ -330,12 +383,23 @@ export function EducationPanel() {
   const openEdit = (item: EducationItem) => { setEditId(item.id); setForm(itemToForm(item)); setFormOpen(true); };
   const closeForm = () => { setFormOpen(false); setEditId(null); };
 
+  // Levels already used by other entries are removed from the dropdown; the entry
+  // being edited keeps its own level so it stays selectable.
+  const takenLevels = new Set(
+    items.filter((it) => it.id !== editId).map((it) => normalizeLevel(it.level)).filter(Boolean),
+  );
+  const levelOptions = EDUCATION_LEVELS.filter(
+    (l) => !takenLevels.has(l) || l === form.level,
+  );
+
   const buildInput = (): EducationInput => {
     const gv = form.gradeValue.trim();
+    const school = isSchoolLevel(form.level);
     return {
+      level: form.level || null,
       institution: form.institution.trim(),
-      degree: form.degree.trim() || undefined,
-      field: form.field.trim() || undefined,
+      degree: school ? undefined : form.degree.trim() || undefined,
+      field: school ? undefined : form.field.trim() || undefined,
       startYear: form.startYear ? Number(form.startYear) : undefined,
       startMonth: form.startMonth ? Number(form.startMonth) : undefined,
       endYear: !form.isCurrent && form.endYear ? Number(form.endYear) : undefined,
@@ -364,6 +428,10 @@ export function EducationPanel() {
 
   const saving = addEdu.isPending || updateEdu.isPending;
 
+  // Every level can be used once — hide "Add" when all are taken.
+  const usedLevels = new Set(items.map((it) => normalizeLevel(it.level)).filter(Boolean));
+  const allLevelsUsed = EDUCATION_LEVELS.every((l) => usedLevels.has(l));
+
   // ── Form view (full width) ────────────────────────────────────────────────
   if (formOpen) {
     return (
@@ -371,6 +439,7 @@ export function EducationPanel() {
         editId={editId}
         form={form}
         setForm={setForm}
+        levelOptions={levelOptions}
         saving={saving}
         onSave={handleSave}
         onClose={closeForm}
@@ -384,10 +453,12 @@ export function EducationPanel() {
     <main className="flex min-w-0 flex-1 self-start flex-col overflow-hidden rounded-xl border border-border">
       <div className="flex h-14 shrink-0 items-center border-b border-border bg-background px-6">
         <h2 className="flex-1 text-base font-semibold text-foreground">Education</h2>
-        <Button size="sm" variant="outline" onClick={openAdd}>
-          <HugeiconsIcon icon={Add01Icon} size={16} className="mr-1.5" />
-          Add
-        </Button>
+        {!allLevelsUsed && (
+          <Button size="sm" variant="outline" onClick={openAdd}>
+            <HugeiconsIcon icon={Add01Icon} size={16} className="mr-1.5" />
+            Add
+          </Button>
+        )}
       </div>
 
       <section className="flex-1 overflow-y-auto px-6">

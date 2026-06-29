@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { JobLinkIcon, RocketIcon, File01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/ipc";
 import type { ScanSource, MatchFloor, TailoringIntensity } from "@compass/ipc-contract";
@@ -16,6 +17,14 @@ const MATCH_FLOORS: { value: MatchFloor; label: string }[] = [
   { value: "all", label: "Show all" },
   { value: "fair", label: "Fair & up" },
   { value: "strong", label: "Strong only" },
+];
+// Posting freshness (jobAge in days) — how far back the scan looks.
+const JOB_AGE_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "Today" },
+  { value: 3, label: "Last 3 days" },
+  { value: 7, label: "Last 7 days" },
+  { value: 15, label: "Last 15 days" },
+  { value: 30, label: "Last 30 days" },
 ];
 const BOARDS: { id: ScanSource; name: string; desc: string; available: boolean }[] = [
   { id: "naukri", name: "Naukri", desc: "India's largest job board. Scraped from your own IP.", available: true },
@@ -148,7 +157,7 @@ export function JobSearchPanel() {
           <div className="flex flex-row items-center gap-3">
             <SalaryField initial={prefs.expectedCtc} onSave={(v) => updateProfile.mutate({ expectedCtc: v })} />
             <Select defaultValue="annually">
-              <SelectTrigger className="w-36 h-10 rounded-xl">
+              <SelectTrigger className="w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -194,6 +203,27 @@ export function JobSearchPanel() {
 
       <PrefDivider />
 
+      {/* Posting freshness */}
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-semibold text-foreground">Posting freshness</p>
+        <p className="text-sm text-muted-foreground">How far back each scan looks for new postings.</p>
+        <Select
+          value={String(scan.jobAge)}
+          onValueChange={(v) => updateSettings.mutate({ scan: { ...scan, jobAge: Number(v) } })}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Select window" />
+          </SelectTrigger>
+          <SelectContent>
+            {JOB_AGE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <PrefDivider />
+
       {/* Minimum match */}
       <div className="flex flex-col gap-2">
         <p className="text-sm font-semibold text-foreground">Minimum match</p>
@@ -202,7 +232,7 @@ export function JobSearchPanel() {
           value={scan.minMatch}
           onValueChange={(v) => updateSettings.mutate({ scan: { ...scan, minMatch: v as MatchFloor } })}
         >
-          <SelectTrigger className="w-48 h-10 rounded-xl">
+          <SelectTrigger className="w-48">
             <SelectValue placeholder="Select threshold" />
           </SelectTrigger>
           <SelectContent>
@@ -311,19 +341,17 @@ function SalaryField({ initial, onSave }: { initial: number | null; onSave: (v: 
   const [val, setVal] = useState(initial != null ? String(initial) : "");
   useEffect(() => { setVal(initial != null ? String(initial) : ""); }, [initial]);
   return (
-    <div className="flex h-10 w-40 overflow-hidden rounded-xl border border-input bg-input/30 text-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-      <input
-        className="h-full flex-1 bg-transparent px-3 outline-none placeholder:text-foreground"
-        inputMode="numeric"
-        placeholder="Min amount"
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={() => {
-          const n = Number(val);
-          if (val.trim() && Number.isFinite(n) && n !== initial) onSave(n);
-        }}
-      />
-    </div>
+    <Input
+      className="w-40"
+      inputMode="numeric"
+      placeholder="Min amount"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={() => {
+        const n = Number(val);
+        if (val.trim() && Number.isFinite(n) && n !== initial) onSave(n);
+      }}
+    />
   );
 }
 
@@ -331,15 +359,12 @@ function LocationField({ initial, onSave }: { initial: string | null; onSave: (v
   const [val, setVal] = useState(initial ?? "");
   useEffect(() => { setVal(initial ?? ""); }, [initial]);
   return (
-    <div className="flex h-10 overflow-hidden rounded-xl border border-input bg-input/30 text-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-      <input
-        className="h-full flex-1 bg-transparent px-3 outline-none placeholder:text-foreground"
-        placeholder="Location"
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={() => { if (val !== (initial ?? "")) onSave(val); }}
-      />
-    </div>
+    <Input
+      placeholder="Location"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={() => { if (val !== (initial ?? "")) onSave(val); }}
+    />
   );
 }
 

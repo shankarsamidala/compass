@@ -1,10 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { useFieldArray, Controller, type UseFormReturn } from "react-hook-form";
+import { useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { OptionCombobox } from "./option-combobox";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EDUCATION_LEVELS, GRADING_SYSTEMS, blankEducation, type OnboardingValues } from "../schema";
 
 export function StepEducation({
@@ -14,7 +26,7 @@ export function StepEducation({
   form: UseFormReturn<OnboardingValues>;
   onRegisterAdd?: (fn: (() => void) | null) => void;
 }) {
-  const { control, register, watch, formState: { errors } } = form;
+  const { control, watch } = form;
   const { fields, append, remove } = useFieldArray({ control, name: "eduEntries" });
   const values = watch("eduEntries");
   const [openIndex, setOpenIndex] = useState(0);
@@ -81,55 +93,154 @@ export function StepEducation({
         return (
           <div key={f.id} className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label>Level</Label>
-                <Controller control={control} name={`eduEntries.${i}.level`} render={({ field }) => (
-                  <OptionCombobox options={EDUCATION_LEVELS} value={field.value} onChange={field.onChange} placeholder="Select level" />
-                )} />
-                {errors.eduEntries?.[i]?.level && <p className="text-xs text-destructive">{String(errors.eduEntries[i]?.level?.message)}</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Institution</Label>
-                <Input className="h-10" placeholder="e.g. IIT Bombay" {...register(`eduEntries.${i}.institution`)} />
-                {errors.eduEntries?.[i]?.institution && <p className="text-xs text-destructive">{String(errors.eduEntries[i]?.institution?.message)}</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Degree</Label>
-                <Input className="h-10" placeholder="e.g. B.Tech" {...register(`eduEntries.${i}.degree`)} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Field of study</Label>
-                <Input className="h-10" placeholder="e.g. Computer Science" {...register(`eduEntries.${i}.fieldOfStudy`)} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Start year</Label>
-                <Input className="h-10" inputMode="numeric" placeholder="2018" {...register(`eduEntries.${i}.startYear`)} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>End year</Label>
-                <Input className="h-10" inputMode="numeric" placeholder="2022" disabled={watch(`eduEntries.${i}.isCurrent`)} {...register(`eduEntries.${i}.endYear`)} />
-              </div>
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.level`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Level</FormLabel>
+                    <FormControl>
+                      <Select value={field.value || undefined} onValueChange={field.onChange}>
+                        <SelectTrigger className="!h-10 w-full justify-between bg-transparent hover:bg-transparent data-placeholder:text-muted-foreground">
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          {EDUCATION_LEVELS.map((q) => (
+                            <SelectItem key={q} value={q}>
+                              {q}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.institution`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Institution</FormLabel>
+                    <FormControl>
+                      <Input className="h-10" placeholder="e.g. IIT Bombay" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.degree`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Degree</FormLabel>
+                    <FormControl>
+                      <Input className="h-10" placeholder="e.g. B.Tech" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.fieldOfStudy`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Field of study</FormLabel>
+                    <FormControl>
+                      <Input className="h-10" placeholder="e.g. Computer Science" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.startYear`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Start year</FormLabel>
+                    <FormControl>
+                      <Input className="h-10" inputMode="numeric" placeholder="2018" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.endYear`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>End year</FormLabel>
+                    <FormControl>
+                      <Input className="h-10" inputMode="numeric" placeholder="2022" disabled={watch(`eduEntries.${i}.isCurrent`)} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`edu-cur-${i}`} className="font-normal">Currently studying</Label>
-              <Controller control={control} name={`eduEntries.${i}.isCurrent`} render={({ field }) => (
-                <Switch id={`edu-cur-${i}`} checked={field.value} onCheckedChange={field.onChange} />
-              )} />
-            </div>
+            <FormField
+              control={control}
+              name={`eduEntries.${i}.isCurrent`}
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between space-y-0">
+                  <FormLabel htmlFor={`edu-cur-${i}`} className="font-normal cursor-pointer">Currently studying</FormLabel>
+                  <FormControl>
+                    <Switch id={`edu-cur-${i}`} checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label>Grading system</Label>
-                <Controller control={control} name={`eduEntries.${i}.gradingSystem`} render={({ field }) => (
-                  <OptionCombobox options={GRADING_SYSTEMS} value={field.value} onChange={field.onChange} placeholder="Select" />
-                )} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Score</Label>
-                <Input className="h-10" inputMode="decimal" placeholder={grading === "percentage" ? "e.g. 85" : "e.g. 8.5"} disabled={!scorable} {...register(`eduEntries.${i}.score`)} />
-                {errors.eduEntries?.[i]?.score && <p className="text-xs text-destructive">{String(errors.eduEntries[i]?.score?.message)}</p>}
-              </div>
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.gradingSystem`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Grading system</FormLabel>
+                    <FormControl>
+                      <Select value={field.value || undefined} onValueChange={field.onChange}>
+                        <SelectTrigger className="!h-10 w-full justify-between bg-transparent hover:bg-transparent data-placeholder:text-muted-foreground">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          {GRADING_SYSTEMS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`eduEntries.${i}.score`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Score</FormLabel>
+                    <FormControl>
+                      <Input className="h-10" inputMode="decimal" placeholder={grading === "percentage" ? "e.g. 85" : "e.g. 8.5"} disabled={!scorable} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
         );

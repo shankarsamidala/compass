@@ -253,6 +253,26 @@ export const onboardingService = {
     return err(json?.error || "Could not complete onboarding", json?.code);
   },
 
+  /** Setup step 2 — persist the user's selected goals (co-atlas POST /setup/goal). */
+  async saveGoals(goals: string[]): Promise<Result<{ goals: string[] }>> {
+    const res = await postJson("/setup/goal", { goals });
+    if (!res) return err("Could not reach the server", "NETWORK");
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return ok({ goals: Array.isArray(json?.goals) ? json.goals : goals });
+    if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
+    return err(json?.error || "Could not save your goals", json?.code);
+  },
+
+  /** Setup step 3 — persist data-use + marketing consents (co-atlas POST /setup/consent). */
+  async saveConsent(input: { dataUse: boolean; marketingEmail: boolean }): Promise<Result<{ dataUse: boolean; marketingEmail: boolean }>> {
+    const res = await postJson("/setup/consent", input);
+    if (!res) return err("Could not reach the server", "NETWORK");
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return ok({ dataUse: Boolean(json?.dataUse), marketingEmail: Boolean(json?.marketingEmail) });
+    if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
+    return err(json?.error || "Could not save your consent", json?.code);
+  },
+
   /**
    * Idempotent onboarding submit (REIN-313), mirroring studio:
    *   PUT /profile → load /profile/full → DELETE existing records → POST records → complete.

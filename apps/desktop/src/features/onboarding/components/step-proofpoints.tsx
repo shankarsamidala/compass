@@ -3,8 +3,14 @@ import { useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Pencil, Trash2, Sparkles, Loader2, FileText } from "lucide-react";
 import { api } from "@/lib/ipc";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { blankProofPoint, type OnboardingValues } from "../schema";
 
 export function StepProofPoints({
@@ -14,7 +20,7 @@ export function StepProofPoints({
   form: UseFormReturn<OnboardingValues>;
   onRegisterAdd?: (fn: (() => void) | null) => void;
 }) {
-  const { register, control, watch, setValue, getValues, formState: { errors } } = form;
+  const { control, watch, setValue, getValues } = form;
   const { fields, append, remove, replace } = useFieldArray({ control, name: "proofPoints" });
   const values = watch("proofPoints");
   const resumeText = watch("resumeText");
@@ -142,33 +148,61 @@ export function StepProofPoints({
 
         return (
           <div key={f.id} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <Label>Achievement</Label>
-                <button
-                  type="button"
-                  onClick={() => optimize(i)}
-                  disabled={optimizingIndex === i || !values?.[i]?.title?.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 px-2.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/10 disabled:opacity-50"
-                >
-                  {optimizingIndex === i ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-                  {optimizingIndex === i ? "Optimizing…" : "Optimize with AI"}
-                </button>
-              </div>
-              <Textarea
-                placeholder="Jot it down rough — e.g. reduced aws bill by migrating services to eks — then let AI polish it."
-                {...register(`proofPoints.${i}.title`)}
-              />
-              {errors.proofPoints?.[i]?.title && <p className="text-xs text-destructive">{String(errors.proofPoints[i]?.title?.message)}</p>}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Metric (optional)</Label>
-              <Input className="h-10" placeholder="e.g. -22% cost · 2.1s → 380ms" {...register(`proofPoints.${i}.metric`)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Evidence link (optional)</Label>
-              <Input className="h-10" placeholder="github.com/… or article link" {...register(`proofPoints.${i}.url`)} />
-            </div>
+            <FormField
+              control={control}
+              name={`proofPoints.${i}.title`}
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Achievement</FormLabel>
+                    <button
+                      type="button"
+                      onClick={() => optimize(i)}
+                      disabled={optimizingIndex === i || !values?.[i]?.title?.trim()}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-brand/40 px-2.5 py-1 text-xs font-medium text-brand transition-colors hover:bg-brand/10 disabled:opacity-50"
+                    >
+                      {optimizingIndex === i ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+                      {optimizingIndex === i ? "Optimizing…" : "Optimize with AI"}
+                    </button>
+                  </div>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Jot it down rough — e.g. reduced aws bill by migrating services to eks — then let AI polish it."
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name={`proofPoints.${i}.metric`}
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <FormLabel>Metric (optional)</FormLabel>
+                  <FormControl>
+                    <Input className="h-10" placeholder="e.g. -22% cost · 2.1s → 380ms" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name={`proofPoints.${i}.url`}
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <FormLabel>Evidence link (optional)</FormLabel>
+                  <FormControl>
+                    <Input className="h-10" placeholder="github.com/… or article link" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         );
       })}

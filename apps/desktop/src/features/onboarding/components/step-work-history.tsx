@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { useFieldArray, Controller, type UseFormReturn } from "react-hook-form";
+import { useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Pencil, Trash2 } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { AsyncCombobox } from "./async-combobox";
 import { CompanyComboboxNova } from "./company-combobox-nova";
-import { OptionCombobox } from "./option-combobox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DateField } from "./date-field";
 import { SkillField } from "./skill-field";
 import { EMPLOYMENT_TYPES, blankExperience, type OnboardingValues } from "../schema";
@@ -18,7 +30,7 @@ export function StepWorkHistory({
   form: UseFormReturn<OnboardingValues>;
   onRegisterAdd?: (fn: (() => void) | null) => void;
 }) {
-  const { control, register, watch, formState: { errors } } = form;
+  const { control, watch } = form;
   const { fields, append, remove } = useFieldArray({ control, name: "experiences" });
   const fresher = watch("isFresher");
   const values = watch("experiences");
@@ -120,64 +132,142 @@ export function StepWorkHistory({
         return (
           <div key={f.id} className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label>Role title</Label>
-                <Controller control={control} name={`experiences.${i}.title`} render={({ field }) => (
-                  <AsyncCombobox value={field.value} onChange={field.onChange} kind="roles" placeholder="Search role, e.g. Senior Engineer…" />
-                )} />
-                {errors.experiences?.[i]?.title && <p className="text-xs text-destructive">{String(errors.experiences[i]?.title?.message)}</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Company</Label>
-                <Controller control={control} name={`experiences.${i}.company`} render={({ field }) => (
-                  <CompanyComboboxNova value={field.value ?? ""} onChange={field.onChange} placeholder="e.g. Acme Inc." />
-                )} />
-                {errors.experiences?.[i]?.company && <p className="text-xs text-destructive">{String(errors.experiences[i]?.company?.message)}</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Location</Label>
-                <Controller control={control} name={`experiences.${i}.location`} render={({ field }) => (
-                  <AsyncCombobox value={field.value} onChange={field.onChange} kind="locations" placeholder="Search city…" />
-                )} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Employment type</Label>
-                <Controller control={control} name={`experiences.${i}.employmentType`} render={({ field }) => (
-                  <OptionCombobox options={EMPLOYMENT_TYPES} value={field.value} onChange={field.onChange} placeholder="Select type" />
-                )} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Start</Label>
-                <Controller control={control} name={`experiences.${i}.startDate`} render={({ field }) => (
-                  <DateField value={field.value} onChange={field.onChange} placeholder="Start date" />
-                )} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>End</Label>
-                <Controller control={control} name={`experiences.${i}.endDate`} render={({ field }) => (
-                  <DateField value={field.value} onChange={field.onChange} disabled={watch(`experiences.${i}.isCurrent`)} placeholder="End date" />
-                )} />
-              </div>
+              <FormField
+                control={control}
+                name={`experiences.${i}.title`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Role title</FormLabel>
+                    <FormControl>
+                      <AsyncCombobox value={field.value} onChange={field.onChange} kind="roles" placeholder="Search role, e.g. Senior Engineer…" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`experiences.${i}.company`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Company</FormLabel>
+                    <FormControl>
+                      <CompanyComboboxNova value={field.value ?? ""} onChange={field.onChange} placeholder="e.g. Acme Inc." />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`experiences.${i}.location`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <AsyncCombobox value={field.value} onChange={field.onChange} kind="locations" placeholder="Search city…" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`experiences.${i}.employmentType`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Employment type</FormLabel>
+                    <FormControl>
+                      <Select value={field.value || undefined} onValueChange={field.onChange}>
+                        <SelectTrigger className="!h-10 w-full justify-between bg-transparent hover:bg-transparent data-placeholder:text-muted-foreground">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent position="popper">
+                          {EMPLOYMENT_TYPES.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`experiences.${i}.startDate`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Start</FormLabel>
+                    <FormControl>
+                      <DateField value={field.value} onChange={field.onChange} placeholder="Start date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`experiences.${i}.endDate`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>End</FormLabel>
+                    <FormControl>
+                      <DateField value={field.value} onChange={field.onChange} disabled={watch(`experiences.${i}.isCurrent`)} placeholder="End date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`cur-${i}`} className="font-normal">I currently work here</Label>
-              <Controller control={control} name={`experiences.${i}.isCurrent`} render={({ field }) => (
-                <Switch id={`cur-${i}`} checked={field.value} onCheckedChange={field.onChange} />
-              )} />
-            </div>
+            <FormField
+              control={control}
+              name={`experiences.${i}.isCurrent`}
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between space-y-0">
+                  <FormLabel htmlFor={`cur-${i}`} className="font-normal cursor-pointer">I currently work here</FormLabel>
+                  <FormControl>
+                    <Switch id={`cur-${i}`} checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-            <div className="flex flex-col gap-1.5">
-              <Label>Skills</Label>
-              <Controller control={control} name={`experiences.${i}.skills`} render={({ field }) => (
-                <SkillField value={field.value ?? []} onChange={field.onChange} placeholder="Add skills…" />
-              )} />
-            </div>
+            <FormField
+              control={control}
+              name={`experiences.${i}.skills`}
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <FormLabel>Skills</FormLabel>
+                  <FormControl>
+                    <SkillField value={field.value ?? []} onChange={field.onChange} placeholder="Add skills…" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="flex flex-col gap-1.5">
-              <Label>Highlights</Label>
-              <Textarea placeholder="One achievement per line" {...register(`experiences.${i}.highlights`)} />
-            </div>
+            <FormField
+              control={control}
+              name={`experiences.${i}.highlights`}
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <FormLabel>Highlights</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="One achievement per line" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         );
       })}

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -21,7 +22,6 @@ import {
   MapsGlobal02Icon, PhoneArrowDownIcon, GithubIcon, Link01Icon,
   Edit03Icon, SourceCodeIcon,
 } from "@hugeicons/core-free-icons";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { api } from "@/lib/ipc";
 import { trackAction } from "@/lib/analytics";
 import { useCvUploads, useDeleteCvUpload, useInvalidateCvUploads } from "./cv-uploads-api";
@@ -198,8 +198,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
   const completionDone = completionSections.filter((s) => s.done).length;
   const completionPct = Math.round((completionDone / completionSections.length) * 100);
   const completionNext = completionSections.find((s) => !s.done);
-  const COMPLETION_CIRC = 2 * Math.PI * 22; // r=22 ring
-  const completionOffset = COMPLETION_CIRC * (1 - completionPct / 100);
   const addProofPoint = useAddProofPoint();
   const removeProofPoint = useRemoveProofPoint();
 
@@ -261,18 +259,12 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
       <div className="w-full max-w-3xl">
         <div className="rounded-2xl border border-border overflow-hidden bg-transparent">
 
-          {/* Cover — with avatar overlapping bottom edge */}
+          {/* Cover */}
           <div className="relative h-44 w-full overflow-visible rounded-t-2xl">
             <img
               className="h-full w-full object-cover rounded-t-2xl"
               alt="Cover"
               src="https://media.daily.dev/image/upload/s--P4t4XyoV--/f_auto/v1722860399/public/Placeholder%2001"
-            />
-            {/* Avatar — overlaps cover bottom */}
-            <img
-              className="absolute -bottom-10 left-6 h-[5.5rem] w-[5.5rem] rounded-2xl object-cover ring-2 ring-border"
-              alt="Avatar"
-              src="https://media.daily.dev/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile"
             />
             {/* Edit — top-right of cover */}
             <Button
@@ -287,83 +279,81 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
           </div>
 
           {/* Info row */}
-          <div className="flex items-start gap-4 px-6 pt-12 pb-5">
-            {/* Left: name + contact info */}
-            <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
-              <div className="flex flex-col gap-0.5">
-                <p className="text-xl font-bold text-foreground">{profile?.fullName?.trim() || "Your name"}</p>
-                {profile?.username?.trim() && (
-                  <span className="text-[13px] text-foreground">@{profile.username.trim()}</span>
-                )}
+          <div className="flex flex-col gap-4 px-6 pb-6 w-full">
+            <div className="flex items-start justify-between gap-6 w-full mt-[-40px] z-10">
+              {/* Left Side: Avatar + Name + Headline */}
+              <div className="flex items-start gap-4 min-w-0 flex-1">
+                {/* Avatar overlapping cover bottom using negative margin */}
+                <img
+                  className="h-24 w-24 rounded-2xl object-cover ring-4 ring-background bg-card shrink-0"
+                  alt="Avatar"
+                  src="https://media.daily.dev/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile"
+                />
+
+                {/* Name & Headline */}
+                <div className="flex flex-col gap-1 min-w-0 pt-16">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <h1 className="text-xl font-bold text-foreground leading-none">{profile?.fullName?.trim() || "Your name"}</h1>
+                    {profile?.username?.trim() && (
+                      <span className="text-xs text-muted-foreground">@{profile.username.trim()}</span>
+                    )}
+                  </div>
+                  {profile?.headline?.trim() && (
+                    <p className="text-sm text-muted-foreground font-medium leading-normal break-words max-w-xl">
+                      {profile.headline.trim()}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-1 pt-1">
-                {profile?.location?.trim() && (
-                  <span title={profile.location.trim()}
-                    className="flex size-8 items-center justify-center rounded-lg text-foreground">
-                    <HugeiconsIcon icon={MapsGlobal02Icon} size={20} />
-                  </span>
-                )}
-                {profile?.phone?.trim() && (
-                  <a href={`tel:${profile.phone.trim()}`} title="Phone"
-                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
-                    <HugeiconsIcon icon={PhoneArrowDownIcon} size={20} />
-                  </a>
-                )}
-                {profile?.linkedin?.trim() && (
-                  <a href={profile.linkedin.trim()} target="_blank" rel="noreferrer" title="LinkedIn"
-                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
-                    <HugeiconsIcon icon={Linkedin02Icon} size={20} />
-                  </a>
-                )}
-                {profile?.github?.trim() && (
-                  <a href={profile.github.trim()} target="_blank" rel="noreferrer" title="GitHub"
-                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
-                    <HugeiconsIcon icon={GithubIcon} size={20} />
-                  </a>
-                )}
-                {profile?.portfolioUrl?.trim() && (
-                  <a href={profile.portfolioUrl.trim()} target="_blank" rel="noreferrer" title="Website"
-                    className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
-                    <HugeiconsIcon icon={Link01Icon} size={20} />
-                  </a>
-                )}
+
+              {/* Right Side: Contact Icons + Buttons */}
+              <div className="flex flex-col items-end gap-3 pt-16 shrink-0">
+                {/* Contact links on top */}
+                <div className="flex items-center gap-1">
+                  {profile?.location?.trim() && (
+                    <span title={profile.location.trim()}
+                      className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent cursor-default">
+                      <HugeiconsIcon icon={MapsGlobal02Icon} size={18} />
+                    </span>
+                  )}
+                  {profile?.phone?.trim() && (
+                    <a href={`tel:${profile.phone.trim()}`} title="Phone"
+                      className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
+                      <HugeiconsIcon icon={PhoneArrowDownIcon} size={18} />
+                    </a>
+                  )}
+                  {profile?.linkedin?.trim() && (
+                    <a href={profile.linkedin.trim()} target="_blank" rel="noreferrer" title="LinkedIn"
+                      className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
+                      <HugeiconsIcon icon={Linkedin02Icon} size={18} />
+                    </a>
+                  )}
+                  {profile?.github?.trim() && (
+                    <a href={profile.github.trim()} target="_blank" rel="noreferrer" title="GitHub"
+                      className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
+                      <HugeiconsIcon icon={GithubIcon} size={18} />
+                    </a>
+                  )}
+                  {profile?.portfolioUrl?.trim() && (
+                    <a href={profile.portfolioUrl.trim()} target="_blank" rel="noreferrer" title="Website"
+                      className="flex size-8 items-center justify-center rounded-lg text-foreground hover:bg-accent">
+                      <HugeiconsIcon icon={Link01Icon} size={18} />
+                    </a>
+                  )}
+                </div>
+
+                {/* Follow/Contact Buttons */}
+                <div className="flex items-center gap-2 mt-1">
+                  <Button variant="outline" size="sm" className="hover:border-brand hover:ring-1 hover:ring-brand">Follow me</Button>
+                  <Button variant="outline" size="sm" className="hover:border-brand hover:ring-1 hover:ring-brand">Get in touch</Button>
+                </div>
               </div>
             </div>
 
-            {/* Right: stats on top, buttons below */}
-            <div className="flex shrink-0 flex-col items-end gap-3 pt-1">
-              <div className="flex items-center gap-5">
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="flex items-center gap-1">
-                    <svg width="14" height="14" viewBox="0 0 16 17" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-purple-500">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M8 13.605A5.333 5.333 0 108 2.938a5.333 5.333 0 000 10.667zm1.213-8.672a.494.494 0 00-.812-.517L4.944 7.922a.494.494 0 00.35.843H7.82l-1.034 2.844a.494.494 0 00.812.518l3.456-3.507a.494.494 0 00-.348-.842H8.179l1.034-2.845z" fill="currentColor" />
-                    </svg>
-                    <b className="text-lg font-bold text-foreground">10</b>
-                  </span>
-                  <span className="text-xs text-foreground">Reputation</span>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <b className="text-lg font-bold text-foreground">0</b>
-                  <span className="text-xs text-foreground">Upvotes</span>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <b className="text-lg font-bold text-foreground">0</b>
-                  <span className="text-xs text-foreground">Followers</span>
-                </div>
-                <div className="flex flex-col items-center gap-0.5">
-                  <b className="text-lg font-bold text-foreground">0</b>
-                  <span className="text-xs text-foreground">Following</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand-hover">Follow me</Button>
-                <Button variant="outline" size="sm">Get in touch</Button>
-              </div>
-            </div>
           </div>
 
           {/* All sections */}
-          <div className="flex flex-col divide-y divide-border p-6">
+          <div className="flex flex-col divide-y divide-border px-6 pb-6">
             {/* Spacer for first divider */}
             <div />
 
@@ -371,19 +361,16 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-2 py-4">
               <div className="flex items-center justify-between">
                 <p className="text-[15px] font-bold text-foreground">About</p>
-                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("profile")}>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("profile")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
               </div>
-              {profile?.headline && (
-                <p className="text-sm font-medium text-foreground">{profile.headline}</p>
-              )}
               {profile?.bio && (
                 <p className="text-sm text-foreground leading-relaxed">{profile.bio}</p>
               )}
-              {!profile?.headline && !profile?.bio && (
-                <p className="text-sm text-foreground/60 italic">No headline or bio yet — click the pencil to add one.</p>
+              {!profile?.bio && (
+                <p className="text-sm text-foreground/60 italic">No bio yet — click the pencil to add one.</p>
               )}
             </div>
 
@@ -397,10 +384,11 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                     size="sm"
                     disabled={importSkills.isPending}
                     onClick={() => importSkills.mutate()}
+                    className="hover:border-brand hover:ring-1 hover:ring-brand"
                   >
                     {importSkills.isPending ? "Importing…" : "Import"}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setStackOpen(true)}>
+                  <Button variant="outline" size="sm" onClick={() => setStackOpen(true)} className="hover:border-brand hover:ring-1 hover:ring-brand">
                     <PlusIcon />
                     <span>Add</span>
                   </Button>
@@ -458,7 +446,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-4 py-4">
               <div className="flex items-center justify-between">
                 <p className="text-[15px] font-bold text-foreground">Proof Points</p>
-                <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)} className="hover:border-brand hover:ring-1 hover:ring-brand">
                   <PlusIcon />
                   <span>Add</span>
                 </Button>
@@ -466,7 +454,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               {hotTakes.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
                   <p className="text-xs text-foreground">Add achievements that back up your profile</p>
-                  <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)}>
+                  <Button variant="outline" size="sm" onClick={() => setHotTakeOpen(true)} className="hover:border-brand hover:ring-1 hover:ring-brand">
                     <PlusIcon />
                     <span>Add your first proof point</span>
                   </Button>
@@ -529,7 +517,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
                 <h2 className="text-[15px] font-bold text-foreground">Work Experiences</h2>
-                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("work-experience")}>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("work-experience")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
@@ -537,7 +525,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               {experienceList.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
                   <p className="text-xs text-foreground">Add your work history</p>
-                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("work-experience")}>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("work-experience")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                     <PlusIcon /><span>Add Experience</span>
                   </Button>
                 </div>
@@ -608,7 +596,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
                 <h2 className="text-[15px] font-bold text-foreground">Education</h2>
-                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("education")}>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("education")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
@@ -616,7 +604,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               {educationList.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
                   <p className="text-xs text-foreground">Add your educational background</p>
-                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("education")}>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("education")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                     <PlusIcon /><span>Add Education</span>
                   </Button>
                 </div>
@@ -654,7 +642,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
                 <h2 className="text-[15px] font-bold text-foreground">Certifications</h2>
-                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("certifications")}>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("certifications")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
@@ -662,7 +650,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               {certList.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
                   <p className="text-xs text-foreground">Add your licenses and certifications</p>
-                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("certifications")}>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("certifications")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                     <PlusIcon /><span>Add Certification</span>
                   </Button>
                 </div>
@@ -694,7 +682,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-3 py-4">
               <div className="flex flex-row items-center justify-between">
                 <h2 className="text-[15px] font-bold text-foreground">Projects</h2>
-                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("projects")}>
+                <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("projects")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
@@ -702,7 +690,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               {projectList.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-6">
                   <p className="text-xs text-foreground">Add your projects and side work</p>
-                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("projects")}>
+                  <Button variant="outline" size="sm" onClick={() => onNavigateToSettings?.("projects")} className="hover:border-brand hover:ring-1 hover:ring-brand">
                     <PlusIcon /><span>Add Project</span>
                   </Button>
                 </div>
@@ -754,7 +742,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
             <div className="flex flex-col gap-4 py-4">
               <div className="flex items-center justify-between">
                 <p className="text-[15px] font-bold text-foreground">Achievement Showcase</p>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="hover:border-brand hover:ring-1 hover:ring-brand">
                   <HugeiconsIcon icon={Edit03Icon} size={16} />
                   <span>Edit</span>
                 </Button>
@@ -830,31 +818,55 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
         </div>
 
         {/* Profile completion */}
-        <div className="flex cursor-pointer flex-col rounded-2xl border border-yellow/60 bg-yellow/10 hover:bg-yellow/15">
-          <div className="flex w-full items-center gap-6 p-4">
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <div className="flex items-center gap-1">
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-yellow">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M14 8A6 6 0 102 8a6 6 0 0012 0zm-1 0A5 5 0 103 8a5 5 0 0010 0zm-5.667-.667a.667.667 0 011.334 0v3.334a.667.667 0 01-1.334 0V7.333zM8 4.667A.667.667 0 108 6a.667.667 0 000-1.333z" fill="currentColor" />
-                </svg>
-                <p className="text-sm font-bold text-foreground">Profile Completion</p>
+        <div
+          onClick={() => {
+            if (!completionNext) return;
+            const label = completionNext.label.toLowerCase();
+            if (label.includes("headline") || label.includes("contact")) {
+              onNavigateToSettings?.("profile");
+            } else if (label.includes("work")) {
+              onNavigateToSettings?.("work-experience");
+            } else if (label.includes("education")) {
+              onNavigateToSettings?.("education");
+            } else if (label.includes("skills")) {
+              setStackOpen(true);
+            } else if (label.includes("project")) {
+              onNavigateToSettings?.("projects");
+            } else if (label.includes("certification")) {
+              onNavigateToSettings?.("certifications");
+            } else if (label.includes("proof")) {
+              setHotTakeOpen(true);
+            } else if (label.includes("resume")) {
+              resumeInputRef.current?.click();
+            }
+          }}
+          className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-border bg-transparent p-4 hover:border-brand/35 hover:bg-muted/10 transition-all duration-300"
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="size-4 text-brand" />
+                <span className="text-xs font-bold uppercase tracking-wider text-brand">Profile Strength</span>
               </div>
-              <div className="flex min-w-0 items-center gap-1">
-                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-yellow">
-                  <path d="M14.182 4.269a1 1 0 10-1.364 1.462L18.463 11H3a1 1 0 100 2h15.463l-5.645 5.269a1 1 0 001.364 1.462l7.5-7a1 1 0 000-1.462l-7.5-7z" />
-                </svg>
-                <p className="text-xs text-foreground">{completionNext ? completionNext.label : "Your profile is complete 🎉"}</p>
-              </div>
+              <span className="text-xs font-bold text-foreground">{completionPct}%</span>
             </div>
-            <div className="relative flex shrink-0 items-center justify-center" style={{ width: 50, height: 50 }}>
-              <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="25" cy="25" r="22" className="stroke-border" strokeWidth="5" fill="transparent" />
-                <circle cx="25" cy="25" r="22" strokeWidth="5" strokeLinecap="round"
-                  strokeDasharray={COMPLETION_CIRC} strokeDashoffset={completionOffset}
-                  transform="rotate(-90 25 25)" fill="transparent" className="stroke-yellow" />
-              </svg>
-              <p className="absolute leading-none text-sm font-bold text-yellow">{completionPct}%</p>
+
+            {/* Horizontal Progress Bar */}
+            <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+              <div
+                className="h-full bg-brand rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${completionPct}%` }}
+              />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[10px] font-bold text-foreground uppercase tracking-wide">
+              {completionNext ? "Next up:" : "Done!"}
+            </p>
+            <p className="text-xs text-muted-foreground leading-normal">
+              {completionNext ? completionNext.label : "Your profile is fully complete! 🎉"}
+            </p>
           </div>
         </div>
 
@@ -873,19 +885,35 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                   </svg>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-foreground">{u.fileName}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {new Date(u.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 flex-wrap">
+                      <span>
+                        {new Date(u.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                      <span>·</span>
+                      <span>
+                        {u.sizeBytes < 1024 * 1024
+                          ? `${Math.round(u.sizeBytes / 1024)} KB`
+                          : `${(u.sizeBytes / (1024 * 1024)).toFixed(1)} MB`}
+                      </span>
                     </p>
                   </div>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {u.sizeBytes < 1024 * 1024
-                      ? `${Math.round(u.sizeBytes / 1024)} KB`
-                      : `${(u.sizeBytes / (1024 * 1024)).toFixed(1)} MB`}
-                  </span>
+                  
+                  {/* Inline Import Action */}
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={resumePickState === "importing"}
+                    onClick={handleImportStored}
+                    className="h-6 gap-1 px-2 border-brand/30 bg-brand/5 text-brand hover:bg-brand/10 hover:border-brand/50 hover:ring-1 hover:ring-brand/50 text-[11px] font-medium shrink-0"
+                  >
+                    <Sparkles className="size-3 text-brand" />
+                    <span>{resumePickState === "importing" ? "Importing" : "Import"}</span>
+                  </Button>
+
                   <button type="button" aria-label="Remove"
                     disabled={deleteCvUpload.isPending}
                     onClick={() => deleteCvUpload.mutate(u.id)}
-                    className="shrink-0 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40">
+                    className="shrink-0 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 p-1">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                       <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                     </svg>
@@ -893,23 +921,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                 </li>
               ))}
             </ul>
-          )}
-
-          {/* Import details from the resume already on file (onboarding only stores
-              the dump — this parses it into experience/education/projects/certs). */}
-          {cvUploads.length > 0 && !pendingFile && (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <Sparkles className="size-4 shrink-0 text-brand" />
-                <div className="flex min-w-0 flex-col leading-tight">
-                  <span className="text-xs font-medium text-foreground">Import details from resume</span>
-                  <span className="text-[11px] text-muted-foreground">Auto-fill experience, education, projects &amp; certifications.</span>
-                </div>
-              </div>
-              <Button size="sm" disabled={resumePickState === "importing"} onClick={handleImportStored} className="shrink-0">
-                {resumePickState === "importing" ? "Importing…" : "Import"}
-              </Button>
-            </div>
           )}
 
           {/* Pending file ready to import */}
@@ -920,11 +931,18 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                 <path d="M14 2v6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <span className="min-w-0 flex-1 truncate text-xs text-foreground">{pendingFile.name}</span>
-              <Button size="sm" disabled={resumePickState === "importing"} onClick={handleResumeImport}>
-                {resumePickState === "importing" ? "Importing…" : "Import"}
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={resumePickState === "importing"}
+                onClick={handleResumeImport}
+                className="h-6 gap-1 px-2 border-brand/30 bg-brand/5 text-brand hover:bg-brand/10 hover:border-brand/50 hover:ring-1 hover:ring-brand/50 text-[11px] font-medium shrink-0"
+              >
+                <Sparkles className="size-3 text-brand" />
+                <span>{resumePickState === "importing" ? "Importing" : "Import"}</span>
               </Button>
               <button type="button" onClick={clearPending} aria-label="Discard"
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                   <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
@@ -939,18 +957,32 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
           {resumePickState === "error" && <p className="text-xs text-destructive">{resumeMsg}</p>}
 
           {/* File picker */}
-          <Field>
-            <FieldLabel htmlFor="resume-upload" className="sr-only">Upload resume</FieldLabel>
+          <div className="flex flex-col gap-1.5">
             <input
               ref={resumeInputRef}
               id="resume-upload"
               type="file"
               accept=".pdf,.doc,.docx"
               onChange={handleResumeSelect}
-              className="h-9 w-full min-w-0 rounded-4xl border border-input bg-input/30 px-3 py-1 text-sm outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground"
+              className="hidden"
             />
-            <FieldDescription>PDF or Word, up to 10 MB</FieldDescription>
-          </Field>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => resumeInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 border-dashed border-2 hover:border-brand hover:ring-1 hover:ring-brand h-10"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span className="text-xs font-semibold">Upload new resume</span>
+            </Button>
+            <p className="text-center text-[11px] text-muted-foreground mt-0.5">
+              Supports <span className="rounded-md bg-muted px-1.5 py-0.5 text-foreground font-semibold text-[10px]">PDF</span> or <span className="rounded-md bg-muted px-1.5 py-0.5 text-foreground font-semibold text-[10px]">Word</span> up to 10 MB
+            </p>
+          </div>
         </section>
 
         {/* Public profile & URL */}
@@ -985,6 +1017,21 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               </Button>
             </div>
           </div>
+          <Separator className="my-2" />
+          <div className="grid grid-cols-3 gap-1 text-center pt-1">
+            <div className="flex flex-col items-center gap-0.5">
+              <b className="text-[15px] font-bold text-foreground">10</b>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Reputation</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <b className="text-[15px] font-bold text-foreground">0</b>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Followers</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <b className="text-[15px] font-bold text-foreground">0</b>
+              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Following</span>
+            </div>
+          </div>
         </section>
 
         {/* Profile Activity */}
@@ -1006,9 +1053,15 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                 <p className="text-xs text-foreground">Views this month</p>
               </div>
             </div>
-            <div className="rounded-xl border border-border p-2 text-center">
-              <p className="text-[15px] font-bold text-foreground">0</p>
-              <p className="text-xs text-foreground">Total profile views</p>
+            <div className="flex gap-2">
+              <div className="flex-1 rounded-xl border border-border p-2 text-center">
+                <p className="text-[15px] font-bold text-foreground">0</p>
+                <p className="text-xs text-foreground">Total profile views</p>
+              </div>
+              <div className="flex-1 rounded-xl border border-border p-2 text-center">
+                <p className="text-[15px] font-bold text-foreground">0</p>
+                <p className="text-xs text-foreground">Upvotes</p>
+              </div>
             </div>
           </div>
         </section>
@@ -1193,12 +1246,12 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
               <div className="flex flex-col gap-5 overflow-y-auto p-4">
                 <div className="flex flex-col gap-1.5">
                   <p className="text-sm font-bold text-foreground">Achievement</p>
-                  <textarea
+                  <Textarea
                     placeholder="e.g. Reduced deployment time by 70% using GitLab CI/CD"
                     value={hotTakeText}
                     onChange={e => setHotTakeText(e.target.value)}
                     rows={3}
-                    className="w-full resize-none rounded-xl border border-input bg-input/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+                    className="w-full resize-none"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -1209,11 +1262,11 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                     placeholder="https://github.com/you/project"
                     value={hotTakeUrl}
                     onChange={e => setHotTakeUrl(e.target.value)}
-                    className="h-11"
                   />
                 </div>
                 <Button
                   disabled={!hotTakeText.trim() || addProofPoint.isPending}
+                  size="lg"
                   className="w-full"
                   onClick={async () => {
                     await addProofPoint.mutateAsync({
@@ -1274,7 +1327,6 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                     onChange={e => { setStackQuery(e.target.value); setStackFavicon(null); }}
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                    className="h-11"
                     autoComplete="off"
                   />
                   {showSuggestions && suggestions.length > 0 && (
@@ -1331,7 +1383,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                       value={stackYear}
                       onValueChange={v => { setStackYear(v); setStackMonth(""); }}
                     >
-                      <SelectTrigger className="h-10 flex-1">
+                      <SelectTrigger className="flex-1">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
                       <SelectContent position="popper">
@@ -1345,7 +1397,7 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
                       onValueChange={setStackMonth}
                       disabled={!stackYear}
                     >
-                      <SelectTrigger className="h-10 flex-1">
+                      <SelectTrigger className="flex-1">
                         <SelectValue placeholder="Month" />
                       </SelectTrigger>
                       <SelectContent position="popper">
@@ -1359,8 +1411,8 @@ export function ProfilePage({ onNavigateToSettings }: { onNavigateToSettings?: (
 
                 <Button
                   disabled={!stackQuery.trim() || addSkill.isPending}
+                  size="lg"
                   className="w-full"
-                  size="default"
                   onClick={async () => {
                     await addSkill.mutateAsync({
                       skill: stackQuery.trim(),

@@ -116,6 +116,10 @@ export interface OnboardingApi {
   submit(data: OnboardingSubmit): Promise<Result<{ onboardingCompleted: boolean }>>;
   /** Parse a resume → structured records (agent → Ollama). Omit cvText to re-parse the stored resume. */
   importResume(cvText?: string): Promise<Result<CvImportResult>>;
+  /** Setup step 2 — persist the user's selected goals (multi-select; personalization / training). */
+  saveGoals(goals: string[]): Promise<Result<{ goals: string[] }>>;
+  /** Setup step 3 — persist data-use + marketing consents (safety record). */
+  saveConsent(input: { dataUse: boolean; marketingEmail: boolean }): Promise<Result<{ dataUse: boolean; marketingEmail: boolean }>>;
 }
 
 // ── Suggest domain (autocomplete) ────────────────────────────────────────────
@@ -533,6 +537,7 @@ export interface EducationItem {
   id: string;
   profileId: string;
   institution: string;
+  level: string | null;
   degree: string | null;
   field: string | null;
   startYear: number | null;
@@ -548,6 +553,7 @@ export interface EducationItem {
 
 export interface EducationInput {
   institution: string;
+  level?: string | null;
   degree?: string;
   field?: string;
   startYear?: number;
@@ -730,6 +736,8 @@ export interface CliDetection {
   claude: boolean;
   codex: boolean;
   gemini: boolean;
+  opencode: boolean;
+  qwen: boolean;
   copilot: boolean;
   node: boolean;
   npx: boolean;
@@ -755,10 +763,14 @@ export interface CliApi {
   detect(): Promise<Result<CliDetection>>;
   /** One-click: run `npx @reinit-ai/cli install` for non-Claude CLIs. */
   install(): Promise<Result<CliInstallResult>>;
+  /** Background: globally install the REINIT CLI package (`npm i -g @reinit-ai/cli`). */
+  installCli(): Promise<Result<CliInstallResult>>;
   /** Has the user granted the agent permanent permission to run unattended? */
   isAgentTrusted(): Promise<Result<{ trusted: boolean }>>;
   /** Grant permanent permission — future skill runs go fully unattended. */
   trustAgent(): Promise<Result<void>>;
+  /** Two-way autonomy toggle — set or clear the unattended-run permission. */
+  setAgentTrusted(trusted: boolean): Promise<Result<void>>;
 }
 
 /** A row in the evaluations list (lightweight). */
@@ -778,6 +790,21 @@ export interface EvaluationSummary {
   /** From the linked pooled job (co_jobs) when job_id is set, else null. */
   logoUrl: string | null;
   location: string | null;
+  // ── Report-derived analysis (parsed from the A–G report / machineSummary) ──
+  /** Role Summary "Domain" — e.g. "Cloud DevOps / Platform engineering". */
+  domain: string | null;
+  /** Role Summary "Seniority" — e.g. "Mid-to-senior IC (5–9 yrs)". */
+  seniority: string | null;
+  /** Role Summary "Function" — e.g. "Build", "Operate". */
+  jobFunction: string | null;
+  /** Block D comp read — e.g. "12–20 LPA" (band the agent estimated). */
+  comp: string | null;
+  /** machineSummary final_decision / next_action — the report's verdict. */
+  decision: string | null;
+  /** machineSummary risk_level — posting/role risk. */
+  riskLevel: string | null;
+  /** machineSummary confidence — the agent's confidence in its read. */
+  confidence: string | null;
 }
 /** Full evaluation incl. the report body (detail view). */
 export interface EvaluationDetail extends EvaluationSummary {

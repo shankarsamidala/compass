@@ -30,7 +30,7 @@ export function DateField({
           type="button"
           variant="outline"
           disabled={disabled}
-          className="h-10 w-full justify-start rounded-lg px-3.5 font-normal data-[empty=true]:text-muted-foreground"
+          className="h-10 w-full justify-start rounded-4xl bg-transparent hover:bg-transparent px-3.5 font-normal data-[empty=true]:text-muted-foreground"
           data-empty={!value}
         >
           <CalendarIcon className="mr-2 size-4 opacity-70" />

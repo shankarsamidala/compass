@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useFieldArray, Controller, type UseFormReturn } from "react-hook-form";
+import { useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { SkillField } from "./skill-field";
 import { blankProject, type OnboardingValues } from "../schema";
 
@@ -14,7 +20,7 @@ export function StepProjects({
   form: UseFormReturn<OnboardingValues>;
   onRegisterAdd?: (fn: (() => void) | null) => void;
 }) {
-  const { control, register, watch, formState: { errors } } = form;
+  const { control, watch } = form;
   const { fields, append, remove } = useFieldArray({ control, name: "projects" });
   const values = watch("projects");
   const [openIndex, setOpenIndex] = useState(0);
@@ -71,28 +77,62 @@ export function StepProjects({
         return (
           <div key={f.id} className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label>Title</Label>
-                <Input className="h-10" placeholder="e.g. Realtime chat app" {...register(`projects.${i}.title`)} />
-                {errors.projects?.[i]?.title && <p className="text-xs text-destructive">{String(errors.projects[i]?.title?.message)}</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Link (optional)</Label>
-                <Input className="h-10" placeholder="github.com/…" {...register(`projects.${i}.url`)} />
-              </div>
+              <FormField
+                control={control}
+                name={`projects.${i}.title`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Realtime chat app" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`projects.${i}.url`}
+                render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel>Link (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="github.com/…" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label>Description</Label>
-              <Textarea placeholder="What does it do, and what was your role?" {...register(`projects.${i}.description`)} />
-            </div>
+            <FormField
+              control={control}
+              name={`projects.${i}.description`}
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="What does it do, and what was your role?" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="flex flex-col gap-1.5">
-              <Label>Tech stack</Label>
-              <Controller control={control} name={`projects.${i}.techStack`} render={({ field }) => (
-                <SkillField value={field.value ?? []} onChange={field.onChange} placeholder="Add tech, e.g. React…" />
-              )} />
-            </div>
+            <FormField
+              control={control}
+              name={`projects.${i}.techStack`}
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <FormLabel>Tech stack</FormLabel>
+                  <FormControl>
+                    <SkillField value={field.value ?? []} onChange={field.onChange} placeholder="Add tech, e.g. React…" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         );
       })}

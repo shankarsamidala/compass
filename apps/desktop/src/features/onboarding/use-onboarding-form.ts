@@ -37,8 +37,11 @@ export function useOnboardingForm() {
     setSubmitting(true);
     try {
       const res = await api.onboarding.submit(toSubmit(form.getValues()));
-      if (res.ok) qc.invalidateQueries({ queryKey: qk.session });
-      else setSubmitError(res.error);
+      if (res.ok) {
+        // Land on Home (not the last-saved view) the first time the app opens.
+        localStorage.setItem("compass:active-view", "home");
+        qc.invalidateQueries({ queryKey: qk.session });
+      } else setSubmitError(res.error);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Could not finish setup");
     } finally {

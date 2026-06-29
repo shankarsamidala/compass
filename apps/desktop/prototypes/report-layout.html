@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>REINIT · Report layout (top tabs + left/right cards)</title>
+<style>
+  :root{
+    --bg:#ece9e0; --card:#ffffff; --inner:#f7f5ef; --line:#e6e3d8;
+    --ink:#1b1c18; --ink-2:#6b6d63; --ink-3:#9a9c90;
+    --lime:#cdf24a; --lime-2:#b9e63f; --on-lime:#1b1c18;
+    --good:#3f8f3a; --good-bg:#e9f3df;
+    --warn:#b9842b; --warn-bg:#f6edda;
+    --bad:#c0492f; --bad-bg:#f6e3dd;
+    --rail:#15160f; --rail-line:#2a2b22; --rail-ink:#f2f2ec; --rail-ink-2:#9ea093;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+
+  /* TOP BAR: back only */
+  .top{max-width:64rem;margin:0 auto;display:flex;align-items:center;justify-content:flex-start;padding:20px 10px 10px}
+  .back{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--ink-2);font-size:14px;font-weight:600;cursor:pointer;padding:8px 10px;border-radius:10px}
+  .back:hover{background:#00000008;color:var(--ink)}
+
+  /* right column = header row (tabs + apply) above the card */
+  .rightcol{display:flex;flex-direction:column;gap:14px;min-width:0}
+  .rhead{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:0 2px}
+  .apply{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:42px;background:#16170f;color:#fff;border:0;border-radius:999px;padding:0 18px;font-size:13px;font-weight:700;cursor:pointer;flex:0 0 auto}
+
+  /* tab pill (screenshot style) — same height as Apply */
+  .tabs{display:flex;align-items:center;gap:2px;height:42px;background:#15160f;border-radius:999px;padding:4px;overflow:auto;min-width:0}
+  .tabs::-webkit-scrollbar{height:0}
+  .tabs button{display:inline-flex;align-items:center;gap:6px;height:34px;border:0;background:transparent;color:#b6b8ad;font-size:12.5px;font-weight:600;padding:0 14px;border-radius:999px;cursor:pointer;white-space:nowrap}
+  .tabs button:hover{color:#e9eae3}
+  .tabs button.on{background:#f5f3ec;color:var(--ink)}
+  .tabs button.on::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--lime-2);flex:0 0 auto}
+
+  .wrap{max-width:64rem;margin:0 auto;padding:10px 10px 40px}
+  .layout{display:grid;grid-template-columns:1fr;gap:20px;align-items:start}
+  @media(min-width:840px){.layout{grid-template-columns:330px 1fr}}
+  @media(min-width:840px){.left{position:sticky;top:14px}}
+
+  .card{border-radius:32px;background:var(--card);border:1px solid var(--line);box-shadow:0 4px 20px rgba(0,0,0,.04);padding:10px}
+  .card.dark{background:var(--rail);border-color:var(--rail-line);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+  .inner{border-radius:24px;border:1px solid var(--line);background:var(--inner);overflow:hidden;height:100%}
+  .inner.dark{border-color:var(--rail-line);background:linear-gradient(162deg, rgba(47,118,19,0) 35%, rgba(47,118,19,.18) 100%), #1b1c14}
+
+  h3.t{margin:0 0 4px;font-size:17px;font-weight:700}
+  .sub{font-size:12.5px;color:var(--ink-3);margin:0 0 16px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px}
+  .b-good{background:var(--good-bg);color:var(--good)} .b-warn{background:var(--warn-bg);color:var(--warn)} .b-bad{background:var(--bad-bg);color:var(--bad)}
+
+  /* LEFT (dark) */
+  .lp{padding:24px;color:var(--rail-ink)}
+  .id{display:flex;gap:13px}
+  .avwrap{position:relative;flex:0 0 auto}
+  .avatar{width:54px;height:54px;border-radius:15px;background:linear-gradient(140deg,#3a3b34,#21221c);display:grid;place-items:center;font-weight:800;font-size:18px;color:var(--lime);
+    border:1px solid rgba(205,242,74,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 4px rgba(205,242,74,.06)}
+  .vdot{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;background:var(--lime);color:var(--on-lime);display:grid;place-items:center;font-size:11px;font-weight:900;border:2px solid #1b1c14}
+  .id h1{font-size:16px;line-height:1.25;margin:1px 0 4px;font-weight:700}
+  .id .m{font-size:12px;color:var(--rail-ink-2)}
+  .lpills{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .badge.lime{background:var(--lime);color:var(--on-lime)}
+  .badge.ghost{background:#ffffff12;color:var(--rail-ink-2)}
+
+  /* hero gauge: ring = match %, center = score */
+  .gaugewrap{position:relative;display:flex;justify-content:center;margin:22px 0 8px}
+  .gaugewrap::before{content:"";position:absolute;top:50%;left:50%;width:188px;height:188px;border-radius:50%;
+    transform:translate(-50%,-50%);background:radial-gradient(circle, rgba(205,242,74,.20), transparent 68%);filter:blur(8px);pointer-events:none}
+  .gauge{position:relative;width:152px;height:152px;border-radius:50%;display:grid;place-items:center;
+    background:conic-gradient(var(--lime) 0% var(--p,86%), #2a2b22 var(--p,86%) 100%)}
+  .gauge .hole{width:118px;height:118px;border-radius:50%;background:#191a12;display:grid;place-items:center;text-align:center;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+  .gauge .n{font-size:40px;font-weight:800;line-height:1;color:var(--lime)}
+  .gauge .d{font-size:13px;color:var(--rail-ink-2)}
+  .gauge .lbl{font-size:10.5px;letter-spacing:.04em;color:var(--rail-ink-2);margin-top:4px}
+  .gauge .lbl b{color:var(--rail-ink)}
+
+  .rh{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--rail-ink-2);margin:20px 0 10px}
+  .bar{margin-top:11px}
+  .bar .x{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;color:var(--rail-ink)}
+  .bar .x b{color:var(--lime)}
+  .track{height:7px;border-radius:999px;background:#2a2b22;overflow:hidden}
+  .fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--lime-2),var(--lime))}
+  .basic{display:flex;flex-direction:column;gap:9px}
+  .basic .li{display:flex;justify-content:space-between;font-size:12px}
+  .basic .li .k{color:var(--rail-ink-2)} .basic .li .v{color:var(--rail-ink)}
+  .divr{height:1px;background:var(--rail-line);margin:20px 0}
+
+  /* RIGHT panels */
+  .panels{padding:24px}
+  [data-panel]{display:none}
+  [data-panel].on{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .tldr{border-left:2px solid var(--lime-2);background:#f0f6df;border-radius:8px;padding:10px 12px;font-size:13.5px;line-height:1.5;margin-bottom:16px}
+  .defs{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}
+  .defs .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+  .defs .v{font-size:13.5px;margin-top:2px}
+  .rows{display:flex;flex-direction:column}
+  .row{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--line)}
+  .row:first-child{border-top:0}
+  .row .dot{width:20px;height:20px;border-radius:999px;flex:0 0 auto;display:grid;place-items:center;font-size:11px;margin-top:1px}
+  .row .req{font-size:13.5px;font-weight:600}
+  .row .ev{font-size:12px;color:var(--ink-3)}
+  .band{position:relative;height:12px;border-radius:999px;background:#e7ecdd;margin:34px 0 8px}
+  .band .full2{position:absolute;top:0;height:100%;border-radius:999px;background:rgba(47,118,19,.25)}
+  .band .likely{position:absolute;top:0;height:100%;border-radius:999px;background:var(--good)}
+  .band .tgt{position:absolute;top:-7px;bottom:-7px;width:2px;background:var(--ink)}
+  .band .tgt span{position:absolute;top:-20px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700}
+  .scale{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3)}
+  .read{font-size:13.5px;line-height:1.55;margin-top:14px}
+  ul.list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:11px}
+  ul.list li{display:flex;gap:9px;font-size:13.5px;line-height:1.5}
+  ul.list li::before{content:"›";color:var(--good);font-weight:800}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{background:#efece3;border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:12.5px;font-weight:500}
+  .qa{border:1px solid var(--line);border-radius:14px;padding:13px;margin-top:10px;background:#fff}
+  .qa .q{font-size:13.5px;font-weight:600}
+  .qa .a{font-size:13px;color:var(--ink-2);margin-top:5px;line-height:1.5}
+</style>
+</head>
+<body>
+  <div class="top">
+    <button class="back" title="Back">‹ Reports</button>
+  </div>
+
+  <div class="wrap">
+    <div class="layout">
+
+      <!-- LEFT -->
+      <div class="left">
+        <div class="card dark">
+          <div class="inner dark"><div class="lp">
+            <div class="id">
+              <div class="avwrap">
+                <div class="avatar">V</div>
+                <div class="vdot">✓</div>
+              </div>
+              <div>
+                <h1>GCP Agentic AI Engineer</h1>
+                <div class="m">Virtusa · Hyderabad +2</div>
+                <div class="lpills">
+                  <span class="badge ghost">High Confidence</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="gaugewrap">
+              <div class="gauge" style="--p:86%">
+                <div class="hole">
+                  <div>
+                    <div class="n">4.3</div>
+                    <div class="d">/ 5</div>
+                    <div class="lbl"><b>86%</b> match</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rh">Breakdown</div>
+            <div class="bar"><div class="x"><span>CV Match</span><b>80%</b></div><div class="track"><div class="fill" style="width:80%"></div></div></div>
+            <div class="bar"><div class="x"><span>Level</span><b>70%</b></div><div class="track"><div class="fill" style="width:70%"></div></div></div>
+            <div class="bar"><div class="x"><span>Comp</span><b>60%</b></div><div class="track"><div class="fill" style="width:60%"></div></div></div>
+            <div class="bar"><div class="x"><span>Growth</span><b>90%</b></div><div class="track"><div class="fill" style="width:90%"></div></div></div>
+            <div class="divr"></div>
+            <div class="rh" style="margin-top:0">Basic Information</div>
+            <div class="basic">
+              <div class="li"><span class="k">Domain</span><span class="v">Cloud DevOps</span></div>
+              <div class="li"><span class="k">Function</span><span class="v">Build</span></div>
+              <div class="li"><span class="k">Seniority</span><span class="v">Mid-senior IC</span></div>
+              <div class="li"><span class="k">Work mode</span><span class="v">Onsite / hybrid</span></div>
+              <div class="li"><span class="k">Openings</span><span class="v">3</span></div>
+              <div class="li"><span class="k">Comp band</span><span class="v">₹12–20 LPA</span></div>
+              <div class="li"><span class="k">Posted</span><span class="v">22 Jun 2026</span></div>
+            </div>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- RIGHT (single card, panels driven by top tabs) -->
+      <div class="rightcol">
+        <div class="rhead">
+          <div class="tabs">
+            <button data-tab="overview" class="on">Overview</button>
+            <button data-tab="match">CV Match</button>
+            <button data-tab="strategy">Strategy</button>
+            <button data-tab="comp">Comp</button>
+            <button data-tab="interview">Interview</button>
+            <button data-tab="legit">Legitimacy</button>
+          </div>
+          <button class="apply">Apply ↗</button>
+        </div>
+        <div class="card"><div class="inner">
+          <div class="panels">
+
+            <div data-panel="overview" class="on">
+              <h3 class="t">Role Summary</h3>
+              <p class="sub">A · Archetype &amp; fit</p>
+              <div class="tldr">A GCP-centric DevOps role where GenAI/Agentic AI is a bonus, not a gate — a near-direct fit for your core profile.</div>
+              <div class="defs">
+                <div><div class="k">Domain</div><div class="v">Cloud DevOps / Platform</div></div>
+                <div><div class="k">Function</div><div class="v">Build</div></div>
+                <div><div class="k">Seniority</div><div class="v">Mid-to-senior IC (5–9 yrs)</div></div>
+                <div><div class="k">Work mode</div><div class="v">Onsite / hybrid</div></div>
+              </div>
+              <div class="rh" style="color:var(--ink-3);margin:22px 0 0">Keywords</div>
+              <div class="chips">
+                <span class="chip">GCP</span><span class="chip">Terraform</span><span class="chip">Kubernetes</span><span class="chip">CI/CD</span>
+                <span class="chip">GitHub Actions</span><span class="chip">Python</span><span class="chip">IaC</span><span class="chip">LLMOps</span><span class="chip">Agentic AI</span>
+              </div>
+            </div>
+
+            <div data-panel="match">
+              <h3 class="t">CV Match</h3>
+              <p class="sub">B · how your CV maps to each requirement</p>
+              <div class="rows">
+                <div class="row"><span class="dot b-good">✓</span><div style="flex:1"><div class="req">5–9 yrs DevOps engineering</div><div class="ev">“5+ years building CI/CD pipelines and IaC”</div></div><span class="badge b-good">Strong</span></div>
+                <div class="row"><span class="dot b-good">✓</span><div style="flex:1"><div class="req">GCP expertise</div><div class="ev">“Lead Cloud Engineer (AWS &amp; GCP)”</div></div><span class="badge b-good">Strong</span></div>
+                <div class="row"><span class="dot b-good">✓</span><div style="flex:1"><div class="req">Terraform / Kubernetes</div><div class="ev">“Jenkins, Terraform, Helm; K8s with Ingress LB”</div></div><span class="badge b-good">Strong</span></div>
+                <div class="row"><span class="dot b-warn">!</span><div style="flex:1"><div class="req">GenAI / Agentic AI <span style="color:var(--ink-3);font-weight:400">· added advantage</span></div><div class="ev">No direct evidence — frame ops automation as the agentic foundation.</div></div><span class="badge b-warn">Gap</span></div>
+              </div>
+            </div>
+
+            <div data-panel="strategy">
+              <h3 class="t">Level &amp; Strategy</h3>
+              <p class="sub">C</p>
+              <ul class="list">
+                <li>~5+ yrs with two team-lead stints — comfortably in band.</li>
+                <li>Sell senior with outcomes: “70% faster deploys”, “90% cost cut”, “led a team of 4”.</li>
+                <li>If downlevelled, accept only at ≥14–16 LPA with a 6-month review on explicit criteria.</li>
+              </ul>
+            </div>
+
+            <div data-panel="comp">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><h3 class="t">Comp &amp; Demand</h3><p class="sub" style="margin:0">D · band vs target</p></div>
+                <span class="badge b-warn">Comp 3/5</span>
+              </div>
+              <div class="band">
+                <div class="full2" style="left:32%;width:22%"></div>
+                <div class="likely" style="left:38%;width:11%"></div>
+                <div class="tgt" style="left:95%"><span>₹35 target</span></div>
+              </div>
+              <div class="scale"><span>₹0</span><span style="color:var(--ink);font-weight:600">Likely ₹14–18 LPA</span><span>₹37</span></div>
+              <p class="read">Realistic band ~12–20 LPA, likely 14–18 — well below the ₹35 target, the single biggest drag on this opportunity.</p>
+            </div>
+
+            <div data-panel="interview">
+              <h3 class="t">Interview Plan</h3>
+              <p class="sub">F · case study + red-flag prep</p>
+              <p class="read" style="margin-top:0">The 70%-deploy-time + 90%-cost CI/CD overhaul — covers Terraform, K8s, CI/CD &amp; leadership in one narrative.</p>
+              <div class="qa"><div class="q">“No direct GenAI experience?”</div><div class="a">→ Right — it's the added-advantage line. Here's the ops-automation foundation, and how I'd stand up an LLM-assisted runbook agent.</div></div>
+              <div class="qa"><div class="q">“Comfortable onsite in Hyderabad?”</div><div class="a">→ Yes — confirm hybrid cadence and relocation support up front.</div></div>
+            </div>
+
+            <div data-panel="legit">
+              <h3 class="t">Posting Legitimacy</h3>
+              <p class="sub">G</p>
+              <span class="badge b-good">✔ High Confidence</span>
+              <ul class="list" style="margin-top:14px">
+                <li>Independent Virtusa careers listing for the same role family</li>
+                <li>Concrete stack, no buzzword padding</li>
+                <li>Named hiring entity &amp; real office locations</li>
+                <li>Salary band consistent with market for the level</li>
+              </ul>
+            </div>
+
+          </div>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('[data-tab]');
+    const panels = document.querySelectorAll('[data-panel]');
+    tabs.forEach((t) => t.addEventListener('click', () => {
+      tabs.forEach((x) => x.classList.toggle('on', x === t));
+      panels.forEach((p) => p.classList.toggle('on', p.dataset.panel === t.dataset.tab));
+    }));
+  </script>
+</body>
+</html>

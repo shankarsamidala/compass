@@ -20,6 +20,8 @@ const api: CompassApi = {
     complete: () => ipcRenderer.invoke("onboarding:complete"),
     submit: (data) => ipcRenderer.invoke("onboarding:submit", data),
     importResume: (cvText) => ipcRenderer.invoke("onboarding:import-resume", cvText),
+    saveGoals: (goals) => ipcRenderer.invoke("onboarding:save-goal", goals),
+    saveConsent: (input) => ipcRenderer.invoke("onboarding:save-consent", input),
   },
   suggest: {
     query: (kind, q) => ipcRenderer.invoke("suggest:query", kind, q),
@@ -64,8 +66,10 @@ const api: CompassApi = {
     status: () => ipcRenderer.invoke("cli:status"),
     detect: () => ipcRenderer.invoke("cli:detect"),
     install: () => ipcRenderer.invoke("cli:install"),
+    installCli: () => ipcRenderer.invoke("cli:install-cli"),
     isAgentTrusted: () => ipcRenderer.invoke("cli:agent-trusted"),
     trustAgent: () => ipcRenderer.invoke("cli:trust-agent"),
+    setAgentTrusted: (trusted) => ipcRenderer.invoke("cli:set-agent-trusted", trusted),
   },
   evaluations: {
     list: () => ipcRenderer.invoke("evaluations:list"),

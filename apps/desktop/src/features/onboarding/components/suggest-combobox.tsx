@@ -25,7 +25,6 @@ export function SuggestCombobox({
     <div className="relative">
       <Input
         id={id}
-        className="h-10"
         placeholder={placeholder}
         value={value}
         autoComplete="off"

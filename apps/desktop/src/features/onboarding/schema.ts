@@ -131,31 +131,121 @@ export const onboardingSchema = z.object({
   // Extracted resume text (step 7) — not submitted; powers "import from resume".
   resumeText: z.string(),
 }).superRefine((v, ctx) => {
-  // Only flag rows the user actually started filling.
-  v.experiences.forEach((e, i) => {
-    if (!experienceStarted(e)) return;
-    if (!e.title.trim())
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "title"], message: "Role title is required" });
-    if (!e.company.trim())
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "company"], message: "Company is required" });
-  });
-  v.eduEntries.forEach((e, i) => {
-    if (!educationStarted(e)) return;
-    if (!e.level.trim())
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "level"], message: "Select a level" });
-    if (!e.institution.trim())
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "institution"], message: "Institution is required" });
-  });
-  v.projects.forEach((p, i) => {
-    if (!projectStarted(p)) return;
-    if (!p.title.trim())
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["projects", i, "title"], message: "Project title is required" });
-  });
-  v.proofPoints.forEach((p, i) => {
-    if (!proofPointStarted(p)) return;
-    if (!p.title.trim())
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["proofPoints", i, "title"], message: "Add the achievement" });
-  });
+  // Step 3 validations (if not a fresher, experience fields are required)
+  if (!v.isFresher) {
+    if (!v.totalExperienceYears.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["totalExperienceYears"], message: "Total experience is required" });
+    }
+    if (!v.currentCompany.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["currentCompany"], message: "Current company is required" });
+    }
+    if (!v.currentDesignation.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["currentDesignation"], message: "Current designation is required" });
+    }
+    if (!v.currentCtc.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["currentCtc"], message: "Current CTC is required" });
+    }
+    if (!v.noticePeriod.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["noticePeriod"], message: "Notice period is required" });
+    }
+  }
+  // Expected CTC, highest qualification, and graduation year are always required
+  if (!v.expectedCtc.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["expectedCtc"], message: "Expected CTC is required" });
+  }
+  if (!v.highestQualification.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["highestQualification"], message: "Select highest qualification" });
+  }
+  if (!v.graduationYear.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["graduationYear"], message: "Graduation year is required" });
+  }
+
+  // Step 7 validation (Resume is required)
+  if (!v.resumeText.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["resumeText"], message: "Please upload your resume to continue" });
+  }
+
+  // Step 4 validation (At least one Work history entry required if not fresher)
+  if (!v.isFresher) {
+    if (v.experiences.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences"], message: "Add at least one work history entry" });
+    } else {
+      v.experiences.forEach((e, i) => {
+        // The first entry is always required; subsequent entries are validated if started.
+        if (i > 0 && !experienceStarted(e)) return;
+        if (!e.title.trim())
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "title"], message: "Role title is required" });
+        if (!e.company.trim())
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "company"], message: "Company is required" });
+        if (!e.location.trim())
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "location"], message: "Location is required" });
+        if (!e.employmentType.trim())
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "employmentType"], message: "Select employment type" });
+        if (!e.startDate.trim())
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "startDate"], message: "Start date is required" });
+        if (!e.isCurrent && !e.endDate.trim())
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "endDate"], message: "End date is required" });
+        if (e.skills.length === 0)
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "skills"], message: "Add at least one skill" });
+        if (!e.highlights.trim())
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["experiences", i, "highlights"], message: "Highlights are required" });
+      });
+    }
+  }
+
+  // Step 5 validation (At least one Education entry required)
+  if (v.eduEntries.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries"], message: "Add at least one education entry" });
+  } else {
+    v.eduEntries.forEach((e, i) => {
+      // The first entry is always required; subsequent entries are validated if started.
+      if (i > 0 && !educationStarted(e)) return;
+      if (!e.level.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "level"], message: "Select a level" });
+      if (!e.degree.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "degree"], message: "Degree is required" });
+      if (!e.fieldOfStudy.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "fieldOfStudy"], message: "Field of study is required" });
+      if (!e.institution.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "institution"], message: "Institution is required" });
+      if (!e.startYear.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "startYear"], message: "Start year is required" });
+      if (!e.isCurrent && !e.endYear.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "endYear"], message: "End year is required" });
+      if (!e.gradingSystem.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "gradingSystem"], message: "Select grading system" });
+      if (e.gradingSystem !== "none" && !e.score.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["eduEntries", i, "score"], message: "Score is required" });
+    });
+  }
+
+  // Step 6 validation (At least one Project entry required)
+  if (v.projects.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["projects"], message: "Add at least one project" });
+  } else {
+    v.projects.forEach((p, i) => {
+      // The first entry is always required; subsequent entries are validated if started.
+      if (i > 0 && !projectStarted(p)) return;
+      if (!p.title.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["projects", i, "title"], message: "Project title is required" });
+      if (!p.description.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["projects", i, "description"], message: "Description is required" });
+      if (p.techStack.length === 0)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["projects", i, "techStack"], message: "Add at least one tech stack item" });
+    });
+  }
+
+  // Step 8 validation (At least one Proof point required)
+  if (v.proofPoints.length === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["proofPoints"], message: "Add at least one proof point" });
+  } else {
+    v.proofPoints.forEach((p, i) => {
+      // The first entry is always required; subsequent entries are validated if started.
+      if (i > 0 && !proofPointStarted(p)) return;
+      if (!p.title.trim())
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["proofPoints", i, "title"], message: "Add the achievement" });
+    });
+  }
 });
 
 export type OnboardingValues = z.infer<typeof onboardingSchema>;

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOnboardingForm, TOTAL_STEPS } from "./use-onboarding-form";
+import { Form } from "@/components/ui/form";
 import { StepResume } from "./components/step-resume";
 import { StepProfile } from "./components/step-profile";
 import { StepTargets } from "./components/step-targets";
@@ -62,69 +63,82 @@ export function OnboardingShell() {
   const registerAdd = useCallback((fn: (() => void) | null) => setAddAnother(() => fn), []);
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (isLast) submit();
-        else next();
-      }}
-      className="flex flex-col gap-8"
-    >
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-2xl font-bold tracking-tight">{meta.title}</h2>
-          <StepIndicator step={step} onJump={goTo} />
+    <Form {...form}>
+      <form
+        onSubmit={(e) => {
+          // Per-step validation: advancing must check only the current step's
+          // fields (next()/submit() handle that). Routing through
+          // form.handleSubmit would validate the whole schema up front and
+          // block step 1 on fields that belong to later steps.
+          e.preventDefault();
+          if (isLast) submit();
+          else next();
+        }}
+        className="flex flex-col gap-8"
+      >
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-2xl font-bold tracking-tight">{meta.title}</h2>
+            <StepIndicator step={step} onJump={goTo} />
+          </div>
+          <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
         </div>
-        <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
-      </div>
 
-      {step === 1 && <StepProfile form={form} />}
-      {step === 2 && <StepTargets form={form} />}
-      {step === 3 && <StepExperience form={form} />}
-      {step === 4 && <StepWorkHistory form={form} onRegisterAdd={registerAdd} />}
-      {step === 5 && <StepEducation form={form} onRegisterAdd={registerAdd} />}
-      {step === 6 && <StepProjects form={form} onRegisterAdd={registerAdd} />}
-      {step === 7 && <StepResume form={form} />}
-      {step === 8 && <StepProofPoints form={form} onRegisterAdd={registerAdd} />}
-
-      {submitError && (
-        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{submitError}</p>
-      )}
-
-      {step === 1 ? (
-        // Step 1 has no Back / Add — give Continue the full width.
-        <Button
-          type="submit"
-          size="lg"
-          disabled={submitting}
-          className="w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
-        >
-          Continue
-        </Button>
-      ) : (
-        <div className="flex items-center justify-between">
-          <Button type="button" size="lg" variant="outline" onClick={back} disabled={submitting} className="gap-2">
-            <ArrowLeft className="size-4" />
-            Back
-          </Button>
-          <div className="flex items-center gap-2">
-            {addAnother && (
-              <Button type="button" size="lg" variant="outline" onClick={addAnother} disabled={submitting} className="gap-2">
-                <Plus className="size-4" />
-                Add another
-              </Button>
-            )}
-            <Button
-              type="submit"
-              size="lg"
-              disabled={submitting}
-              className="bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
-            >
-              {isLast ? (submitting ? "Finishing…" : "Finish setup") : "Continue"}
-            </Button>
+        {/* Fixed-height step area: keeps the header above and the action buttons
+            below in a constant position so the card doesn't resize between steps.
+            Taller steps scroll within this region. */}
+        <div className="h-[440px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-1">
+            {step === 1 && <StepProfile form={form} />}
+            {step === 2 && <StepTargets form={form} />}
+            {step === 3 && <StepExperience form={form} />}
+            {step === 4 && <StepWorkHistory form={form} onRegisterAdd={registerAdd} />}
+            {step === 5 && <StepEducation form={form} onRegisterAdd={registerAdd} />}
+            {step === 6 && <StepProjects form={form} onRegisterAdd={registerAdd} />}
+            {step === 7 && <StepResume form={form} />}
+            {step === 8 && <StepProofPoints form={form} onRegisterAdd={registerAdd} />}
           </div>
         </div>
-      )}
-    </form>
+
+        {submitError && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{submitError}</p>
+        )}
+
+        {step === 1 ? (
+          // Step 1 has no Back / Add — give Continue the full width.
+          <Button
+            type="submit"
+            size="lg"
+            disabled={submitting}
+            className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+          >
+            Continue
+          </Button>
+        ) : (
+          <div className="flex items-center justify-between">
+            <Button type="button" size="lg" variant="outline" onClick={back} disabled={submitting} className="h-10 gap-2 hover:border-brand hover:ring-1 hover:ring-brand">
+              <ArrowLeft className="size-4" />
+              Back
+            </Button>
+            <div className="flex items-center gap-2">
+              {addAnother && (
+                <Button type="button" size="lg" variant="outline" onClick={addAnother} disabled={submitting} className="h-10 gap-2 hover:border-brand hover:ring-1 hover:ring-brand">
+                  <Plus className="size-4" />
+                  Add another
+                </Button>
+              )}
+              <Button
+                type="submit"
+                size="lg"
+                disabled={submitting}
+                className="h-10 bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+              >
+                {isLast ? (submitting ? "Finishing…" : "Finish setup") : "Continue"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </form>
+    </Form>
   );
 }

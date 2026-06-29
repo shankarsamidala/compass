@@ -8,21 +8,24 @@ type RailItemProps = {
   label: string;
   right?: ReactNode;
   active?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
 };
 
 /** Sidebar row — icon in a square slot + truncating label. */
-export function RailItem({ collapsed, icon, label, right, active, onClick }: RailItemProps) {
+export function RailItem({ collapsed, icon, label, right, active, disabled, onClick }: RailItemProps) {
   return (
     <button
       onClick={onClick}
-      title={collapsed ? label : undefined}
+      disabled={disabled}
+      title={collapsed && !disabled ? label : undefined}
       className={cn(
         "ml-2 mr-1 flex h-8 items-center overflow-hidden rounded-lg text-sm transition-colors",
         collapsed ? "w-auto justify-center" : "w-[calc(100%-0.75rem)]",
         active
           ? "bg-sidebar-accent text-foreground"
           : "text-foreground hover:bg-sidebar-accent",
+        disabled && "pointer-events-none opacity-40",
       )}
     >
       <span className="flex size-7 shrink-0 items-center justify-center">

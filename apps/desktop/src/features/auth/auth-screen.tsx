@@ -3,16 +3,21 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2, ArrowLeft, Check } from "lucide-react";
+import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-  FieldDescription,
-} from "@/components/ui/field";
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { AuthLayout, openExternal } from "./auth-layout";
 import { useLogin, useSignup, useVerifyEmail, useResendOtp } from "./api";
 import logo from "@/assets/logo.svg";
@@ -42,25 +47,22 @@ export function AuthScreen() {
   const [creds, setCreds] = useState<Values>({ email: "", password: "" });
   const [otp, setOtp] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { email: "", password: "" } });
+  const form = useForm<Values>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const { control, handleSubmit } = form;
 
   const onCredentials = async (v: Values) => {
-    setError(null);
-    setNotice(null);
     setBusy(true);
     try {
       const su = await signup.mutateAsync(v);
       if (su.ok) {
         setCreds(v);
-        setNotice(su.data.message ?? "Check your email for the 6-digit code.");
+        toast.success(su.data.message ?? "Check your email for the 6-digit code.");
         setStep("verify");
         return;
       }
@@ -70,14 +72,14 @@ export function AuthScreen() {
         if (li.code === "EMAIL_NOT_VERIFIED") {
           await resend.mutateAsync(v.email).catch(() => undefined);
           setCreds(v);
-          setNotice("Verify your email — we sent you a fresh code.");
+          toast.success("Verify your email — we sent you a fresh code.");
           setStep("verify");
           return;
         }
-        setError(li.error);
+        toast.error(li.error);
         return;
       }
-      setError(su.error);
+      toast.error(su.error);
     } finally {
       setBusy(false);
     }
@@ -85,21 +87,20 @@ export function AuthScreen() {
 
   const onVerify = async () => {
     if (!/^\d{6}$/.test(otp)) {
-      setError("Enter the 6-digit code");
+      toast.error("Enter the 6-digit code");
       return;
     }
-    setError(null);
     setBusy(true);
     try {
       const v = await verifyEmail.mutateAsync({ email: creds.email, otp });
       if (!v.ok) {
-        setError(v.error);
+        toast.error(v.error);
         return;
       }
       const li = await login.mutateAsync(creds);
       if (!li.ok) {
         setStep("credentials");
-        setError(li.error || "Verified — please sign in.");
+        toast.error(li.error || "Verified — please sign in.");
       }
     } finally {
       setBusy(false);
@@ -107,117 +108,112 @@ export function AuthScreen() {
   };
 
   const onResend = async () => {
-    setError(null);
     await resend.mutateAsync(creds.email).catch(() => undefined);
-    setNotice("A new code is on its way.");
+    toast.success("A new code is on its way.");
   };
-
-  const Notice = () =>
-    notice ? (
-      <div className="flex items-start gap-2 rounded-lg border border-emerald-600/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600">
-        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <span>{notice}</span>
-      </div>
-    ) : null;
-  const ErrorBox = () =>
-    error ? (
-      <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
-        {error}
-      </p>
-    ) : null;
 
   return (
     <AuthLayout maxWidthClass="max-w-sm">
       {step === "credentials" ? (
         <>
-          <form onSubmit={handleSubmit(onCredentials)} noValidate>
-            <FieldGroup>
+          <Form {...form}>
+            <form onSubmit={handleSubmit(onCredentials)} className="space-y-5" noValidate>
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-3xl font-bold tracking-tight">Log in or sign up</h1>
-                <FieldDescription className="text-center">
+                <FormDescription className="text-center">
                   Find roles that fit, get them evaluated, and track your search.
-                </FieldDescription>
+                </FormDescription>
               </div>
 
-              <Notice />
-              <ErrorBox />
+              <FormField
+                control={control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        autoFocus
+                        autoComplete="email"
+                        placeholder="you@example.com"
+                        className="h-10 focus-visible:border-white focus-visible:ring-white/30"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  autoFocus
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  className="h-10 focus-visible:border-brand focus-visible:ring-brand/30"
-                  aria-invalid={!!errors.email}
-                  {...register("email")}
-                />
-                {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
-              </Field>
+              <FormField
+                control={control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Password</FormLabel>
+                      <Link
+                        to="/forgot"
+                        className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showPw ? "text" : "password"}
+                          autoComplete="current-password"
+                          placeholder="••••••••"
+                          className="h-10 pr-10 focus-visible:border-white focus-visible:ring-white/30"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPw((s) => !s)}
+                          aria-label={showPw ? "Hide password" : "Show password"}
+                          tabIndex={-1}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Link
-                    to="/forgot"
-                    className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPw ? "text" : "password"}
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    className="h-10 pr-10 focus-visible:border-brand focus-visible:ring-brand/30"
-                    aria-invalid={!!errors.password}
-                    {...register("password")}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw((s) => !s)}
-                    aria-label={showPw ? "Hide password" : "Show password"}
-                    tabIndex={-1}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
-              </Field>
+              <Button
+                type="submit"
+                disabled={busy}
+                className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                {busy ? "Please wait…" : "Continue"}
+              </Button>
 
-              <Field>
-                <Button
-                  type="submit"
-                  disabled={busy}
-                  className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
-                >
-                  {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {busy ? "Please wait…" : "Continue"}
-                </Button>
-              </Field>
+              <div className="relative my-4 flex items-center justify-center">
+                <Separator className="absolute inset-0 top-1/2" />
+                <span className="relative bg-[#121212] px-3 text-xs uppercase text-muted-foreground">Or</span>
+              </div>
 
-              <FieldSeparator>Or</FieldSeparator>
-
-              <Field className="grid gap-4 sm:grid-cols-2">
-                <Button variant="outline" type="button" disabled={busy} onClick={() => setError(SOON)} className="h-10">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Button variant="secondary" type="button" disabled={busy} onClick={() => toast.info(SOON)} className="h-10 border border-border">
                   <img src={googleIcon} alt="" className="size-4 shrink-0" />
                   Continue with Google
                 </Button>
-                <Button variant="outline" type="button" disabled={busy} onClick={() => setError(SOON)} className="h-10">
-                  <img src={githubIcon} alt="" className="size-4 shrink-0" />
+                <Button variant="secondary" type="button" disabled={busy} onClick={() => toast.info(SOON)} className="h-10 border border-border">
+                  <img src={githubIcon} alt="" className="size-4 shrink-0 dark:invert" />
                   Continue with Github
                 </Button>
-              </Field>
-            </FieldGroup>
-          </form>
+              </div>
+            </form>
+          </Form>
 
-          <div className="mt-6">
-            <FieldDescription className="px-6 text-center">
+          <div className="mt-6 text-center">
+            <p className="px-6 text-xs text-muted-foreground leading-normal">
               By continuing, you agree to our{" "}
               <button type="button" onClick={() => openExternal("https://reinit.in/terms")} className="underline underline-offset-4 transition-colors hover:text-foreground">
                 Terms of Service
@@ -227,22 +223,19 @@ export function AuthScreen() {
                 Privacy Policy
               </button>
               .
-            </FieldDescription>
+            </p>
           </div>
         </>
       ) : (
-        <FieldGroup>
+        <div className="space-y-5">
           <div className="flex flex-col items-center gap-2 text-center">
             <img src={logo} alt="Reinit" className="size-9" />
             <h1 className="text-xl font-bold">Verify your email</h1>
-            <FieldDescription className="text-center">Enter the 6-digit code we sent to {creds.email}</FieldDescription>
+            <p className="text-center text-xs text-muted-foreground">Enter the 6-digit code we sent to {creds.email}</p>
           </div>
 
-          <Notice />
-          <ErrorBox />
-
-          <Field>
-            <FieldLabel htmlFor="otp">6-digit code</FieldLabel>
+          <div className="space-y-2">
+            <Label htmlFor="otp">6-digit code</Label>
             <Input
               id="otp"
               inputMode="numeric"
@@ -252,29 +245,25 @@ export function AuthScreen() {
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
               onKeyDown={(e) => e.key === "Enter" && !busy && onVerify()}
               placeholder="••••••"
-              className="h-10 text-center font-semibold tracking-[0.5em] focus-visible:border-brand focus-visible:ring-brand/30"
+              className="h-10 text-center font-semibold tracking-[0.5em] focus-visible:border-white focus-visible:ring-white/30"
             />
-          </Field>
+          </div>
 
-          <Field>
-            <Button
-              type="button"
-              onClick={onVerify}
-              disabled={busy}
-              className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
-            >
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {busy ? "Verifying…" : "Verify & continue"}
-            </Button>
-          </Field>
+          <Button
+            type="button"
+            onClick={onVerify}
+            disabled={busy}
+            className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+          >
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy ? "Verifying…" : "Verify & continue"}
+          </Button>
 
           <div className="flex items-center justify-between text-xs">
             <button
               type="button"
               onClick={() => {
                 setStep("credentials");
-                setError(null);
-                setNotice(null);
                 setOtp("");
               }}
               className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
@@ -290,7 +279,7 @@ export function AuthScreen() {
               Resend code
             </button>
           </div>
-        </FieldGroup>
+        </div>
       )}
     </AuthLayout>
   );

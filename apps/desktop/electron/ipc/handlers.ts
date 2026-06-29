@@ -49,6 +49,10 @@ export function registerIpcHandlers(): void {
   safeHandle("onboarding:complete", () => onboardingService.complete());
   safeHandle("onboarding:submit", dirtying((data) => onboardingService.submit(data)));
   safeHandle("onboarding:import-resume", dirtying((cvText) => onboardingService.importResume(cvText)));
+  safeHandle("onboarding:save-goal", (goals: string[]) => onboardingService.saveGoals(goals));
+  safeHandle("onboarding:save-consent", (input: { dataUse: boolean; marketingEmail: boolean }) =>
+    onboardingService.saveConsent(input),
+  );
 
   // ── Suggest (autocomplete) ──
   safeHandle("suggest:query", (kind, q) => suggestService.query(kind, q));
@@ -112,8 +116,10 @@ export function registerIpcHandlers(): void {
   safeHandle("cli:status", () => cliService.status());
   safeHandle("cli:detect", () => cliService.detect());
   safeHandle("cli:install", () => cliService.install());
+  safeHandle("cli:install-cli", () => cliService.installCli());
   safeHandle("cli:agent-trusted", () => cliService.isAgentTrusted());
   safeHandle("cli:trust-agent", () => cliService.trustAgent());
+  safeHandle("cli:set-agent-trusted", (trusted: boolean) => cliService.setAgentTrusted(trusted));
 
   // ── Evaluations dashboard (REIN-320) ──
   safeHandle("evaluations:list", () => evaluationsService.list());

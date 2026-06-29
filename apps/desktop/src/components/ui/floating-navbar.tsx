@@ -66,7 +66,7 @@ export function FloatingNav({
           exit={{ opacity: 0, y: 24 }}
           transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
           className={cn(
-            "pointer-events-auto flex w-fit items-center gap-1 rounded-xl border border-border bg-white px-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+            "pointer-events-auto flex w-fit items-center gap-1 rounded-xl border border-border bg-popover px-1.5 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
             className,
           )}
         >
@@ -99,7 +99,7 @@ export function FloatingNav({
                 item.variant === "brand"
                   ? "text-brand hover:bg-brand/10"
                   : item.variant === "danger"
-                    ? "text-[#a63244] hover:bg-[#a632441f]"
+                    ? "text-destructive hover:bg-destructive/10"
                     : "text-foreground hover:bg-accent",
               )}
             >

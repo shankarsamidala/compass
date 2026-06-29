@@ -176,7 +176,9 @@ export async function searchJobsForRole(opts: AdapterSearchOpts): Promise<Canoni
     if (exp != null) { params.set("minexp", String(Math.max(0, exp - 2))); params.set("maxexp", String(exp + 2)); }
     if (postingDays != null) params.set("posting", String(postingDays));
 
-    const data = await hiristFetch(`https://gladiator.hirist.tech/job/search?${params}`);
+    const hiristUrl = `https://gladiator.hirist.tech/job/search?${params}`;
+    console.log(`[scan][hirist] search "${opts.keyword}": ${hiristUrl}`);
+    const data = await hiristFetch(hiristUrl);
     if (!data || typeof data !== "object") break;
     const root = data as Record<string, unknown>;
     const items = (root.data ?? []) as unknown[];

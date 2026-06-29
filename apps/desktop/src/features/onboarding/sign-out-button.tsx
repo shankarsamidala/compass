@@ -1,15 +1,17 @@
 import { useLogout } from "@/features/auth/api";
+import { Button } from "@/components/ui/button";
 
 export function SignOutButton() {
   const logout = useLogout();
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       onClick={() => logout.mutate()}
       disabled={logout.isPending}
-      className="rounded-md border border-input px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:opacity-50"
+      className="text-muted-foreground hover:text-foreground h-9 hover:border-brand hover:ring-1 hover:ring-brand"
     >
       {logout.isPending ? "Signing out…" : "Sign out"}
-    </button>
+    </Button>
   );
 }

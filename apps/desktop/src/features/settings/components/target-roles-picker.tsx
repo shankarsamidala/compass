@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Search01Icon, PlusSignIcon, Cancel01Icon } from "@hugeicons/core-free-icons";
 import { Loader2 } from "lucide-react";
-import { api } from "@/lib/ipc";
-import { cn } from "@/lib/utils";
+import { searchJobTitles } from "@/data/job-titles";
 import { useProfilePrefs, useSetTargetRoles } from "../profile-api";
 
-/** A broad suggested set; live search (Indeed autocomplete) augments it. */
+/** A broad suggested set surfaced as quick-add chips when the user isn't searching. */
 const SUGGESTED = [
   "Frontend Developer", "Backend Developer", "Full Stack Developer", "Mobile Developer",
   "DevOps Engineer", "Cloud Engineer", "Data Engineer", "Data Scientist", "ML Engineer",
@@ -15,59 +14,66 @@ const SUGGESTED = [
   "Product Manager", "UI/UX Designer", "Solutions Architect",
 ];
 
-type TabId = "suggested" | "mine";
-
 export function TargetRolesPicker() {
   const { data: prefs, isLoading } = useProfilePrefs();
   const save = useSetTargetRoles();
-  const [tab, setTab] = useState<TabId>("suggested");
   const [q, setQ] = useState("");
-  const [searchHits, setSearchHits] = useState<string[]>([]);
+  const [hits, setHits] = useState<string[]>([]);
 
   const selected = prefs?.targetRoles ?? [];
   const has = (r: string) => selected.some((s) => s.toLowerCase() === r.toLowerCase());
 
-  const toggle = (role: string) => {
-    const next = has(role) ? selected.filter((s) => s.toLowerCase() !== role.toLowerCase()) : [...selected, role];
-    save.mutate(next);
+  const add = (role: string) => {
+    if (!has(role)) save.mutate([...selected, role]);
+    setQ("");
   };
+  const remove = (role: string) => save.mutate(selected.filter((s) => s.toLowerCase() !== role.toLowerCase()));
 
-  // Live role autocomplete (career-ops suggest → Indeed), debounced.
+  // Local role search (no API) — results render directly under the input.
   useEffect(() => {
     const term = q.trim();
-    if (term.length < 2) {
-      setSearchHits([]);
-      return;
-    }
-    let active = true;
-    const t = setTimeout(async () => {
-      const res = await api.suggest.query("roles", term);
-      if (active) setSearchHits(res.ok ? res.data : []);
-    }, 200);
-    return () => {
-      active = false;
-      clearTimeout(t);
-    };
+    setHits(term.length < 2 ? [] : searchJobTitles(term, 40));
   }, [q]);
 
-  // What the grid shows: search results, "My tags", or the suggested set.
-  const tags = useMemo(() => {
-    if (q.trim().length >= 2) {
-      const merged = [...new Set([...searchHits, ...SUGGESTED.filter((s) => s.toLowerCase().includes(q.toLowerCase()))])];
-      return merged.slice(0, 40);
-    }
-    if (tab === "mine") return selected;
-    return [...new Set([...selected, ...SUGGESTED])];
-  }, [q, searchHits, tab, selected]);
+  const term = q.trim();
+  const searching = term.length >= 2;
+
+  // Matches to add (already-selected removed); offer the raw term as a creatable row.
+  const results = useMemo(() => {
+    const list = hits.filter((h) => !has(h));
+    const exact = list.some((h) => h.toLowerCase() === term.toLowerCase());
+    if (term && !exact && !has(term)) list.unshift(term);
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hits, term, selected]);
+
+  const suggestions = SUGGESTED.filter((s) => !has(s));
 
   return (
-    <div>
+    <div className="flex flex-col gap-3">
+      {/* Selected roles — always visible, click the × to remove */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selected.map((role) => (
+            <button
+              key={role}
+              type="button"
+              onClick={() => remove(role)}
+              className="inline-flex h-8 select-none items-center gap-1 rounded-[10px] border border-brand bg-brand pl-3 pr-1.5 text-xs font-medium text-brand-foreground transition-colors hover:bg-brand-hover"
+            >
+              <span className="min-w-0 truncate">{role}</span>
+              <HugeiconsIcon icon={Cancel01Icon} size={16} className="shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Search */}
       <div className="flex h-10 items-center gap-2 rounded-xl border border-input bg-input/30 px-3.5">
         <HugeiconsIcon icon={Search01Icon} size={16} className="shrink-0 text-muted-foreground" />
         <input
           aria-label="Search roles"
-          placeholder="Search roles"
+          placeholder="Search roles to add…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
@@ -75,68 +81,61 @@ export function TargetRolesPicker() {
         {save.isPending && <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />}
       </div>
 
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        Pick the roles you're targeting — or search to add your own. The more accurate these are, the better your job matches.
-      </p>
-
-      {/* Tabs */}
-      <div className="mt-4 flex flex-row gap-4 border-b border-border pb-2.5">
-        <TabButton active={tab === "suggested"} onClick={() => setTab("suggested")}>Suggested</TabButton>
-        <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>
-          My roles{selected.length ? ` (${selected.length})` : ""}
-        </TabButton>
-      </div>
-
-      {/* Grid */}
-      <div className="mt-4">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : tags.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {tab === "mine" ? "No roles yet — add some from Suggested." : "No matches."}
+      {searching ? (
+        /* Results — directly under the search box so the flow stays connected */
+        <div className="overflow-hidden rounded-xl border border-border">
+          {results.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No matches.</p>
+          ) : (
+            <div className="max-h-64 overflow-y-auto p-1">
+              {results.map((role) => {
+                const creatable = role.toLowerCase() === term.toLowerCase() && !hits.some((h) => h.toLowerCase() === term.toLowerCase());
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => add(role)}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                  >
+                    <HugeiconsIcon icon={PlusSignIcon} size={16} className="shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">{role}</span>
+                    {creatable && <span className="shrink-0 text-xs text-muted-foreground">Add custom</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Quick-add suggestions when not searching */
+        <div className="flex flex-col gap-2">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Pick the roles you're targeting — or search to add your own. The more accurate these are, the better your job matches.
           </p>
-        ) : (
-          <div role="list" className="flex flex-row flex-wrap gap-3 overflow-hidden" style={{ maxHeight: "calc(2 * (2rem + 0.75rem))" }}>
-            {tags.map((role) => {
-              const on = has(role);
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => toggle(role)}
-                  className={cn(
-                    "inline-flex h-8 select-none items-center gap-1 rounded-[10px] border pl-3 pr-1.5 text-xs font-medium transition-colors",
-                    on
-                      ? "border-brand bg-brand text-brand-foreground"
-                      : "border-border bg-input/30 text-foreground hover:bg-accent",
-                  )}
-                >
-                  <span className="min-w-0 truncate">{role}</span>
-                  <HugeiconsIcon icon={on ? Cancel01Icon : PlusSignIcon} size={16} className="shrink-0" />
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "relative h-8 rounded-[10px] px-3 py-1.5 text-center text-sm transition-colors",
-        active ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
+          {isLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : suggestions.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Suggested</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => add(role)}
+                    className="inline-flex h-8 select-none items-center gap-1 rounded-[10px] border border-border bg-input/30 pl-3 pr-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                  >
+                    <span className="min-w-0 truncate">{role}</span>
+                    <HugeiconsIcon icon={PlusSignIcon} size={16} className="shrink-0" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
       )}
-    >
-      {children}
-      {active && <span className="absolute -bottom-2.5 left-1/2 h-px w-4 -translate-x-1/2 bg-foreground" />}
-    </button>
+    </div>
   );
 }

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2, ArrowLeft, Check } from "lucide-react";
+import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
 import { AuthLayout } from "./auth-layout";
 import { useForgotPassword, useResetPassword } from "./api";
 
@@ -31,18 +32,15 @@ export function ForgotPasswordScreen() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const onRequest = async () => {
-    if (!isEmail(email)) return setError("Enter a valid email");
-    setError(null);
+    if (!isEmail(email)) return toast.error("Enter a valid email");
     setBusy(true);
     try {
       const res = await forgot.mutateAsync(email.trim());
       // Always advance (enumeration-safe) — career-ops returns 200 regardless.
-      setNotice((res.ok && res.data.message) || "If that email exists, we sent a reset code.");
+      toast.success((res.ok && res.data.message) || "If that email exists, we sent a reset code.");
       setStep("reset");
     } finally {
       setBusy(false);
@@ -50,15 +48,14 @@ export function ForgotPasswordScreen() {
   };
 
   const onReset = async () => {
-    if (!/^\d{6}$/.test(otp)) return setError("Enter the 6-digit code");
+    if (!/^\d{6}$/.test(otp)) return toast.error("Enter the 6-digit code");
     const issue = passwordIssue(password);
-    if (issue) return setError(`Password needs: ${issue.toLowerCase()}`);
-    if (password !== confirm) return setError("Passwords do not match");
-    setError(null);
+    if (issue) return toast.error(`Password needs: ${issue.toLowerCase()}`);
+    if (password !== confirm) return toast.error("Passwords do not match");
     setBusy(true);
     try {
       const res = await reset.mutateAsync({ email: email.trim(), otp, password });
-      if (!res.ok) return setError(res.error);
+      if (!res.ok) return toast.error(res.error);
       navigate("/auth", { replace: true });
     } finally {
       setBusy(false);
@@ -67,7 +64,7 @@ export function ForgotPasswordScreen() {
 
   return (
     <AuthLayout>
-      <FieldGroup>
+      <div className="space-y-6">
         {step === "request" ? (
           <Link
             to="/auth"
@@ -80,8 +77,6 @@ export function ForgotPasswordScreen() {
             type="button"
             onClick={() => {
               setStep("request");
-              setError(null);
-              setNotice(null);
               setOtp("");
             }}
             className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -94,29 +89,17 @@ export function ForgotPasswordScreen() {
           <h1 className="text-xl font-bold">
             {step === "request" ? "Reset your password" : "Set a new password"}
           </h1>
-          <FieldDescription className="text-center">
+          <p className="text-center text-xs text-muted-foreground">
             {step === "request"
               ? "We'll email you a 6-digit code"
               : `Enter the code we sent to ${email}`}
-          </FieldDescription>
+          </p>
         </div>
 
-        {notice && (
-          <div className="flex items-start gap-2 rounded-lg border border-emerald-600/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600">
-            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{notice}</span>
-          </div>
-        )}
-        {error && (
-          <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
-            {error}
-          </p>
-        )}
-
         {step === "request" ? (
-          <>
-            <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -125,25 +108,23 @@ export function ForgotPasswordScreen() {
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !busy && onRequest()}
                 placeholder="you@example.com"
-                className="h-10 focus-visible:border-brand focus-visible:ring-brand/30"
+                className="h-10 focus-visible:border-white focus-visible:ring-white/30"
               />
-            </Field>
-            <Field>
-              <Button
-                type="button"
-                onClick={onRequest}
-                disabled={busy}
-                className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
-              >
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {busy ? "Sending…" : "Send reset code"}
-              </Button>
-            </Field>
-          </>
+            </div>
+            <Button
+              type="button"
+              onClick={onRequest}
+              disabled={busy}
+              className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              {busy ? "Sending…" : "Send reset code"}
+            </Button>
+          </div>
         ) : (
-          <>
-            <Field>
-              <FieldLabel htmlFor="otp">6-digit code</FieldLabel>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="otp">6-digit code</Label>
               <Input
                 id="otp"
                 inputMode="numeric"
@@ -152,12 +133,12 @@ export function ForgotPasswordScreen() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder="••••••"
-                className="h-10 text-center font-semibold tracking-[0.5em] focus-visible:border-brand focus-visible:ring-brand/30"
+                className="h-10 text-center font-semibold tracking-[0.5em] focus-visible:border-white focus-visible:ring-white/30"
               />
-            </Field>
+            </div>
 
-            <Field>
-              <FieldLabel htmlFor="new-password">New password</FieldLabel>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New password</Label>
               <div className="relative">
                 <Input
                   id="new-password"
@@ -165,7 +146,7 @@ export function ForgotPasswordScreen() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Create a password"
-                  className="h-10 pr-10 focus-visible:border-brand focus-visible:ring-brand/30"
+                  className="h-10 pr-10 focus-visible:border-white focus-visible:ring-white/30"
                 />
                 <button
                   type="button"
@@ -180,10 +161,10 @@ export function ForgotPasswordScreen() {
               {password.length > 0 && passwordIssue(password) && (
                 <p className="text-xs text-muted-foreground">8+ chars · 1 uppercase · 1 number · 1 special</p>
               )}
-            </Field>
+            </div>
 
-            <Field>
-              <FieldLabel htmlFor="confirm">Confirm password</FieldLabel>
+            <div className="space-y-2">
+              <Label htmlFor="confirm">Confirm password</Label>
               <Input
                 id="confirm"
                 type={showPw ? "text" : "password"}
@@ -191,24 +172,22 @@ export function ForgotPasswordScreen() {
                 onChange={(e) => setConfirm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !busy && onReset()}
                 placeholder="Re-enter password"
-                className="h-10 focus-visible:border-brand focus-visible:ring-brand/30"
+                className="h-10 focus-visible:border-white focus-visible:ring-white/30"
               />
-            </Field>
+            </div>
 
-            <Field>
-              <Button
-                type="button"
-                onClick={onReset}
-                disabled={busy}
-                className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
-              >
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {busy ? "Updating…" : "Update password"}
-              </Button>
-            </Field>
-          </>
+            <Button
+              type="button"
+              onClick={onReset}
+              disabled={busy}
+              className="h-10 w-full bg-brand font-semibold text-brand-foreground hover:bg-brand-hover"
+            >
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              {busy ? "Updating…" : "Update password"}
+            </Button>
+          </div>
         )}
-      </FieldGroup>
+      </div>
     </AuthLayout>
   );
 }

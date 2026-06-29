@@ -179,7 +179,9 @@ export async function searchJobsForRole(opts: AdapterSearchOpts): Promise<Canoni
     for (const c of cities) params.append("jobLocations", c);
     for (const fn of opts.jobFunctions ?? []) params.append("job_functions", String(fn));
 
-    const data = await instaFetch(`${BASE}/api/v1/job_search?${params}`);
+    const instaUrl = `${BASE}/api/v1/job_search?${params}`;
+    console.log(`[scan][instahyre] search "${opts.keyword}": ${instaUrl}`);
+    const data = await instaFetch(instaUrl);
     if (!data || typeof data !== "object") break;
     const objects = ((data as { objects?: unknown[] }).objects) ?? [];
     if (!Array.isArray(objects) || objects.length === 0) break;

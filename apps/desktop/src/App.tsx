@@ -7,10 +7,22 @@ import { NAV_BY_ID, type ViewId } from "@/components/shell/nav";
 import { JobsPage } from "@/features/jobs/jobs-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { ProfilePage } from "@/features/profile/profile-page";
+import { useProfileCompletion } from "@/features/profile/use-profile-completion";
 import { EvaluationsPage } from "@/features/evaluations/evaluations-page";
+import { CommunityPage } from "@/features/community/community-page";
 import { AgentTerminal } from "@/features/agent-terminal/agent-terminal";
 import type { SettingsTabId } from "@/features/settings/tabs";
 import { trackView } from "@/lib/analytics";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function App() {
   const [view, setView] = useState<ViewId>(() => {
@@ -19,7 +31,16 @@ export default function App() {
   });
   const [settingsTab, setSettingsTab] = useState<SettingsTabId | undefined>(undefined);
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const logout = useLogout();
+
+  // Profile-completion gate: until the profile is 100%, every nav feature page is
+  // forced to Profile and the sidebar locks. Settings (not a nav page) stays
+  // reachable so the basics can still be filled in.
+  const { pct, ready } = useProfileCompletion();
+  const profileLocked = ready && pct < 100;
+  const activeView: ViewId =
+    profileLocked && view !== "profile" && Boolean(NAV_BY_ID[view]) ? "profile" : view;
 
   useEffect(() => { trackView("home"); }, []);
 
@@ -31,6 +52,8 @@ export default function App() {
   };
 
   const handleNavigate = (id: ViewId) => {
+    // While the profile is incomplete, block every nav feature page except Profile.
+    if (profileLocked && id !== "profile" && NAV_BY_ID[id]) return;
     if (id !== "settings") setSettingsTab(undefined);
     setView(id);
     localStorage.setItem("compass:active-view", id);
@@ -50,24 +73,29 @@ export default function App() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Sidebar — registry-driven, fixed left */}
         <Sidebar
-          activeView={view}
+          activeView={activeView}
           onNavigate={handleNavigate}
-          onLogout={() => logout.mutate()}
+          onLogout={() => setLogoutOpen(true)}
           loggingOut={logout.isPending}
+          locked={profileLocked}
         />
 
         {/* Main — scrollable content. Real pages branch by id; the rest fall back. */}
         <main id="main-content" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {view === "jobs" ? (
+          {activeView === "jobs" ? (
             <JobsPage />
-          ) : view === "reports" ? (
+          ) : activeView === "following" ? (
+            <CommunityPage />
+          ) : activeView === "happening" ? (
+            <CommunityPage />
+          ) : activeView === "reports" ? (
             <EvaluationsPage />
-          ) : view === "settings" ? (
+          ) : activeView === "settings" ? (
             <SettingsPage defaultTab={settingsTab} />
-          ) : view === "profile" ? (
+          ) : activeView === "profile" ? (
             <ProfilePage onNavigateToSettings={navigateToSettings} />
           ) : (
-            <PagePlaceholder entry={NAV_BY_ID[view]} />
+            <PagePlaceholder entry={NAV_BY_ID[activeView]} />
           )}
         </main>
 
@@ -78,6 +106,30 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Logout confirmation */}
+      <AlertDialog open={logoutOpen} onOpenChange={(open) => !logout.isPending && setLogoutOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll be signed out and returned to the login screen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={logout.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={logout.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                logout.mutate();
+              }}
+            >
+              {logout.isPending ? "Signing out…" : "Log out"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

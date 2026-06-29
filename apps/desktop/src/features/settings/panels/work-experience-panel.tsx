@@ -417,7 +417,7 @@ function ExperienceForm({
         <Field>
           <FieldTitle>Employment Type</FieldTitle>
           <Select value={form.employmentType || ""} onValueChange={(v) => set("employmentType", v as ExperienceEmploymentType)}>
-            <SelectTrigger className="h-9 w-full rounded-4xl">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Please select" />
             </SelectTrigger>
             <SelectContent>
@@ -456,13 +456,13 @@ function ExperienceForm({
           <FieldTitle>Start date<span className="text-destructive">*</span></FieldTitle>
           <div className="flex gap-6">
             <Select value={form.startMonth || ""} onValueChange={(v) => set("startMonth", v)}>
-              <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Month" /></SelectTrigger>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Month" /></SelectTrigger>
               <SelectContent>
                 {MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={form.startYear || ""} onValueChange={(v) => set("startYear", v)}>
-              <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Year" /></SelectTrigger>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Year" /></SelectTrigger>
               <SelectContent>
                 {YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
               </SelectContent>
@@ -475,13 +475,13 @@ function ExperienceForm({
             <FieldTitle>End date</FieldTitle>
             <div className="flex gap-6">
               <Select value={form.endMonth || ""} onValueChange={(v) => set("endMonth", v)}>
-                <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Month" /></SelectTrigger>
                 <SelectContent>
                   {MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={form.endYear || ""} onValueChange={(v) => set("endYear", v)}>
-                <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Year" /></SelectTrigger>
                 <SelectContent>
                   {YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 </SelectContent>

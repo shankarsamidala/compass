@@ -28,6 +28,7 @@ export type ViewId =
   | "compare"
   | "insights"
   | "profile"
+  | "settings"
   | "story-bank"
   | "training"
   | "projects"

@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { authedFetch } from "../core/http";
 import { dismissed } from "../core/dismissed";
 import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation, type JobRanking, type ScanSource, type CanonicalJob } from "@compass/ipc-contract";
-import { searchJobsForRole } from "./naukri.service";
+import { searchJobsForRole } from "./portals/naukri";
 import { searchJobsForRole as hiristSearch } from "./hirist.service";
 import { searchJobsForRole as instahyreSearch } from "./instahyre.service";
 import { cliService } from "./cli.service";
@@ -220,47 +220,41 @@ export const jobsService = {
     }
 
     // Step 2 — USER-SIDE scrape (every adapter runs on the user's IP, never the
-    // server). One combined search across roles, jobAge=1, capped to 20, paginated,
-    // location-filtered — fanned out across enabled portals, then merged + deduped.
-    const combinedKeyword = roles.map((r) => r.name).join(", ");
-    const searchOpts: AdapterSearchOpts = {
-      keyword: combinedKeyword,
+    // server). One search PER ROLE with a single clean keyword — combining roles
+    // into one comma-joined keyword diluted precision (e.g. "DevOps" surfaced Full
+    // Stack roles via the generic "engineer" token). Per-role search also gives
+    // exact role attribution for free (no fuzzy title matching). Merged + deduped
+    // across roles & portals.
+    // preferredLocations are stored as "City, State" (e.g. "Hyderabad, Telangana").
+    // Portals match on city NAME, so keep only the city (before the first comma)
+    // and fix common spelling variants — otherwise state tokens become noise.
+    const CITY_FIX: Record<string, string> = {
+      bengalore: "Bengaluru", bangalore: "Bengaluru", bangaluru: "Bengaluru",
+    };
+    const cities = [
+      ...new Set(
+        preferredLocations
+          .map((l) => l.split(",")[0].trim())
+          .filter(Boolean)
+          .map((c) => CITY_FIX[c.toLowerCase()] ?? c),
+      ),
+    ];
+    const baseOpts: Omit<AdapterSearchOpts, "keyword"> = {
       max: 20,
       jobAge: opts.jobAge > 0 ? opts.jobAge : 1,
       experience,
-      location: preferredLocations.length > 0 ? preferredLocations.join(",") : undefined,
-      pages: 10,
+      location: cities.length > 0 ? cities.join(",") : undefined,
+      pages: 5,
       skills,
       jobFunctions,
     };
-    const results = await Promise.all(
-      enabled.map(async (s) => {
-        try {
-          const list = await ADAPTERS[s]!(searchOpts);
-          console.log(`[scan] ${s}: ${list.length} jobs`);
-          return list;
-        } catch (e) {
-          console.error(`[scan] ${s} FAILED:`, e);
-          return [] as CanonicalJob[];
-        }
-      }),
-    );
-    console.log(`[scan] searchOpts:`, { keyword: combinedKeyword, experience, location: searchOpts.location, skills: skills.length, jobFunctions });
-    // Dedupe across portals by source + externalId (same job can surface twice).
-    const seen = new Set<string>();
-    const scraped: CanonicalJob[] = [];
-    for (const list of results) {
-      for (const j of list) {
-        const key = `${j.source}:${j.externalId}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        scraped.push(j);
-      }
-    }
-
-    // Attribute each result to the best-matching canonical role (combined search loses
-    // per-role attribution; the pool requires a canonical role per job).
-    const pickSlug = (title: string): { slug: string; name: string } => {
+    // Naukri uses ONE combined-keyword search (all roles in a single query) — its
+    // relevance is far tighter combined than per-role (per-role drifts into adjacent
+    // "…Engineer" roles). Other portals keep their per-role search, untouched.
+    const combinedKeyword = roles.map((r) => r.name).join(", ");
+    // Fuzzy role attribution for the combined Naukri results (the search no longer
+    // tells us which role a job is; the DB ingest needs a canonical role per job).
+    const pickRole = (title: string): { name: string; slug: string } => {
       const t = title.toLowerCase();
       for (const r of roles) {
         const words = r.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
@@ -269,13 +263,56 @@ export const jobsService = {
       return roles[0];
     };
 
+    // Portals in parallel; roles sequential within a portal (keeps the per-portal
+    // request rate steady — avoids 406 throttling).
+    const results = await Promise.all(
+      enabled.map(async (s) => {
+        const out: Array<{ job: CanonicalJob; role: { name: string; slug: string } }> = [];
+        if (s === "naukri") {
+          try {
+            const list = await ADAPTERS[s]!({ ...baseOpts, keyword: combinedKeyword });
+            console.log(`[scan] naukri (combined): ${list.length} jobs`);
+            for (const job of list) out.push({ job, role: pickRole(job.title) });
+          } catch (e) {
+            console.error(`[scan] naukri (combined) FAILED:`, e);
+          }
+          return out;
+        }
+        for (const r of roles) {
+          try {
+            const list = await ADAPTERS[s]!({ ...baseOpts, keyword: r.name });
+            console.log(`[scan] ${s} "${r.name}": ${list.length} jobs`);
+            for (const job of list) out.push({ job, role: r });
+          } catch (e) {
+            console.error(`[scan] ${s} "${r.name}" FAILED:`, e);
+          }
+        }
+        return out;
+      }),
+    );
+    console.log(`[scan] searchOpts:`, { roles: roles.length, experience, location: baseOpts.location, skills: skills.length, jobFunctions });
+
+    // Dedupe across portals & roles by source + externalId (same job can surface
+    // under multiple roles / portals). First occurrence wins → keeps the role it
+    // first matched, and that role attribution is exact (the role we searched).
+    const seen = new Set<string>();
+    const scraped: CanonicalJob[] = [];
+    const roleByKey = new Map<string, { name: string; slug: string }>();
+    for (const { job, role } of results.flat()) {
+      const key = `${job.source}:${job.externalId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      roleByKey.set(key, role);
+      scraped.push(job);
+    }
+
     // null → undefined (the ingest zod schema uses optional, not nullable).
     const u = <T>(v: T | null | undefined): T | undefined => v ?? undefined;
     const counts = new Map<string, number>();
     const allJobs: Array<Record<string, unknown>> = [];
 
     for (const j of scraped) {
-      const role = pickSlug(j.title);
+      const role = roleByKey.get(`${j.source}:${j.externalId}`) ?? roles[0];
       counts.set(role.name, (counts.get(role.name) ?? 0) + 1);
       allJobs.push({
         source: j.source,

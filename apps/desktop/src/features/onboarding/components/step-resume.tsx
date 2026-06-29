@@ -70,7 +70,7 @@ export function StepResume({ form }: { form: UseFormReturn<OnboardingValues> }) 
   if (existing && !replacing && status !== "done") {
     return (
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-card/40 px-4 py-3">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-transparent px-4 py-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <FileText className="size-4" />
           </div>
@@ -103,7 +103,7 @@ export function StepResume({ form }: { form: UseFormReturn<OnboardingValues> }) 
         onFileSelectChange={onSelect}
         onRemove={removeFile}
       >
-        <DropZone prompt="Drop your CV here, or click to browse" />
+        <DropZone prompt="Drop your CV here, or click to browse" className="bg-transparent" />
         <FileList canRemove onRemove={removeFile} />
       </FileUpload>
 

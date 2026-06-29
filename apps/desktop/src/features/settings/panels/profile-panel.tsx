@@ -204,7 +204,7 @@ export function ProfilePanel() {
         <Field>
           <FieldTitle>Experience level</FieldTitle>
           <Select value={form.experienceLevel} onValueChange={(v) => set("experienceLevel", v)}>
-            <SelectTrigger className="h-9 w-full rounded-4xl"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               {EXPERIENCE_LEVELS.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
             </SelectContent>
@@ -273,7 +273,7 @@ export function ProfilePanel() {
               onChange={(e) => setLinkDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLink(); } }}
             />
-            <Button type="button" size="sm" variant="secondary" disabled={!linkDraft.trim()} onClick={addLink} className="h-9 shrink-0">Add</Button>
+            <Button type="button" size="lg" variant="secondary" disabled={!linkDraft.trim()} onClick={addLink} className="shrink-0">Add</Button>
           </div>
           {links.length > 0 && (
             <div className="mt-1 flex flex-col gap-2">

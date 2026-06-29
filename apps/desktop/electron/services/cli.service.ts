@@ -189,16 +189,18 @@ export const cliService = {
 
   /** Probe PATH for installed agent CLIs / tools (Claude → plugin, others → npx). */
   async detect(): Promise<Result<CliDetection>> {
-    const [claude, codex, gemini, copilot, node, npx, ollama] = await Promise.all([
+    const [claude, codex, gemini, opencode, qwen, copilot, node, npx, ollama] = await Promise.all([
       hasBin("claude"),
       hasBin("codex"),
       hasBin("gemini"),
+      hasBin("opencode"),
+      hasBin("qwen"),
       hasBin("copilot"),
       hasBin("node"),
       hasBin("npx"),
       hasBin("ollama"),
     ]);
-    return ok({ claude, codex, gemini, copilot, node, npx, ollama });
+    return ok({ claude, codex, gemini, opencode, qwen, copilot, node, npx, ollama });
   },
 
   /** One-click install of the /reinit skill into non-Claude CLIs via npx. */
@@ -210,6 +212,23 @@ export const cliService = {
       } else {
         const shell = process.env.SHELL || "/bin/zsh";
         ({ stdout, stderr } = await pexec(shell, ["-lic", "npx -y @reinit-ai/cli install"], { timeout: 180000 }));
+      }
+      return ok({ output: `${stdout}${stderr}`.trim() });
+    } catch (e) {
+      const m = e as { stderr?: string; message?: string };
+      return err(m.stderr?.trim() || m.message || "Install failed", "INSTALL_FAILED");
+    }
+  },
+
+  /** Globally install the REINIT CLI package so `reinit-cli` is on the user's PATH. */
+  async installCli(): Promise<Result<CliInstallResult>> {
+    try {
+      let stdout = "", stderr = "";
+      if (process.platform === "win32") {
+        ({ stdout, stderr } = await pexec("npm", ["i", "-g", "@reinit-ai/cli"], { timeout: 180000, windowsHide: true }));
+      } else {
+        const shell = process.env.SHELL || "/bin/zsh";
+        ({ stdout, stderr } = await pexec(shell, ["-lic", "npm i -g @reinit-ai/cli"], { timeout: 180000 }));
       }
       return ok({ output: `${stdout}${stderr}`.trim() });
     } catch (e) {
@@ -341,6 +360,17 @@ export const cliService = {
     try {
       mkdirSync(dirname(CONFIG_PATH), { recursive: true });
       writeFileSync(CONFIG_PATH, JSON.stringify({ ...readConfig(), agentTrusted: true }, null, 2) + "\n");
+      return ok(undefined);
+    } catch {
+      return err(`Could not write ${CONFIG_PATH}`, "FS_WRITE");
+    }
+  },
+
+  /** Two-way autonomy toggle — set or clear the unattended-run permission. */
+  async setAgentTrusted(trusted: boolean): Promise<Result<void>> {
+    try {
+      mkdirSync(dirname(CONFIG_PATH), { recursive: true });
+      writeFileSync(CONFIG_PATH, JSON.stringify({ ...readConfig(), agentTrusted: trusted }, null, 2) + "\n");
       return ok(undefined);
     } catch {
       return err(`Could not write ${CONFIG_PATH}`, "FS_WRITE");

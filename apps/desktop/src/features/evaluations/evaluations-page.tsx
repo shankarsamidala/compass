@@ -1,25 +1,18 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  FileText,
-  Loader2,
-  Building2Icon,
-  BadgeCheckIcon,
-  OctagonAlertIcon,
-} from "lucide-react";
+import { Loader2, LayoutGrid, Table2, ChevronLeft } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Bookmark03Icon,
   GitCompareArrowsIcon,
   Delete03Icon,
   CalendarDaysIcon,
-  ShareLocation01Icon,
-  Briefcase01Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { api } from "@/lib/ipc";
-import { SVGPolarChart } from "@/features/jobs/job-insights/svg-polar-chart";
+import { EvaluationsDataTable } from "./evaluations-data-table";
+import { ReportView } from "./report/report-view";
+import { parseReport, isEmptyReport } from "./report/parse-report";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,114 +44,11 @@ const DEMO_LOGO =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Microsoft_icon.svg/250px-Microsoft_icon.svg.png";
 const DEMO_COMPANY = "Microsoft";
 const DEMO_LOCATION = "Hyderabad";
-const DEMO_TIER = "Trusted";
-// ofertas dimensions for the match visualization (score 1–10 → bar/petal radius).
-const DEMO_PETALS: { label: string; score: number; hex: string }[] = [
-  { label: "CV Match", score: 8, hex: "#3B82F6" },
-  { label: "Level", score: 7, hex: "#10B981" },
-  { label: "Comp", score: 8, hex: "#8B5CF6" },
-  { label: "Growth", score: 9, hex: "#F59E0B" },
-];
-// Static demo report (the raw markdown shape the API returns) — preamble +
-// Machine Summary get stripped by reportBody() since the header covers them.
-const DEMO_REPORT = `# Evaluation: Virtusa — GCP Agentic AI with DevOps
-
-**Date:** 2026-06-22
-**Score:** 4.3/5
-**Legitimacy:** High Confidence
-
----
-
-## A) Role Summary
-
-| Field | Value |
-|-------|-------|
-| Archetype | DevOps/Platform core, with an AI Platform/LLMOps + Agentic overlay (GenAI listed as "added advantage") |
-| Domain | Cloud DevOps / Platform engineering on GCP |
-| Function | Build (design, implement, maintain infra + CI/CD) |
-| Seniority | Mid-to-senior IC (5–9 yrs) |
-| Remote | Onsite/hybrid — Hyderabad, Chennai, Bengaluru |
-| TL;DR | A GCP-centric DevOps role where GenAI/Agentic AI is a bonus, not a gate — a near-direct fit for the candidate's core profile. |
-
-## B) Match with CV
-
-| JD Requirement | CV Evidence | Verdict |
-|----------------|-------------|---------|
-| 5–9 yrs DevOps engineering | "5+ years building CI/CD pipelines and IaC" | ✅ Strong |
-| GCP expertise | "Lead Cloud Engineer (AWS & GCP)" | ✅ Strong |
-| Terraform / IaC | "Built and maintained CI/CD pipelines with Jenkins, Terraform, and Helm" | ✅ Strong |
-| Kubernetes | "Implemented Kubernetes orchestration with Ingress-based load balancing" | ✅ Strong |
-| Python / Bash automation | "Developed shell and Python automation scripts" | ✅ Strong |
-| GenAI / Agentic AI (added advantage) | No direct evidence on CV | ⚠️ Gap (non-blocking) |
-
-**Gaps & mitigation:**
-1. **GenAI / Agentic AI** — *Nice-to-have, not a blocker.* Frame the agentic angle as "automating ops workflows"; a small LLM-assisted runbook/triage agent would neutralize this.
-2. **GitHub Actions** — *Soft gap.* CV leads with Jenkins/GitLab; surface a GitHub Actions example in the cover letter; the CI/CD concepts transfer 1:1.
-
-## C) Level and Strategy
-
-- **JD level:** 5–9 yrs, mid-to-senior IC. Candidate sits at ~5+ yrs with two team-lead stints — comfortably in band.
-- **Sell senior without lying:** Lead with outcomes — "cut deploy times 70%", "90% infra cost reduction", "led a team of 4".
-- **If they downlevel:** Accept only if comp is fair (≥14–16 LPA); negotiate a 6-month review with explicit criteria.
-
-## D) Comp and Demand
-
-| Metric | Finding |
-|--------|---------|
-| 6–9 yrs band (Lead/Sr Consultant) | ₹12–20 LPA typical |
-| Hyderabad experienced cloud | ₹11–21 LPA |
-| Candidate target | 35 LPA |
-
-**Read:** Realistic band ~**12–20 LPA**, likely **14–18 LPA**. This sits **below the 35 LPA target** — the single biggest drag. Comp score: **3/5**.
-
-## E) Customization Plan
-
-| # | Section | Proposed change | Why |
-|---|---------|-----------------|-----|
-| 1 | Summary | Lead with **GCP** first | Mirror JD's GCP-first framing |
-| 2 | Skills | Pull GCP, Terraform, Kubernetes, GitHub Actions to front | Exact JD key-skill match |
-| 3 | Experience | Add a line on ops automation / LLM-assisted tooling | Captures the "added advantage" |
-
-## F) Interview Plan
-
-- **Recommended case study:** The 70%-deploy-time + 90%-cost microservices/CI-CD overhaul — covers Terraform, K8s, CI/CD, Python automation, and leadership in one narrative.
-- **Red-flag questions:** "No direct GenAI experience?" → "Right — it's the added-advantage line. Here's the ops-automation foundation I bring."
-
-## G) Posting Legitimacy
-
-**Assessment: High Confidence**
-
-All substantive signals are positive; an independent Virtusa careers listing for the same role family raises confidence that this is a real, active opening.
-
-## Keywords extracted
-
-GCP, Terraform, Kubernetes, DevOps, CI/CD, GitHub Actions, Python, Bash, IaC, automated testing frameworks, microservices
-
-## Machine Summary
-
-\`\`\`yaml
-company: Virtusa
-score: 4.3
-\`\`\`
-`;
-
-// Legitimacy tier → soft-tint pill (same look as the recommendation/Apply pill).
-const legitBadge = (tier: string | null) => {
-  const t = (tier ?? "").toLowerCase();
-  if (/trust|high|legit/.test(t)) return "bg-positive-soft text-positive";
-  if (/caution|proceed|review/.test(t)) return "bg-caution-soft text-caution";
-  if (/suspicious|scam|risk/.test(t)) return "bg-negative-soft text-negative";
-  return "bg-muted text-muted-foreground";
-};
 
 // Evaluations don't store a recommendation — derive it from the fit score
 // (same vocab as co_job_rankings: Apply | Consider | Skip).
 const recommendationOf = (s: number | null) =>
   s == null ? "—" : s >= 4 ? "Apply" : s >= 3 ? "Consider" : "Skip";
-
-// Score → CV-match label for the ranking-result header.
-const matchLabel = (s: number | null) =>
-  s == null ? "Strong match" : s >= 4 ? "Strong match" : s >= 3 ? "Partial match" : "Weak match";
 
 const fmtDate = (d: string) => {
   try {
@@ -206,18 +96,6 @@ const initials = (name: string | null) =>
     .slice(0, 2)
     .join("")
     .toUpperCase();
-
-// The header already shows title/score/legitimacy/match — strip the markdown
-// preamble (everything before "## A)") and the redundant Machine Summary block,
-// leaving the A–G sections + keywords for the body.
-function reportBody(md: string): string {
-  let s = md;
-  const start = s.search(/^##\s*A\)/m);
-  if (start >= 0) s = s.slice(start);
-  const machine = s.search(/^##\s*Machine Summary/m);
-  if (machine >= 0) s = s.slice(0, machine);
-  return s.trim();
-}
 
 // Logo tile — real company logo when linked to a pooled job, else initials.
 function CompanyLogo({
@@ -342,10 +220,38 @@ function CardAction({
   );
 }
 
+const VIEW_KEY = "reinit:reports-view";
+
+// Slim header (back nav + breadcrumb) for the report loading / error screens.
+function ReportBackBar({ onBack, title }: { onBack: () => void; title: string }) {
+  return (
+    <header className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-4 py-3">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" /> Reports
+      </button>
+      <span className="text-muted-foreground/40">/</span>
+      <span className="truncate text-sm font-medium text-foreground">{title}</span>
+    </header>
+  );
+}
+
 export function EvaluationsPage() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<EvaluationSummary | null>(null);
+
+  // Cards (browse) vs Table (decision board). Persisted, matching the Jobs page.
+  const [view, setView] = useState<"cards" | "table">(
+    () => (localStorage.getItem(VIEW_KEY) as "cards" | "table") || "cards",
+  );
+  const setViewPersist = (v: "cards" | "table") => {
+    localStorage.setItem(VIEW_KEY, v);
+    setView(v);
+  };
 
   const del = useMutation({
     mutationFn: async (id: string) => {
@@ -361,7 +267,7 @@ export function EvaluationsPage() {
   });
 
   const {
-    data: rows = [],
+    data,
     isLoading,
     error,
   } = useQuery({
@@ -373,7 +279,17 @@ export function EvaluationsPage() {
     },
   });
 
-  const { data: detail, isFetching: detailLoading } = useQuery({
+  // Coerce to an array defensively — guards render against a transient
+  // non-array value (e.g. a stale module during dev hot-reload).
+  const rows = Array.isArray(data) ? data : [];
+  const selected = rows.find((r) => r.id === selectedId) ?? null;
+
+  // Full report (raw_report markdown) for the open evaluation — parsed into the Report model.
+  const {
+    data: detail,
+    isLoading: detailLoading,
+    error: detailError,
+  } = useQuery({
     queryKey: ["evaluation", selectedId],
     enabled: selectedId != null,
     queryFn: async () => {
@@ -383,34 +299,94 @@ export function EvaluationsPage() {
     },
   });
 
-  const selected = rows.find((r) => r.id === selectedId) ?? null;
+  // Bulk delete (table floating bar) — fire sequentially, then refresh.
+  const deleteMany = async (ids: string[]) => {
+    for (const id of ids) {
+      const r = await api.evaluations.remove(id);
+      if (!r.ok) break;
+      if (selectedId === id) setSelectedId(null);
+    }
+    qc.invalidateQueries({ queryKey: ["evaluations"] });
+  };
+
+  // Selecting a report pushes to its own full-screen page, fetched + parsed from real data.
+  if (selectedId) {
+    const back = () => setSelectedId(null);
+    if (detailLoading || (!detail && !detailError)) {
+      return (
+        <div className="flex h-full min-h-0 flex-col">
+          <ReportBackBar onBack={back} title={selected ? `${selected.companyName ?? ""} — ${selected.roleTitle ?? ""}` : "Report"} />
+          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading report…
+          </div>
+        </div>
+      );
+    }
+    if (detailError || !detail) {
+      return (
+        <div className="flex h-full min-h-0 flex-col">
+          <ReportBackBar onBack={back} title="Report" />
+          <div className="flex flex-1 items-center justify-center text-sm text-negative">Couldn't load this report.</div>
+        </div>
+      );
+    }
+    return <ReportView report={parseReport(detail)} incomplete={isEmptyReport(detail)} onBack={back} />;
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="border-b border-border px-6 py-4">
-        <h1 className="text-lg font-semibold text-foreground">Reports</h1>
-        <p className="text-sm text-muted-foreground">
-          {isLoading
-            ? "Loading reports…"
-            : `Showing ${rows.length} report${rows.length === 1 ? "" : "s"} pushed back from your agent.`}
-        </p>
+      <header className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Reports</h1>
+          <p className="text-sm text-muted-foreground">
+            {isLoading
+              ? "Loading reports…"
+              : `Showing ${rows.length} report${rows.length === 1 ? "" : "s"} pushed back from your agent.`}
+          </p>
+        </div>
+        <div className="flex h-9 shrink-0 items-center rounded-lg border border-border px-0.5">
+          <button
+            type="button"
+            aria-label="Card view"
+            onClick={() => setViewPersist("cards")}
+            className={cn("flex h-7 w-7 items-center justify-center rounded-md", view === "cards" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            <LayoutGrid className="size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Table view"
+            onClick={() => setViewPersist("table")}
+            className={cn("flex h-7 w-7 items-center justify-center rounded-md", view === "table" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            <Table2 className="size-4" />
+          </button>
+        </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 px-16">
-        {/* Card list */}
-        <div className="w-[400px] shrink-0 space-y-3 overflow-y-auto p-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : error ? (
-            <div className="px-2 py-10 text-center text-sm text-negative">{(error as Error).message}</div>
-          ) : rows.length === 0 ? (
-            <div className="px-2 py-10 text-center text-sm text-muted-foreground">
-              No reports yet. Run an evaluation from the Jobs page.
-            </div>
-          ) : (
-            rows.map((e) => (
+      {isLoading ? (
+        <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+        </div>
+      ) : error ? (
+        <div className="flex-1 px-16 py-10 text-center text-sm text-negative">{(error as Error).message}</div>
+      ) : rows.length === 0 ? (
+        <div className="flex-1 px-16 py-10 text-center text-sm text-muted-foreground">
+          No reports yet. Run an evaluation from the Jobs page.
+        </div>
+      ) : view === "table" ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <EvaluationsDataTable
+            rows={rows}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onDeleteMany={deleteMany}
+          />
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {rows.map((e) => (
               <ReportCard
                 key={e.id}
                 e={e}
@@ -418,167 +394,10 @@ export function EvaluationsPage() {
                 onClick={() => setSelectedId(e.id)}
                 onDelete={() => setPendingDelete(e)}
               />
-            ))
-          )}
+            ))}
+          </div>
         </div>
-
-        {/* Detail */}
-        <div className="min-w-0 flex-1 overflow-y-auto p-4">
-          {selected ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
-              <div
-                className="h-28 w-full"
-                style={{ background: "linear-gradient(to right, #904e95, #e96443)" }}
-              />
-              <div className="space-y-4 p-5">
-                <div className="flex items-end justify-between">
-                  <CompanyLogo
-                    url={selected.logoUrl ?? DEMO_LOGO}
-                    name={selected.companyName ?? DEMO_COMPANY}
-                    className="-mt-12 size-16 rounded-md border-0 bg-white p-2 text-lg shadow-none ring-0"
-                  />
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <HugeiconsIcon icon={CalendarDaysIcon} size={16} className="shrink-0" />
-                    {timeAgo(selected.createdAt)}
-                  </span>
-                </div>
-                <div className="pt-3">
-                  <h2 className="text-2xl font-bold text-foreground">{selected.roleTitle}</h2>
-                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Building2Icon className="size-4 shrink-0" />
-                      {selected.companyName ?? DEMO_COMPANY}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <HugeiconsIcon icon={ShareLocation01Icon} size={16} className="shrink-0" />
-                      {locationText(selected.location) ?? DEMO_LOCATION}
-                    </span>
-                    <span
-                      className={cn(
-                        "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
-                        legitBadge(selected.legitimacyTier ?? DEMO_TIER),
-                      )}
-                    >
-                      <BadgeCheckIcon className="size-3.5 shrink-0" />
-                      {selected.legitimacyTier ?? DEMO_TIER}
-                    </span>
-                    <div className="ml-auto flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        aria-label="Bookmark"
-                        className="grid size-10 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      >
-                        <HugeiconsIcon icon={Bookmark03Icon} size={22} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Report posting"
-                        className="grid size-10 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      >
-                        <OctagonAlertIcon className="size-[22px]" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Score + openings/exp tags + apply action */}
-                  <div className="mt-4 flex items-end justify-between gap-3">
-                    <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-                      <span className="flex shrink-0 items-baseline gap-0.5">
-                        <span className={cn("text-3xl font-bold tabular-nums", scoreTone(selected.score ?? 4.4))}>
-                          {(selected.score ?? 4.4).toFixed(1)}
-                        </span>
-                        <span className="text-base text-muted-foreground">/5</span>
-                      </span>
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[0.7rem] font-medium text-muted-foreground">
-                        <HugeiconsIcon icon={Briefcase01Icon} size={12} className="shrink-0" />
-                        3 openings
-                      </span>
-                      <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[0.7rem] font-medium text-muted-foreground">
-                        5–9 yrs exp
-                      </span>
-                      <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[0.7rem] font-medium text-muted-foreground">
-                        1.5k visited
-                      </span>
-                      <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-[0.7rem] font-medium text-muted-foreground">
-                        120 applied
-                      </span>
-                      </div>
-                    </div>
-                    <Button className="h-10 shrink-0 bg-foreground px-5 text-background hover:bg-foreground/90">
-                      Apply Job
-                    </Button>
-                  </div>
-                </div>
-                <div className="-mx-5 mt-1 border-t border-border" />
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-base font-semibold text-foreground">CV Ranking Result</h3>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
-                      scoreBadge(selected.score),
-                    )}
-                  >
-                    {matchLabel(selected.score)}
-                  </span>
-                </div>
-
-                {/* Match visualization — per-dimension bars + polar breakdown */}
-                {(() => {
-                  const overallPercent = Math.round(((selected.score ?? 4.4) / 5) * 100);
-                  return (
-                    <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2">
-                      <div className="flex flex-col gap-2.5">
-                        <div>
-                          <p className="mb-1 text-sm text-muted-foreground">Percentage match</p>
-                          <p className="text-4xl font-bold leading-none text-brand">
-                            {overallPercent}
-                            <span className="text-lg font-normal text-muted-foreground">/100</span>
-                          </p>
-                        </div>
-                        {DEMO_PETALS.map((p) => (
-                          <div key={p.label}>
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="text-[11px] text-muted-foreground">{p.label}</span>
-                              <span className="text-[11px] font-semibold text-brand">{p.score * 10}%</span>
-                            </div>
-                            <div className="h-1.5 overflow-hidden rounded-full bg-surface-raised">
-                              <div
-                                className="h-full rounded-full transition-all duration-700 ease-out"
-                                style={{ width: `${p.score * 10}%`, backgroundColor: p.hex }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex flex-col items-center gap-1 [&_svg]:size-56">
-                        <SVGPolarChart bars={DEMO_PETALS} centerLabel={`${overallPercent}%`} />
-                        <p className="text-center text-xs font-medium text-foreground">Score Breakdown</p>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {detailLoading && !detail ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading report…
-                  </div>
-                ) : (
-                  <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-4 text-xs leading-relaxed text-foreground">
-                    {reportBody(detail?.rawReport ?? DEMO_REPORT)}
-                  </pre>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-              <FileText className="mb-2 h-8 w-8 opacity-40" />
-              <p className="text-sm">Select a report to view it.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       <AlertDialog
         open={pendingDelete != null}

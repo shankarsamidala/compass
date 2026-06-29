@@ -20,6 +20,13 @@ function toSummary(e: any): EvaluationSummary {
     jobDescription: e.jobDescription ?? null,
     logoUrl: e.logoUrl ?? null,
     location: e.location ?? null,
+    domain: e.domain ?? null,
+    seniority: e.seniority ?? null,
+    jobFunction: e.jobFunction ?? null,
+    comp: e.comp ?? null,
+    decision: e.decision ?? null,
+    riskLevel: e.riskLevel ?? null,
+    confidence: e.confidence ?? null,
   };
 }
 

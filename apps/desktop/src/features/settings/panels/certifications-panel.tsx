@@ -318,13 +318,13 @@ function CertFormView({
           <FieldTitle>Issue date</FieldTitle>
           <div className="flex gap-6">
             <Select value={form.issueMonth || ""} onValueChange={(v) => set("issueMonth", v)}>
-              <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Month" /></SelectTrigger>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Month" /></SelectTrigger>
               <SelectContent>
                 {MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={form.issueYear || ""} onValueChange={(v) => set("issueYear", v)}>
-              <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Year" /></SelectTrigger>
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Year" /></SelectTrigger>
               <SelectContent>
                 {YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
               </SelectContent>
@@ -337,13 +337,13 @@ function CertFormView({
             <FieldTitle>Expiry date</FieldTitle>
             <div className="flex gap-6">
               <Select value={form.expiryMonth || ""} onValueChange={(v) => set("expiryMonth", v)}>
-                <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Month" /></SelectTrigger>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Month" /></SelectTrigger>
                 <SelectContent>
                   {MONTHS.map((m, i) => <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={form.expiryYear || ""} onValueChange={(v) => set("expiryYear", v)}>
-                <SelectTrigger className="h-9 flex-1 rounded-4xl"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Year" /></SelectTrigger>
                 <SelectContent>
                   {YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 </SelectContent>

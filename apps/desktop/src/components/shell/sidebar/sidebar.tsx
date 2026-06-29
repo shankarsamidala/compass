@@ -4,6 +4,7 @@ import { Icon } from "./icon";
 import { cn } from "@/lib/utils";
 import { RailItem } from "./rail-item";
 import { SidebarSection } from "./sidebar-section";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NAV_GROUPS, type ViewId } from "../nav";
 
 type SidebarProps = {
@@ -11,16 +12,34 @@ type SidebarProps = {
   onNavigate: (id: ViewId) => void;
   onLogout?: () => void;
   loggingOut?: boolean;
+  /** When true, every item except Profile is disabled (profile not yet complete). */
+  locked?: boolean;
 };
 
-export function Sidebar({ activeView, onNavigate, onLogout, loggingOut }: SidebarProps) {
+export function Sidebar({ activeView, onNavigate, onLogout, loggingOut, locked }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const railRow = (id: ViewId, key?: React.Key) => {
     const it = NAV_GROUPS.flatMap((g) => g.items).find((x) => x.id === id)!;
+    const k = key ?? id;
+    const blocked = Boolean(locked) && id !== "profile";
+
+    if (blocked) {
+      return (
+        <Tooltip key={k}>
+          <TooltipTrigger asChild>
+            <span className="block">
+              <RailItem collapsed={collapsed} icon={it.icon} label={it.label} disabled />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right">Complete your profile to unlock</TooltipContent>
+        </Tooltip>
+      );
+    }
+
     return (
       <RailItem
-        key={key ?? id}
+        key={k}
         collapsed={collapsed}
         icon={it.icon}
         label={it.label}
@@ -72,7 +91,7 @@ export function Sidebar({ activeView, onNavigate, onLogout, loggingOut }: Sideba
             disabled={loggingOut}
             title={collapsed ? "Log out" : undefined}
             className={cn(
-              "ml-2 mr-1 flex h-8 items-center rounded-lg text-sm text-foreground transition-colors hover:bg-sidebar-accent hover:text-primary disabled:opacity-50",
+              "ml-2 mr-1 flex h-8 items-center rounded-lg text-sm text-foreground transition-colors hover:text-primary disabled:opacity-50",
               collapsed ? "w-auto justify-center" : "w-[calc(100%-0.75rem)] px-2",
             )}
           >

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { Loader2, LayoutGrid, Table2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Target02Icon } from "@hugeicons/core-free-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useJobsFeed } from "./api";
 import { JobFeedCard } from "./job-feed-card";
@@ -8,8 +10,6 @@ import { JobInsightsSheet } from "./job-insights-sheet";
 import { useSettings } from "@/features/settings/api";
 import { Button } from "@/components/ui/button";
 import { MultiStepLoader } from "@/components/ui/multi-step-loader";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { api } from "@/lib/ipc";
 import { qk } from "@/lib/query";
 import type { EvaluationSummary, JobRanking, MatchFloor } from "@compass/ipc-contract";
@@ -23,25 +23,11 @@ const PIPELINE_LOADING_STATES = [
   { text: "Saving to feed" },
 ];
 
-const WINDOW_KEY = "jobs.windowDays";
-const WINDOW_OPTIONS: { label: string; days: number }[] = [
-  { label: "Today", days: 1 },
-  { label: "3 days", days: 3 },
-  { label: "7 days", days: 7 },
-  { label: "14 days", days: 14 },
-  { label: "30 days", days: 30 },
-  { label: "90 days", days: 90 },
-];
+// Freshness window for the feed (scraped-within N days).
+const WINDOW_DAYS = 30;
 
 export function JobsPage() {
-  // Freshness window the user picks (scraped-within N days, 1–90). Persisted locally.
-  const [windowDays, setWindowDays] = useState<number>(() => {
-    const v = Number(localStorage.getItem(WINDOW_KEY));
-    return v >= 1 && v <= 90 ? v : 1;
-  });
-  useEffect(() => { localStorage.setItem(WINDOW_KEY, String(windowDays)); }, [windowDays]);
-
-  const { data: jobs, isLoading, error, refetch: refetchJobs } = useJobsFeed(windowDays);
+  const { data: jobs, isLoading, error, refetch: refetchJobs } = useJobsFeed(WINDOW_DAYS);
   const { data: settings } = useSettings();
   const [openId, setOpenId] = useState<string | null>(null);
   const qc = useQueryClient();
@@ -150,7 +136,7 @@ export function JobsPage() {
   };
   // "Not interested" — hide from the feed. Optimistically drops the row, then persists.
   const handleNotInterested = async (jobId: string) => {
-    qc.setQueryData<typeof jobs>(qk.jobsFeed(windowDays), (cur) => cur?.filter((j) => j.id !== jobId));
+    qc.setQueryData<typeof jobs>(qk.jobsFeed(WINDOW_DAYS), (cur) => cur?.filter((j) => j.id !== jobId));
     const res = await api.jobs.notInterested([jobId]);
     if (!res.ok) qc.invalidateQueries({ queryKey: qk.jobs }); // restore on failure
   };
@@ -165,25 +151,27 @@ export function JobsPage() {
   };
 
   // Stored evaluations → drives "Insights vs Evaluate" + the table's score/legit columns.
+  // Shares the ["evaluations"] cache with the Reports page, so the cached shape
+  // must match (an array). We derive the by-job Map via `select` instead of in the
+  // queryFn — returning a Map here would clobber the array the Reports page reads
+  // (and vice-versa), causing "evalByJob.get is not a function" / "rows.find …".
   const { data: evalByJob } = useQuery({
     queryKey: ["evaluations"],
     queryFn: async () => {
       const r = await api.evaluations.list();
+      if (!r.ok) throw new Error(r.error);
+      return r.data.evaluations;
+    },
+    select: (evals) => {
       const m = new Map<string, EvaluationSummary>();
-      for (const e of r.ok ? r.data.evaluations : []) if (e.jobId) m.set(e.jobId, e);
+      for (const e of evals) if (e.jobId) m.set(e.jobId, e);
       return m;
     },
   });
   const evaluatedIds = evalByJob; // Map has .has(id)
 
-  // Cards (discovery) vs Table (ranked decision board). Persisted.
-  const [view, setView] = useState<"cards" | "table">(
-    () => (localStorage.getItem("reinit:jobs-view") as "cards" | "table") || "cards",
-  );
-  const setViewPersist = (v: "cards" | "table") => {
-    localStorage.setItem("reinit:jobs-view", v);
-    setView(v);
-  };
+  // Table is the only view.
+  const view: "cards" | "table" = "table";
 
   const minMatch = settings?.scan.minMatch ?? "all";
   const threshold = MATCH_THRESHOLDS[minMatch];
@@ -197,47 +185,19 @@ export function JobsPage() {
           <p className="text-sm text-foreground">Roles matched to your target profile.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={String(windowDays)} onValueChange={(v) => setWindowDays(Number(v))}>
-            <SelectTrigger aria-label="Freshness window" className="h-9 w-[110px] rounded-lg">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {WINDOW_OPTIONS.map((o) => (
-                <SelectItem key={o.days} value={String(o.days)}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex h-9 items-center rounded-lg border border-border px-0.5">
-            <button
-              type="button"
-              aria-label="Card view"
-              onClick={() => setViewPersist("cards")}
-              className={cn("flex h-7 w-7 items-center justify-center rounded-md", view === "cards" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
-            >
-              <LayoutGrid className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Table view"
-              onClick={() => setViewPersist("table")}
-              className={cn("flex h-7 w-7 items-center justify-center rounded-md", view === "table" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}
-            >
-              <Table2 className="size-4" />
-            </button>
-          </div>
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="icon"
             aria-label="Refresh jobs"
             onClick={() => void refetchJobs()}
             disabled={busy || isLoading}
-            className="flex size-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
           >
             <RefreshCw className="size-4" />
-          </button>
+          </Button>
           <Button
             onClick={() => scan.mutate()}
             disabled={busy}
-            className="h-9 rounded-lg bg-brand text-brand-foreground hover:bg-brand-hover"
+            className="bg-brand text-brand-foreground hover:bg-brand-hover"
           >
             {busy ? (
               <><Loader2 className="mr-2 size-4 animate-spin" />Scanning…</>
@@ -310,12 +270,35 @@ export function JobsPage() {
           </div>
         )
       ) : (
-        <div className="flex min-h-[50vh] flex-col items-center justify-center text-center text-sm text-muted-foreground">
-          {error
-            ? "Couldn't load jobs. Try again."
-            : jobs && jobs.length > 0
-              ? `No roles meet the "${minMatch}" match threshold. Lower the minimum match in Job Preferences.`
-              : "No jobs yet — click Scan Jobs to discover roles."}
+        <div className="flex min-h-[calc(100vh-12rem)] flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+          <HugeiconsIcon icon={Target02Icon} size={56} strokeWidth={1.5} className="text-muted-foreground/50" />
+          <h2 className="text-2xl font-bold tracking-tight">
+            {error
+              ? "Couldn't load jobs"
+              : jobs && jobs.length > 0
+                ? "No matches at this threshold"
+                : "Nothing to See Here — Yet!"}
+          </h2>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            {error
+              ? "Something went wrong loading your jobs. Try again."
+              : jobs && jobs.length > 0
+                ? `No roles meet the "${minMatch}" match threshold. Lower the minimum match in Job Preferences.`
+                : "Your feed is empty — run a scan to discover roles matched to your target profile."}
+          </p>
+          {!error && !(jobs && jobs.length > 0) && (
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+              <Button
+                onClick={() => scan.mutate()}
+                disabled={busy}
+                className="bg-brand text-brand-foreground hover:bg-brand-hover"
+              >
+                {busy ? (
+                  <><Loader2 className="mr-2 size-4 animate-spin" />Scanning…</>
+                ) : "Scan Jobs"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
