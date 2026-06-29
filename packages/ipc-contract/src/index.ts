@@ -339,7 +339,7 @@ export interface JobsApi {
   /** A single pooled job for the detail page (GET /jobs/:id). */
   get(id: string): Promise<Result<{ job: FeedJob }>>;
   /** Scrape the enabled portals (user-side) for the user's target roles and ingest into the pool. */
-  scan(opts: { maxPerRole: number; jobAge: number; sources: ScanSource[] }): Promise<Result<ScanResult>>;
+  scan(opts: { maxPerRole: number; maxPages: number; jobAge: number; sources: ScanSource[] }): Promise<Result<ScanResult>>;
   /** Fast triage pass for a pooled job (POST /jobs/:id/evaluate/quick). */
   evaluateQuick(id: string): Promise<Result<JobEvaluation>>;
   /** Decision-view eval for a pooled job — per-block B/C/D/G, web-grounded D/G (POST /jobs/:id/evaluate/blocks). */
@@ -387,6 +387,8 @@ export interface ScanSettings {
   sources: ScanSource[];
   /** Max jobs pulled per target role per scan. */
   maxPerRole: number;
+  /** Search result pages to scrape per scan (20 jobs/page). */
+  maxPages: number;
   /** Posting freshness filter in days. */
   jobAge: number;
   /** Minimum match band to show in the feed. */

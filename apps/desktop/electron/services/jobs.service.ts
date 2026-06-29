@@ -135,7 +135,9 @@ function toFeedJob(j: any): FeedJob {
  */
 export const jobsService = {
   async list(opts?: { limit?: number; offset?: number; days?: number }): Promise<Result<{ jobs: FeedJob[] }>> {
-    const limit = opts?.limit ?? 100;
+    // We scrape & ingest everything into the shared pool, but each user's feed only
+    // shows the top 25 (role-scoped + freshest). Callers can still override `limit`.
+    const limit = opts?.limit ?? 25;
     const offset = opts?.offset ?? 0;
     // Feed window: the page can pass an explicit `days` (the user's freshness picker,
     // 1–90); otherwise fall back to the scan freshness (jobAge, default 1 = today).
@@ -170,7 +172,7 @@ export const jobsService = {
     return ok({ job: toFeedJob(json.job) });
   },
 
-  async scan(opts: { maxPerRole: number; jobAge: number; sources: ScanSource[] }): Promise<Result<ScanResult>> {
+  async scan(opts: { maxPerRole: number; maxPages: number; jobAge: number; sources: ScanSource[] }): Promise<Result<ScanResult>> {
     // Resolve enabled sources → adapters we actually ship. Unknown / not-yet-built
     // portals are silently dropped so the UI can list them as "coming soon".
     const enabled = (opts.sources ?? [])
@@ -244,7 +246,7 @@ export const jobsService = {
       jobAge: opts.jobAge > 0 ? opts.jobAge : 1,
       experience,
       location: cities.length > 0 ? cities.join(",") : undefined,
-      pages: 5,
+      pages: opts.maxPages > 0 ? opts.maxPages : 5,
       skills,
       jobFunctions,
     };

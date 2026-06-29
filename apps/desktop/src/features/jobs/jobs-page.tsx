@@ -38,6 +38,7 @@ export function JobsPage() {
     mutationFn: async () => {
       const res = await api.jobs.scan({
         maxPerRole: settings?.scan.maxPerRole ?? 20,
+        maxPages: settings?.scan.maxPages ?? 5,
         jobAge: settings?.scan.jobAge ?? 1,
         sources: settings?.scan.sources ?? ["naukri"],
       });

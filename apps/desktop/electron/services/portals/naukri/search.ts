@@ -12,13 +12,14 @@ import { htmlToText } from "../../jd-parse";
 import { SEARCH_HEADERS, getWithRetry, toNum, absUrl, parseNaukriDate, slug, EMPTY } from "./client";
 
 const PAGE_SIZE = 20;
-const MAX_PAGES = 5;
+const PAGE_CAP = 10;        // hard safety ceiling regardless of the setting
 
 export interface NaukriSearchOpts {
   keyword: string;          // combined keyword (all roles in one)
   jobAge?: number;          // freshness (days) — search param
   experience?: number | null;
   location?: string;        // comma-separated city NAMES
+  pages?: number;           // pages to scrape (default 5, capped at PAGE_CAP)
 }
 
 /** Parse one v3 search item into a partial CanonicalJob (detail fetch enriches it). */
@@ -97,8 +98,9 @@ export async function searchNaukri(opts: NaukriSearchOpts): Promise<CanonicalJob
   const locParam = loc ? `&location=${encodeURIComponent(loc)}&l=${encodeURIComponent(loc)}` : "";
   const seoBase = `${slug(opts.keyword)}-jobs${loc ? `-in-${slug(loc.split(",")[0])}` : ""}`;
 
+  const maxPages = Math.min(Math.max(Math.round(opts.pages ?? 5), 1), PAGE_CAP);
   const byId = new Map<string, CanonicalJob>();
-  for (let p = 1; p <= MAX_PAGES; p++) {
+  for (let p = 1; p <= maxPages; p++) {
     const seoKey = `${seoBase}${p > 1 ? `-${p}` : ""}`;
     const src = p > 1 ? "pagination-directSearch" : "directSearch";
     const url =

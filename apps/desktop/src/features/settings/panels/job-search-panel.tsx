@@ -26,6 +26,13 @@ const JOB_AGE_OPTIONS: { value: number; label: string }[] = [
   { value: 15, label: "Last 15 days" },
   { value: 30, label: "Last 30 days" },
 ];
+// Pages to scrape per scan (20 results/page).
+const MAX_PAGES_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "1 page (~20)" },
+  { value: 3, label: "3 pages (~60)" },
+  { value: 5, label: "5 pages (~100)" },
+  { value: 10, label: "10 pages (~200)" },
+];
 const BOARDS: { id: ScanSource; name: string; desc: string; available: boolean }[] = [
   { id: "naukri", name: "Naukri", desc: "India's largest job board. Scraped from your own IP.", available: true },
   { id: "hirist", name: "Hirist", desc: "India IT/dev roles. Scraped from your own IP.", available: true },
@@ -203,27 +210,6 @@ export function JobSearchPanel() {
 
       <PrefDivider />
 
-      {/* Posting freshness */}
-      <div className="flex flex-col gap-2">
-        <p className="text-sm font-semibold text-foreground">Posting freshness</p>
-        <p className="text-sm text-muted-foreground">How far back each scan looks for new postings.</p>
-        <Select
-          value={String(scan.jobAge)}
-          onValueChange={(v) => updateSettings.mutate({ scan: { ...scan, jobAge: Number(v) } })}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select window" />
-          </SelectTrigger>
-          <SelectContent>
-            {JOB_AGE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <PrefDivider />
-
       {/* Minimum match */}
       <div className="flex flex-col gap-2">
         <p className="text-sm font-semibold text-foreground">Minimum match</p>
@@ -289,17 +275,55 @@ export function JobSearchPanel() {
         </div>
         <div className="divide-y divide-border">
           {BOARDS.map((b) => (
-            <div key={b.id} className="flex items-center justify-between gap-4 py-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">{b.name}</span>
-                  {!b.available && (
-                    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Soon</span>
-                  )}
+            <div key={b.id} className="py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">{b.name}</span>
+                    {!b.available && (
+                      <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">Soon</span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-sm text-muted-foreground">{b.desc}</div>
                 </div>
-                <div className="mt-0.5 text-sm text-muted-foreground">{b.desc}</div>
+                <Switch checked={scan.sources.includes(b.id)} disabled={!b.available} onCheckedChange={(v) => toggleBoard(b.id, v)} />
               </div>
-              <Switch checked={scan.sources.includes(b.id)} disabled={!b.available} onCheckedChange={(v) => toggleBoard(b.id, v)} />
+
+              {/* Naukri-specific scan controls — shown when Naukri is enabled */}
+              {b.id === "naukri" && scan.sources.includes("naukri") && (
+                <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-l-2 border-border pl-4">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm font-medium text-foreground">Posting freshness</p>
+                    <Select
+                      value={String(scan.jobAge)}
+                      onValueChange={(v) => updateSettings.mutate({ scan: { ...scan, jobAge: Number(v) } })}
+                    >
+                      <SelectTrigger className="w-full"><SelectValue placeholder="Select window" /></SelectTrigger>
+                      <SelectContent>
+                        {JOB_AGE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">How far back each scan looks.</p>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-sm font-medium text-foreground">Pages to scrape</p>
+                    <Select
+                      value={String(scan.maxPages)}
+                      onValueChange={(v) => updateSettings.mutate({ scan: { ...scan, maxPages: Number(v) } })}
+                    >
+                      <SelectTrigger className="w-full"><SelectValue placeholder="Select pages" /></SelectTrigger>
+                      <SelectContent>
+                        {MAX_PAGES_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">More pages = more jobs, slower scan.</p>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -84,7 +84,7 @@ export function registerIpcHandlers(): void {
   // ── Jobs (feed + detail + scan) ──
   safeHandle("jobs:list", (opts?: { limit?: number; offset?: number; days?: number }) => jobsService.list(opts));
   safeHandle("jobs:get", (id: string) => jobsService.get(id));
-  safeHandle("jobs:scan", (opts: { maxPerRole: number; jobAge: number; sources: ScanSource[] }) => jobsService.scan(opts));
+  safeHandle("jobs:scan", (opts: { maxPerRole: number; maxPages: number; jobAge: number; sources: ScanSource[] }) => jobsService.scan(opts));
   safeHandle("jobs:evaluate-quick", (id: string) => jobsService.evaluateQuick(id));
   safeHandle("jobs:evaluate", (id: string) => jobsService.evaluate(id));
   safeHandle("jobs:evaluate-agent", (id: string) => jobsService.evaluateViaAgent(id));
