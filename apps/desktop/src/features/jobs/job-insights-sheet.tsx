@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { FeedJob, JobRanking } from "@compass/ipc-contract";
 import { api } from "@/lib/ipc";
 import { toAbsoluteJobUrl } from "@/lib/utils";
 import { JobInsightsSheet as PolarInsightsSheet } from "./job-insights";
 import type { Job } from "./job-insights/job-types";
+import { TailoredResumeDialog } from "@/features/resume/tailored-resume-dialog";
+import { CoverLetterDialog } from "@/features/resume/cover-letter-dialog";
 
 // Static demo job — descriptive fields only (header / about / salary). The SCORED
 // sections are driven by the real ofertas ranking and hidden until one exists.
@@ -72,17 +74,22 @@ export function JobInsightsSheet({
   const realJd = full?.jd ?? job?.jd ?? null;
 
   // ── Resume / CV actions (warm agent → pdf / cover modes) ──────────────────
+  const qc = useQueryClient();
   const [resumePending, setResumePending] = useState(false);
   const [cvPending, setCvPending] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [resumeNote, setResumeNote] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [tailoredOpen, setTailoredOpen] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
 
   // Reset per-job artifacts when the sheet switches jobs or closes.
   useEffect(() => {
     setCoverLetter(null);
     setResumeNote(null);
     setActionError(null);
+    setTailoredOpen(false);
+    setCoverOpen(false);
   }, [job?.id]);
 
   // Tailor the resume → store as PremiumResumeData JSON (PDF rendering is held for now,
@@ -95,12 +102,16 @@ export function JobInsightsSheet({
     try {
       const r = await api.jobs.tailorResume(job.id);
       if (!r.ok) setActionError(r.error);
-      else
+      else {
         setResumeNote(
           r.data.keywordCoverage != null
             ? `Resume tailored & saved — ${r.data.keywordCoverage}% JD keyword match`
             : "Resume tailored & saved",
         );
+        // Freshly saved → drop any stale cache and open the preview to view/download.
+        await qc.invalidateQueries({ queryKey: ["tailored-cv", job.id] });
+        setTailoredOpen(true);
+      }
     } finally {
       setResumePending(false);
     }
@@ -112,8 +123,13 @@ export function JobInsightsSheet({
     setActionError(null);
     try {
       const r = await api.jobs.coverLetter(job.id);
-      if (r.ok) setCoverLetter(r.data.letter);
-      else setActionError(r.error);
+      if (!r.ok) setActionError(r.error);
+      else {
+        setCoverLetter(r.data.letter);
+        // Persisted server-side → open the viewer (copy / download / regenerate).
+        await qc.invalidateQueries({ queryKey: ["cover-letter", job.id] });
+        setCoverOpen(true);
+      }
     } finally {
       setCvPending(false);
     }
@@ -137,22 +153,36 @@ export function JobInsightsSheet({
   };
 
   return (
-    <PolarInsightsSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      job={open ? sheetJob : null}
-      dimensions={ranking?.dimensions ?? DEMO_DIMENSIONS}
-      score={ranking?.score != null ? Number(ranking.score) : 4.2}
-      recommendation={ranking?.recommendation ?? "Apply"}
-      reasoning={ranking?.reasoning ?? DEMO_REASONING}
-      legitimacy={ranking?.legitimacy ?? "High Confidence"}
-      onResume={() => void handleResume()}
-      onCv={() => void handleCv()}
-      resumePending={resumePending}
-      cvPending={cvPending}
-      coverLetter={coverLetter}
-      resumeNote={resumeNote}
-      actionError={actionError}
-    />
+    <>
+      <PolarInsightsSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        job={open ? sheetJob : null}
+        dimensions={ranking?.dimensions ?? DEMO_DIMENSIONS}
+        score={ranking?.score != null ? Number(ranking.score) : 4.2}
+        recommendation={ranking?.recommendation ?? "Apply"}
+        reasoning={ranking?.reasoning ?? DEMO_REASONING}
+        legitimacy={ranking?.legitimacy ?? "High Confidence"}
+        onResume={() => void handleResume()}
+        onCv={() => void handleCv()}
+        resumePending={resumePending}
+        cvPending={cvPending}
+        coverLetter={coverLetter}
+        resumeNote={resumeNote}
+        actionError={actionError}
+      />
+      <TailoredResumeDialog
+        open={tailoredOpen}
+        onOpenChange={setTailoredOpen}
+        jobId={job?.id ?? null}
+        company={job?.company}
+      />
+      <CoverLetterDialog
+        open={coverOpen}
+        onOpenChange={setCoverOpen}
+        jobId={job?.id ?? null}
+        company={job?.company}
+      />
+    </>
   );
 }

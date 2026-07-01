@@ -354,8 +354,14 @@ export interface JobsApi {
    *  PremiumResumeData JSON (POST /tailored-cv). PDF rendering is held; returns the
    *  ATS keyword-coverage %. */
   tailorResume(id: string): Promise<Result<{ saved: boolean; keywordCoverage: number | null }>>;
-  /** Draft a cover letter for one job (reinit `cover` mode, claude -p). Returns the letter text. */
+  /** The caller's stored tailored resume for one job (GET /tailored-cv/:jobId), or null if
+   *  none has been generated yet. `resumeJson` is the PremiumResumeData shape. */
+  getTailoredCv(id: string): Promise<Result<{ tailoredCv: TailoredCv | null }>>;
+  /** Draft a cover letter for one job (reinit `cover` mode, claude -p) → persists it
+   *  (POST /cover-letter). Returns the letter text. */
   coverLetter(id: string): Promise<Result<{ letter: string }>>;
+  /** The caller's stored cover letter for one job (GET /cover-letter/:jobId), or null. */
+  getCoverLetter(id: string): Promise<Result<{ letter: string | null }>>;
   /** Live progress lines emitted while rankScan runs (agent stdout summaries).
    *  Returns an unsubscribe fn. Used to show which job is being read in the loader. */
   onRankProgress(cb: (line: string) => void): () => void;
@@ -363,6 +369,18 @@ export interface JobsApi {
   rankings(): Promise<Result<{ rankings: JobRanking[] }>>;
   /** Mark one or more jobs "not interested" — hides them from the feed. Returns how many were newly dismissed. */
   notInterested(jobIds: string[]): Promise<Result<{ dismissed: number }>>;
+}
+
+/** A stored per-job tailored resume (co_tailored_cvs). `resumeJson` is the
+ *  PremiumResumeData shape emitted by the `pdf` mode; the client renders it. */
+export interface TailoredCv {
+  jobId: string;
+  resumeJson: unknown;
+  lang: string | null;
+  paper: "a4" | "letter" | null;
+  keywordCoverage: number | null;
+  pdfPath: string | null;
+  updatedAt: string;
 }
 
 // ── Settings domain (app-local, non-secret) ──────────────────────────────────
@@ -827,11 +845,28 @@ export interface EvaluationsApi {
 /** Open locally-generated files (e.g. a tailored resume PDF) in the OS default app. */
 export interface ArtifactApi {
   open(path: string): Promise<Result<Record<string, never>>>;
+  /** Write a base64 PDF to the user's Downloads folder and open it. Returns the saved path.
+   *  De-collides by suffixing (name (2).pdf, …) so repeated exports never overwrite. */
+  saveAndOpenPdf(base64: string, filename: string): Promise<Result<{ path: string }>>;
+}
+
+export interface PdfApi {
+  /** Render a full HTML document to a PDF via the system browser (Playwright). */
+  render(html: string): Promise<Result<{ base64: string }>>;
+}
+
+export interface ApplyApi {
+  /** Open a job's apply page in a real, logged-in browser window (assisted apply). */
+  open(jobUrl: string): Promise<Result<{ opened: true }>>;
+  /** Close the assisted-apply window. */
+  close(): Promise<Result<{ closed: true }>>;
 }
 
 export interface CompassApi {
   version: string;
   auth: AuthApi;
+  pdf: PdfApi;
+  apply: ApplyApi;
   cli: CliApi;
   evaluations: EvaluationsApi;
   artifact: ArtifactApi;

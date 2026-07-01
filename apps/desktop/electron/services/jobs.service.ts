@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { homedir } from "node:os";
 import { authedFetch } from "../core/http";
 import { dismissed } from "../core/dismissed";
-import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation, type JobRanking, type ScanSource, type CanonicalJob } from "@compass/ipc-contract";
+import { ok, err, type Result, type FeedJob, type ScanResult, type JobEvaluation, type JobRanking, type ScanSource, type CanonicalJob, type TailoredCv } from "@compass/ipc-contract";
 import { searchJobsForRole } from "./portals/naukri";
 import { searchJobsForRole as hiristSearch } from "./hirist.service";
 import { searchJobsForRole as instahyreSearch } from "./instahyre.service";
@@ -563,6 +563,21 @@ export const jobsService = {
   },
 
   /**
+   * Fetch the caller's stored tailored resume for one job (GET /tailored-cv/:jobId).
+   * Returns `{ tailoredCv: null }` when none has been generated yet (server 404),
+   * so the UI can decide between "Tailor" and "View" without treating it as an error.
+   */
+  async getTailoredCv(id: string): Promise<Result<{ tailoredCv: TailoredCv | null }>> {
+    const res = await authedFetch(`/tailored-cv/${encodeURIComponent(id)}`, { method: "GET" });
+    if (!res) return err("Could not reach the server", "NETWORK");
+    if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
+    if (res.status === 404) return ok({ tailoredCv: null });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) return err(j?.error || "Could not load the tailored resume", j?.code);
+    return ok({ tailoredCv: (j?.tailoredCv ?? null) as TailoredCv | null });
+  },
+
+  /**
    * Draft a cover letter for ONE job via the reinit `cover` mode (claude -p) and
    * return the letter text so the app can render it inline (below Opportunity
    * Score). Runs non-interactively for the GUI: it drafts straight from cv.md +
@@ -610,7 +625,33 @@ export const jobsService = {
     const res = await cliService.runReinit(prompt);
     if (!res.ok) return err(res.error, res.code);
     if (syncProfile) profileSync.markSynced();
-    return ok({ letter: res.data.result.trim() });
+
+    const letter = res.data.result.trim();
+    if (!letter) return err("The agent didn't return a cover letter", "NO_LETTER");
+
+    // Persist so the letter survives closing the sheet (view/copy/download later).
+    // Best-effort: a save failure shouldn't lose the freshly-drafted letter.
+    await authedFetch("/cover-letter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: id, bodyText: letter }),
+    }).catch(() => null);
+
+    return ok({ letter });
+  },
+
+  /**
+   * Fetch the caller's stored cover letter for one job (GET /cover-letter/:jobId).
+   * Returns `{ letter: null }` when none exists yet (server 404).
+   */
+  async getCoverLetter(id: string): Promise<Result<{ letter: string | null }>> {
+    const res = await authedFetch(`/cover-letter/${encodeURIComponent(id)}`, { method: "GET" });
+    if (!res) return err("Could not reach the server", "NETWORK");
+    if (res.status === 401) return err("Session expired", "INVALID_TOKEN");
+    if (res.status === 404) return ok({ letter: null });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) return err(j?.error || "Could not load the cover letter", j?.code);
+    return ok({ letter: (j?.coverLetter?.bodyText ?? null) as string | null });
   },
 
   /**

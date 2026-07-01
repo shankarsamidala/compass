@@ -11,6 +11,8 @@ import { onboardingService } from "../services/onboarding.service";
 import { cvService } from "../services/cv.service";
 import { suggestService } from "../services/suggest.service";
 import { llmService } from "../services/llm.service";
+import { pdfService } from "../services/pdf.service";
+import { applyService } from "../services/apply.service";
 import { documentService } from "../services/document.service";
 import { jobsService } from "../services/jobs.service";
 import { settingsService } from "../services/settings.service";
@@ -70,6 +72,9 @@ export function registerIpcHandlers(): void {
   safeHandle("llm:write-job-description", (company: string, title: string, draft?: string) =>
     llmService.writeJobDescription(company, title, draft),
   );
+  safeHandle("pdf:render", (html: string) => pdfService.render(html));
+  safeHandle("apply:open", (jobUrl: string) => applyService.open(jobUrl));
+  safeHandle("apply:close", () => applyService.close());
 
   // ── Document (local file → text) ──
   safeHandle("document:extract", (fileName: string, bytes: Uint8Array) =>
@@ -99,7 +104,9 @@ export function registerIpcHandlers(): void {
     }),
   );
   safeHandle("jobs:tailor-resume", (id: string) => jobsService.tailorResumeViaAgent(id));
+  safeHandle("jobs:get-tailored-cv", (id: string) => jobsService.getTailoredCv(id));
   safeHandle("jobs:cover-letter", (id: string) => jobsService.coverLetterViaAgent(id));
+  safeHandle("jobs:get-cover-letter", (id: string) => jobsService.getCoverLetter(id));
   safeHandle("jobs:rankings", () => jobsService.listRankings());
   safeHandle("jobs:not-interested", (jobIds: string[]) => jobsService.notInterested(jobIds));
 
@@ -107,6 +114,32 @@ export function registerIpcHandlers(): void {
   safeHandle("artifact:open", async (path: string) => {
     const e = await shell.openPath(path); // returns "" on success, else an error string
     return e ? { ok: false as const, error: e, code: "OPEN_FAILED" } : { ok: true as const, data: {} };
+  });
+
+  // Save a base64 PDF into ~/Downloads (de-colliding the name) and open it.
+  safeHandle("artifact:save-open-pdf", async (base64: string, filename: string) => {
+    const { writeFile } = await import("node:fs/promises");
+    const { existsSync } = await import("node:fs");
+    const { join, extname, basename } = await import("node:path");
+    const { app } = await import("electron");
+
+    const dir = app.getPath("downloads");
+    const safe = (filename || "document.pdf").replace(/[/\\]/g, "_");
+    const ext = extname(safe) || ".pdf";
+    const stem = basename(safe, ext);
+
+    let target = join(dir, `${stem}${ext}`);
+    for (let n = 2; existsSync(target); n++) target = join(dir, `${stem} (${n})${ext}`);
+
+    try {
+      await writeFile(target, Buffer.from(base64, "base64"));
+    } catch (e) {
+      return { ok: false as const, error: e instanceof Error ? e.message : "Save failed", code: "SAVE_FAILED" };
+    }
+    const openErr = await shell.openPath(target);
+    // File saved even if opening fails — surface the path, not an error.
+    if (openErr) return { ok: true as const, data: { path: target } };
+    return { ok: true as const, data: { path: target } };
   });
 
   // ── Settings (app-local) ──

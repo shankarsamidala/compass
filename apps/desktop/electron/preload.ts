@@ -33,6 +33,9 @@ const api: CompassApi = {
     writeJobDescription: (company, title, draft) =>
       ipcRenderer.invoke("llm:write-job-description", company, title, draft),
   },
+  pdf: {
+    render: (html: string) => ipcRenderer.invoke("pdf:render", html),
+  },
   document: {
     extractText: (fileName, bytes) => ipcRenderer.invoke("document:extract", fileName, bytes),
   },
@@ -51,7 +54,9 @@ const api: CompassApi = {
     rankScan: () => ipcRenderer.invoke("jobs:rank-scan"),
     rankSelected: (jobIds: string[]) => ipcRenderer.invoke("jobs:rank-selected", jobIds),
     tailorResume: (id: string) => ipcRenderer.invoke("jobs:tailor-resume", id),
+    getTailoredCv: (id: string) => ipcRenderer.invoke("jobs:get-tailored-cv", id),
     coverLetter: (id: string) => ipcRenderer.invoke("jobs:cover-letter", id),
+    getCoverLetter: (id: string) => ipcRenderer.invoke("jobs:get-cover-letter", id),
     onRankProgress: (cb) => {
       const listener = (_e: unknown, line: string) => cb(line);
       ipcRenderer.on("jobs:rank-progress", listener);
@@ -78,6 +83,8 @@ const api: CompassApi = {
   },
   artifact: {
     open: (path: string) => ipcRenderer.invoke("artifact:open", path),
+    saveAndOpenPdf: (base64: string, filename: string) =>
+      ipcRenderer.invoke("artifact:save-open-pdf", base64, filename),
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
